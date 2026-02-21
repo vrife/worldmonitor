@@ -1,0 +1,11 @@
+{
+  "name": "worldmonitor-relay",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node ../../scripts/ais-relay.cjs"
+  },
+  "dependencies": {
+    "ws": "^8.19.0"
+  }
+}

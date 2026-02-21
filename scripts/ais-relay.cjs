@@ -1064,6 +1064,9 @@ const ALLOWED_ORIGINS = [
   'https://worldmonitor.app',
   'https://tech.worldmonitor.app',
   'https://finance.worldmonitor.app',
+  'https://worldmonitor.io',
+  'https://tech.worldmonitor.io',
+  'https://finance.worldmonitor.io',
   'http://localhost:5173',   // Vite dev
   'http://localhost:5174',   // Vite dev alt port
   'http://localhost:4173',   // Vite preview
