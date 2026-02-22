@@ -1831,6 +1831,7 @@ export class App {
     this.container.innerHTML = `
       <div class="header">
         <div class="header-left">
+          <img src="/djinn-ai-logo.png" alt="Djinn AI" class="djinn-ai-logo" />
           <div class="variant-switcher">
             <a href="${this.isDesktopApp ? '#' : (SITE_VARIANT === 'full' ? '#' : 'https://worldmonitor.io')}"
                class="variant-option ${SITE_VARIANT === 'full' ? 'active' : ''}"

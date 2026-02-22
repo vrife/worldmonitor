@@ -276,6 +276,12 @@ canvas,
   gap: 16px;
 }
 
+.djinn-ai-logo {
+  height: 28px;
+  width: auto;
+  flex-shrink: 0;
+}
+
 /* Variant Switcher */
 .variant-switcher {
   display: flex;
