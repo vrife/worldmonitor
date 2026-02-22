@@ -493,7 +493,7 @@ export class NewsPanel extends Panel {
     const cat = cluster.threat?.category;
     const catLabel = cat && cat !== 'general' ? cat.charAt(0).toUpperCase() + cat.slice(1) : '';
     const threatVarMap: Record<string, string> = { critical: '--threat-critical', high: '--threat-high', medium: '--threat-medium', low: '--threat-low', info: '--threat-info' };
-    const catColor = cat === 'diplomatic'
+    const catColor = cat === 'diplomatic' || cat === 'economic'
       ? getCSSColor('--lighter-blue')
       : cluster.threat ? getCSSColor(threatVarMap[cluster.threat.level] || '--text-dim') : '';
     const categoryBadge = catLabel

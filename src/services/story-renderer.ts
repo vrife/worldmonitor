@@ -30,7 +30,7 @@ function humanizeSignalType(type: string): string {
 }
 
 const LEVEL_COLORS: Record<string, string> = {
-  critical: '#ef4444', high: '#f97316', elevated: '#eab308', normal: '#0DBFE3', low: '#3b82f6',
+  critical: '#ef4444', high: '#f97316', elevated: '#eab308', normal: '#3b82f6', low: '#44aa44',
 };
 const THREAT_COLORS: Record<string, string> = {
   critical: '#ef4444', high: '#f97316', medium: '#eab308', low: '#0DBFE3', info: '#3b82f6',
