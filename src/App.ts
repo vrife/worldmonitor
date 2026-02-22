@@ -3480,7 +3480,7 @@ export class App {
 
     this.allNews = collectedNews;
     this.initialLoadComplete = true;
-    maybeShowDownloadBanner();
+    // maybeShowDownloadBanner();
     mountCommunityWidget();
     // Temporal baseline: report news volume
     updateAndCheck([
