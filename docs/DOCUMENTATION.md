@@ -3302,7 +3302,7 @@ const header = `World Monitor v${__APP_VERSION__}`;
 
 ```bash
 # Clone the repository
-git clone https://github.com/koala73/worldmonitor.git
+git clone https://github.com/vrife/worldmonitor.git
 cd worldmonitor
 
 # Install everything (buf, sebuf plugins, npm deps, proto deps)
@@ -4037,7 +4037,7 @@ MIT
 
 ## Author
 
-**Elie Habib**
+**Vlad Rife** — [GitHub](https://github.com/vrife) · [Twitter](https://x.com/vladrife) · [Djinn AI](https://www.djinnai.co)
 
 ---
 

@@ -19,7 +19,7 @@ Thank you for helping spread the word about World Monitor! This guide provides t
 | [worldmonitor.io](https://worldmonitor.io) | Main dashboard — geopolitics, military, conflicts |
 | [tech.worldmonitor.io](https://tech.worldmonitor.io) | Tech variant — startups, AI/ML, cybersecurity |
 | [finance.worldmonitor.io](https://finance.worldmonitor.io) | Finance variant — markets, exchanges, central banks |
-| [GitHub](https://github.com/koala73/worldmonitor) | Source code (AGPL-3.0) |
+| [GitHub](https://github.com/vrife/worldmonitor) | Source code (AGPL-3.0) |
 
 ---
 
@@ -171,7 +171,7 @@ Run AI summarization entirely on your own hardware — no API keys, no cloud, no
 - **Name**: "World Monitor" (two words, capitalized)
 - **Tagline**: "Real-time global intelligence dashboard"
 - **License**: AGPL-3.0 (free and open source)
-- **Creator**: Credit "World Monitor by Elie Habib" or link to the GitHub repo
+- **Creator**: Credit "World Monitor by Vlad Rife" or link to the GitHub repo
 - **Variants**: You can mention all three (World/Tech/Finance) or focus on the main one
 - **No login required**: Anyone can use the web app immediately — no signup, no paywall
 
