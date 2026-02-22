@@ -14,6 +14,7 @@ import type {
   ConfidenceLevel,
 } from '../../../../src/generated/server/worldmonitor/unrest/v1/service_server';
 
+import { getAcledToken } from '../../../_shared/acled-auth';
 import {
   ACLED_API_URL,
   GDELT_GEO_URL,
@@ -29,7 +30,7 @@ import {
 
 async function fetchAcledProtests(req: ListUnrestEventsRequest): Promise<UnrestEvent[]> {
   try {
-    const token = process.env.ACLED_ACCESS_TOKEN;
+    const token = await getAcledToken();
     if (!token) return []; // Graceful degradation when unconfigured
 
     const now = Date.now();

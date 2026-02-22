@@ -6,8 +6,6 @@
  * filter.  Returns empty array on upstream failure (graceful degradation).
  */
 
-declare const process: { env: Record<string, string | undefined> };
-
 import type {
   ServerContext,
   ListAcledEventsRequest,
@@ -15,11 +13,13 @@ import type {
   AcledConflictEvent,
 } from '../../../../src/generated/server/worldmonitor/conflict/v1/service_server';
 
+import { getAcledToken } from '../../../_shared/acled-auth';
+
 const ACLED_API_URL = 'https://acleddata.com/api/acled/read';
 
 async function fetchAcledConflicts(req: ListAcledEventsRequest): Promise<AcledConflictEvent[]> {
   try {
-    const token = process.env.ACLED_ACCESS_TOKEN;
+    const token = await getAcledToken();
     if (!token) return []; // Graceful degradation when unconfigured
 
     const now = Date.now();

@@ -11,6 +11,7 @@ import type {
 } from '../../../../src/generated/server/worldmonitor/intelligence/v1/service_server';
 
 import { getCachedJson, setCachedJson } from '../../../_shared/redis';
+import { getAcledToken } from '../../../_shared/acled-auth';
 import { UPSTREAM_TIMEOUT_MS, TIER1_COUNTRIES } from './_shared';
 
 // ========================================================================
@@ -70,7 +71,7 @@ interface AcledEvent {
 }
 
 async function fetchACLEDProtests(): Promise<AcledEvent[]> {
-  const token = process.env.ACLED_ACCESS_TOKEN;
+  const token = await getAcledToken();
   const endDate = new Date().toISOString().split('T')[0];
   const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
   const headers: Record<string, string> = { Accept: 'application/json' };
@@ -172,7 +173,7 @@ export async function getRiskScores(
   if (cached) return cached;
 
   try {
-    const protests = process.env.ACLED_ACCESS_TOKEN ? await fetchACLEDProtests() : [];
+    const protests = (process.env.ACLED_EMAIL || process.env.ACLED_ACCESS_TOKEN) ? await fetchACLEDProtests() : [];
     const ciiScores = computeCIIScores(protests);
     const strategicRisks = computeStrategicRisks(ciiScores);
     const result: GetRiskScoresResponse = { ciiScores, strategicRisks };
