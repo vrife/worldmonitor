@@ -9,7 +9,7 @@ function miniSparkline(data: number[] | undefined, change: number | null, w = 50
   const min = Math.min(...data);
   const max = Math.max(...data);
   const range = max - min || 1;
-  const color = change != null && change >= 0 ? 'var(--lighter-blue)' : 'var(--red)';
+  const color = change != null && change >= 0 ? 'var(--green)' : 'var(--red)';
   const points = data.map((v, i) => {
     const x = (i / (data.length - 1)) * w;
     const y = h - ((v - min) / range) * (h - 2) - 1;

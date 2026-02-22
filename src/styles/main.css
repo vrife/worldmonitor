@@ -962,6 +962,7 @@ canvas,
   color: var(--text);
 }
 
+
 .panel-count {
   font-size: 10px;
   color: var(--text-dim);
@@ -4162,7 +4163,7 @@ body.playback-mode .status-dot {
 }
 
 .sector-change.up {
-  color: var(--lighter-blue);
+  color: var(--green);
 }
 
 .sector-change.down {
@@ -4223,7 +4224,7 @@ body.playback-mode .status-dot {
 }
 
 .market-change.up {
-  color: var(--lighter-blue);
+  color: var(--green);
 }
 
 .market-change.down {
@@ -4260,7 +4261,7 @@ body.playback-mode .status-dot {
 }
 
 .commodity-change.up {
-  color: var(--lighter-blue);
+  color: var(--green);
 }
 
 .commodity-change.down {
@@ -6431,7 +6432,7 @@ a.prediction-link:hover {
 }
 
 .indicator-value .change.positive {
-  color: var(--lighter-blue);
+  color: var(--green);
 }
 
 .indicator-value .change.negative {
@@ -13019,7 +13020,7 @@ body.has-critical-banner .panels-grid {
 }
 
 .etf-summary-value.flow-inflow {
-  color: var(--semantic-normal);
+  color: var(--green);
 }
 
 .etf-summary-value.flow-outflow {
@@ -13062,7 +13063,7 @@ body.has-critical-banner .panels-grid {
 }
 
 .etf-flow.flow-inflow {
-  color: var(--semantic-normal);
+  color: var(--green);
 }
 
 .etf-flow.flow-outflow {
@@ -13238,7 +13239,7 @@ body.has-critical-banner .panels-grid {
 
 /* Shared change classes for new panels */
 .change-positive {
-  color: var(--semantic-normal);
+  color: var(--green);
 }
 
 .change-negative {
