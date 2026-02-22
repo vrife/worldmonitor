@@ -102,7 +102,7 @@ Indexed by `normalizedEmail` for duplicate detection.
 
 - `api/_api-key.js` validates `X-WorldMonitor-Key` header on sebuf routes
 - **Origin-aware**: desktop origins (`tauri.localhost`, `tauri://`, `asset://`) require a key
-- Web origins (`worldmonitor.app`) pass through without a key
+- Web origins (`worldmonitor.io`) pass through without a key
 - Non-desktop origin with key header: key is still validated
 - Invalid key returns `401 { error: "Invalid API key" }`
 

@@ -16,9 +16,9 @@ Thank you for helping spread the word about World Monitor! This guide provides t
 
 | Link | Description |
 |------|-------------|
-| [worldmonitor.app](https://worldmonitor.app) | Main dashboard — geopolitics, military, conflicts |
-| [tech.worldmonitor.app](https://tech.worldmonitor.app) | Tech variant — startups, AI/ML, cybersecurity |
-| [finance.worldmonitor.app](https://finance.worldmonitor.app) | Finance variant — markets, exchanges, central banks |
+| [worldmonitor.io](https://worldmonitor.io) | Main dashboard — geopolitics, military, conflicts |
+| [tech.worldmonitor.io](https://tech.worldmonitor.io) | Tech variant — startups, AI/ML, cybersecurity |
+| [finance.worldmonitor.io](https://finance.worldmonitor.io) | Finance variant — markets, exchanges, central banks |
 | [GitHub](https://github.com/koala73/worldmonitor) | Source code (AGPL-3.0) |
 
 ---
