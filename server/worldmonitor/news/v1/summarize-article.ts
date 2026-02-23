@@ -12,6 +12,7 @@ import {
   getProviderCredentials,
   getCacheKey,
 } from './_shared';
+import { CHROME_UA } from '../../../_shared/constants';
 
 // ======================================================================
 // SummarizeArticle: Multi-provider LLM summarization with Redis caching
@@ -107,7 +108,7 @@ export async function summarizeArticle(
     // LLM call
     const response = await fetch(apiUrl, {
       method: 'POST',
-      headers: providerHeaders,
+      headers: { ...providerHeaders, 'User-Agent': CHROME_UA },
       body: JSON.stringify({
         model,
         messages: [

@@ -296,7 +296,7 @@ import {
   type ClassifyEventResponse,
 } from '@/generated/client/worldmonitor/intelligence/v1/service_client';
 
-const classifyClient = new IntelligenceServiceClient('', { fetch: fetch.bind(globalThis) });
+const classifyClient = new IntelligenceServiceClient('', { fetch: (...args) => globalThis.fetch(...args) });
 
 const VALID_LEVELS: Record<string, ThreatLevel> = {
   critical: 'critical', high: 'high', medium: 'medium', low: 'low', info: 'info',

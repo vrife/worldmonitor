@@ -10,6 +10,12 @@ import type {
   WorldBankCountryData,
 } from '../../../../src/generated/server/worldmonitor/economic/v1/service_server';
 
+import { CHROME_UA } from '../../../_shared/constants';
+import { getCachedJson, setCachedJson } from '../../../_shared/redis';
+
+const REDIS_CACHE_KEY = 'economic:worldbank:v1';
+const REDIS_CACHE_TTL = 86400; // 24 hr — annual data
+
 const TECH_COUNTRIES = [
   'USA', 'CHN', 'JPN', 'DEU', 'KOR', 'GBR', 'IND', 'ISR', 'SGP', 'TWN',
   'FRA', 'CAN', 'SWE', 'NLD', 'CHE', 'FIN', 'IRL', 'AUS', 'BRA', 'IDN',
@@ -37,7 +43,7 @@ async function fetchWorldBankIndicators(
     const response = await fetch(wbUrl, {
       headers: {
         Accept: 'application/json',
-        'User-Agent': 'Mozilla/5.0 (compatible; WorldMonitor/1.0; +https://worldmonitor.io)',
+        'User-Agent': CHROME_UA,
       },
       signal: AbortSignal.timeout(15000),
     });
@@ -70,8 +76,16 @@ export async function listWorldBankIndicators(
   req: ListWorldBankIndicatorsRequest,
 ): Promise<ListWorldBankIndicatorsResponse> {
   try {
+    const cacheKey = `${REDIS_CACHE_KEY}:${req.indicatorCode}:${req.countryCode || 'all'}:${req.year || 0}`;
+    const cached = (await getCachedJson(cacheKey)) as ListWorldBankIndicatorsResponse | null;
+    if (cached?.data?.length) return cached;
+
     const data = await fetchWorldBankIndicators(req);
-    return { data, pagination: undefined };
+    const result: ListWorldBankIndicatorsResponse = { data, pagination: undefined };
+    if (data.length > 0) {
+      setCachedJson(cacheKey, result, REDIS_CACHE_TTL).catch(() => {});
+    }
+    return result;
   } catch {
     return { data: [], pagination: undefined };
   }

@@ -9,6 +9,7 @@ import type {
 
 import { getCachedJson, setCachedJson } from '../../../_shared/redis';
 import { UPSTREAM_TIMEOUT_MS, GROQ_API_URL, GROQ_MODEL, hashString } from './_shared';
+import { CHROME_UA } from '../../../_shared/constants';
 
 // ========================================================================
 // Constants
@@ -75,7 +76,7 @@ Return: {"level":"...","category":"..."}`;
 
     const resp = await fetch(GROQ_API_URL, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', 'User-Agent': CHROME_UA },
       body: JSON.stringify({
         model: GROQ_MODEL,
         messages: [

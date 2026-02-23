@@ -1068,7 +1068,19 @@
       "retry": "Retry",
       "notLive": "{{name}} is not currently live",
       "cannotEmbed": "{{name}} cannot be embedded in this app (YouTube {{code}})",
-      "openOnYouTube": "Open on YouTube"
+      "openOnYouTube": "Open on YouTube",
+      "manage": "Kanalen beheren",
+      "addChannel": "Kanaal toevoegen",
+      "remove": "Verwijderen",
+      "youtubeHandle": "YouTube-handle (bijv. @Channel)",
+      "displayName": "Weergavenaam (optioneel)",
+      "openPanelSettings": "Paneelweergave-instellingen",
+      "channelSettings": "Kanaalinstellingen",
+      "save": "Opslaan",
+      "cancel": "Annuleren",
+      "confirmDelete": "Dit kanaal verwijderen?",
+      "confirmTitle": "Bevestigen",
+      "restoreDefaults": "Standaardkanalen herstellen"
     }
   },
   "popups": {
@@ -1200,6 +1212,9 @@
       "repairStatus": {
         "onStation": "Op station",
         "enRoute": "Onderweg"
+      },
+      "health": {
+        "evidence": "GEZONDHEIDSBEWIJS"
       },
       "description": "Onderzeese telecommunicatiekabel voor internationaal internetverkeer. Deze glasvezelkabels vormen de ruggengraat van de wereldwijde internetconnectiviteit en verzenden meer dan 95% van de intercontinentale gegevens."
     },
@@ -1652,6 +1667,7 @@
     "loading": "Laden...",
     "error": "Er is een fout opgetreden",
     "updated": "Bijgewerkt: {{time}}",
+    "retrying": "Opnieuw proberen...",
     "failedToLoad": "Laden van gegevens mislukt",
     "noDataShort": "Geen gegevens",
     "noDataAvailable": "Geen gegevens beschikbaar",

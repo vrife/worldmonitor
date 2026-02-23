@@ -13,6 +13,7 @@ import type {
 import { getCachedJson, setCachedJson } from '../../../_shared/redis';
 import { getAcledToken } from '../../../_shared/acled-auth';
 import { UPSTREAM_TIMEOUT_MS, TIER1_COUNTRIES } from './_shared';
+import { CHROME_UA } from '../../../_shared/constants';
 
 // ========================================================================
 // Country risk baselines and multipliers
@@ -74,7 +75,7 @@ async function fetchACLEDProtests(): Promise<AcledEvent[]> {
   const token = await getAcledToken();
   const endDate = new Date().toISOString().split('T')[0];
   const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-  const headers: Record<string, string> = { Accept: 'application/json' };
+  const headers: Record<string, string> = { Accept: 'application/json', 'User-Agent': CHROME_UA };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
   const resp = await fetch(

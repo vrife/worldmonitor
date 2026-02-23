@@ -11,7 +11,7 @@ import {
 
 // ---- Sebuf client ----
 
-const client = new IntelligenceServiceClient('', { fetch: fetch.bind(globalThis) });
+const client = new IntelligenceServiceClient('', { fetch: (...args) => globalThis.fetch(...args) });
 
 // ---- Circuit breakers ----
 

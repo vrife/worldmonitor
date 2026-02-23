@@ -16,6 +16,7 @@ import {
   UPSTREAM_TIMEOUT_MS,
   type RawFlight,
 } from './_shared';
+import { CHROME_UA } from '../../../_shared/constants';
 
 const CACHE_KEY = 'theater-posture:sebuf:v1';
 const STALE_CACHE_KEY = 'theater-posture:sebuf:stale:v1';
@@ -37,7 +38,7 @@ async function fetchMilitaryFlightsFromOpenSky(): Promise<RawFlight[]> {
   if (!baseUrl) return [];
 
   const resp = await fetch(baseUrl, {
-    headers: { Accept: 'application/json', 'User-Agent': 'Mozilla/5.0 WorldMonitor/1.0' },
+    headers: { Accept: 'application/json', 'User-Agent': CHROME_UA },
     signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
   });
   if (!resp.ok) throw new Error(`OpenSky API error: ${resp.status}`);
@@ -83,7 +84,7 @@ async function fetchMilitaryFlightsFromWingbits(): Promise<RawFlight[] | null> {
   try {
     const resp = await fetch('https://customer-api.wingbits.com/v1/flights', {
       method: 'POST',
-      headers: { 'x-api-key': apiKey, Accept: 'application/json', 'Content-Type': 'application/json' },
+      headers: { 'x-api-key': apiKey, Accept: 'application/json', 'Content-Type': 'application/json', 'User-Agent': CHROME_UA },
       body: JSON.stringify(areas),
       signal: AbortSignal.timeout(15_000),
     });

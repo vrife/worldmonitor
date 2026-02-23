@@ -18,17 +18,26 @@ import {
   determineSeverity,
   generateSimulatedDelay,
 } from './_shared';
+import { CHROME_UA } from '../../../_shared/constants';
+import { getCachedJson, setCachedJson } from '../../../_shared/redis';
+
+const REDIS_CACHE_KEY = 'aviation:delays:v1';
+const REDIS_CACHE_TTL = 1800; // 30 min — FAA updates infrequently
 
 export async function listAirportDelays(
   _ctx: ServerContext,
   _req: ListAirportDelaysRequest,
 ): Promise<ListAirportDelaysResponse> {
   try {
+    // Redis shared cache
+    const cached = (await getCachedJson(REDIS_CACHE_KEY)) as ListAirportDelaysResponse | null;
+    if (cached?.alerts?.length) return cached;
+
     const alerts: AirportDelayAlert[] = [];
 
     // 1. Fetch and parse FAA XML
     const faaResponse = await fetch(FAA_URL, {
-      headers: { Accept: 'application/xml' },
+      headers: { Accept: 'application/xml', 'User-Agent': CHROME_UA },
       signal: AbortSignal.timeout(15_000),
     });
 
@@ -76,7 +85,11 @@ export async function listAirportDelays(
       }
     }
 
-    return { alerts };
+    const result: ListAirportDelaysResponse = { alerts };
+    if (alerts.length > 0) {
+      setCachedJson(REDIS_CACHE_KEY, result, REDIS_CACHE_TTL).catch(() => {});
+    }
+    return result;
   } catch {
     // Graceful empty response on ANY failure (established pattern from 2F-01)
     return { alerts: [] };

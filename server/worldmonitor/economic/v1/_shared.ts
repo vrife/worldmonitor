@@ -2,15 +2,18 @@
  * Shared helpers for the economic domain RPCs.
  */
 
+import { CHROME_UA, yahooGate } from '../../../_shared/constants';
+
 /**
  * Fetch JSON from a URL with a configurable timeout.
  * Rejects on non-2xx status.
  */
 export async function fetchJSON(url: string, timeout = 8000): Promise<any> {
+  if (url.includes('yahoo.com')) await yahooGate();
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
   try {
-    const res = await fetch(url, { signal: controller.signal });
+    const res = await fetch(url, { headers: { 'User-Agent': CHROME_UA }, signal: controller.signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } finally {

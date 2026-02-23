@@ -2,6 +2,30 @@
 
 All notable changes to World Monitor are documented here.
 
+## [2.5.6] - 2026-02-23
+
+### Added
+
+- **Greek (Ελληνικά) locale** — full translation of all 1,397 i18n keys (#256)
+- **Nigeria RSS feeds** — 5 new sources: Premium Times, Vanguard, Channels TV, Daily Trust, ThisDay Live
+- **Greek locale feeds** — Naftemporiki, in.gr, iefimerida.gr for Greek-language news coverage
+- **Brasil Paralelo source** — Brazilian news with RSS feed and source tier (#260)
+
+### Performance
+
+- **AIS relay optimization** — backpressure queue with configurable watermarks, spatial indexing for chokepoint detection (O(chokepoints) vs O(chokepoints × vessels)), pre-serialized + pre-gzipped snapshot cache eliminating per-request JSON.stringify + gzip CPU (#266)
+
+### Fixed
+
+- **Vietnam flag country code** — corrected flag emoji in language selector (#245)
+- **Sentry noise filters** — added patterns for SW FetchEvent, PostHog ingest; enabled SW POST method for PostHog analytics (#246)
+- **Service Worker same-origin routing** — restricted SW route patterns to same-origin only, preventing cross-origin fetch interception (#247, #251)
+- **Social preview bot allowlisting** — whitelisted Twitterbot, facebookexternalhit, and other crawlers on OG image assets (#251)
+- **Windows CORS for Tauri** — allow `http://` origin from `tauri.localhost` for Windows desktop builds (#262)
+- **Linux AppImage GLib crash** — fix GLib symbol mismatch on newer distros by bundling compatible libraries (#263)
+
+---
+
 ## [2.5.2] - 2026-02-21
 
 ### Fixed

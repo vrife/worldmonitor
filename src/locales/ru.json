@@ -1160,7 +1160,19 @@
       "retry": "Retry",
       "notLive": "{{name}} is not currently live",
       "cannotEmbed": "{{name}} cannot be embedded in this app (YouTube {{code}})",
-      "openOnYouTube": "Open on YouTube"
+      "openOnYouTube": "Open on YouTube",
+      "manage": "Управление каналами",
+      "addChannel": "Добавить канал",
+      "remove": "Удалить",
+      "youtubeHandle": "YouTube- handle (напр. @Channel)",
+      "displayName": "Отображаемое имя (необяз.)",
+      "openPanelSettings": "Настройки отображения панели",
+      "channelSettings": "Настройки канала",
+      "save": "Сохранить",
+      "cancel": "Отмена",
+      "confirmDelete": "Удалить этот канал?",
+      "confirmTitle": "Подтверждение",
+      "restoreDefaults": "Восстановить каналы по умолчанию"
     }
   },
   "popups": {
@@ -1293,6 +1305,9 @@
       "repairStatus": {
         "onStation": "На позиции",
         "enRoute": "В пути"
+      },
+      "health": {
+        "evidence": "ДАННЫЕ О СОСТОЯНИИ"
       },
       "description": "Подводный телекоммуникационный кабель, обеспечивающий международный интернет-трафик. Эти волоконно-оптические кабели составляют основу глобальной интернет-связи, передавая более 95% межконтинентальных данных."
     },
@@ -1747,6 +1762,7 @@
     "noDataAvailable": "Данные недоступны",
     "updated": "Обновлено только что",
     "ago": "{{time}} назад",
+    "retrying": "Повторная попытка...",
     "failedToLoad": "Не удалось загрузить данные",
     "noDataShort": "Нет данных",
     "upstreamUnavailable": "Внешний API недоступен — автоматическая повторная попытка",

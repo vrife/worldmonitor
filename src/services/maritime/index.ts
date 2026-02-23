@@ -11,7 +11,7 @@ import { isFeatureAvailable } from '../runtime-config';
 
 // ---- Proto fallback (desktop safety when relay URL is unavailable) ----
 
-const client = new MaritimeServiceClient('', { fetch: fetch.bind(globalThis) });
+const client = new MaritimeServiceClient('', { fetch: (...args) => globalThis.fetch(...args) });
 const snapshotBreaker = createCircuitBreaker<GetVesselSnapshotResponse>({ name: 'Maritime Snapshot' });
 const emptySnapshotFallback: GetVesselSnapshotResponse = { snapshot: undefined };
 
@@ -127,8 +127,8 @@ let latestStatus: SnapshotStatus = {
 
 // ---- Constants ----
 
-const SNAPSHOT_POLL_INTERVAL_MS = 10 * 1000;
-const SNAPSHOT_STALE_MS = 20 * 1000;
+const SNAPSHOT_POLL_INTERVAL_MS = 30 * 1000;
+const SNAPSHOT_STALE_MS = 45 * 1000;
 const CALLBACK_RETENTION_MS = 2 * 60 * 60 * 1000; // 2 hours
 const MAX_CALLBACK_TRACKED_VESSELS = 20000;
 

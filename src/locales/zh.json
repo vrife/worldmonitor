@@ -1160,7 +1160,19 @@
       "retry": "Retry",
       "notLive": "{{name}} is not currently live",
       "cannotEmbed": "{{name}} cannot be embedded in this app (YouTube {{code}})",
-      "openOnYouTube": "Open on YouTube"
+      "openOnYouTube": "Open on YouTube",
+      "manage": "管理频道",
+      "addChannel": "添加频道",
+      "remove": "删除",
+      "youtubeHandle": "YouTube 句柄（如 @Channel）",
+      "displayName": "显示名称（可选）",
+      "openPanelSettings": "面板显示设置",
+      "channelSettings": "频道设置",
+      "save": "保存",
+      "cancel": "取消",
+      "confirmDelete": "确定要删除此频道吗？",
+      "confirmTitle": "确认",
+      "restoreDefaults": "恢复默认频道"
     }
   },
   "popups": {
@@ -1293,6 +1305,9 @@
       "repairStatus": {
         "onStation": "已到位",
         "enRoute": "在途中"
+      },
+      "health": {
+        "evidence": "健康状态证据"
       },
       "description": "承载国际互联网流量的海底电信电缆。这些光纤电缆构成了全球互联网连接的骨干，传输超过95%的洲际数据。"
     },
@@ -1747,6 +1762,7 @@
     "noDataAvailable": "无可用数据",
     "updated": "刚刚更新",
     "ago": "{{time}}前",
+    "retrying": "正在重试...",
     "failedToLoad": "加载数据失败",
     "noDataShort": "无数据",
     "upstreamUnavailable": "上游API不可用 — 将自动重试",

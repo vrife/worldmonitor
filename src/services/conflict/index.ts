@@ -12,7 +12,7 @@ import { createCircuitBreaker } from '@/utils';
 
 // ---- Client + Circuit Breakers (3 separate breakers for 3 RPCs) ----
 
-const client = new ConflictServiceClient('', { fetch: fetch.bind(globalThis) });
+const client = new ConflictServiceClient('', { fetch: (...args) => globalThis.fetch(...args) });
 const acledBreaker = createCircuitBreaker<ListAcledEventsResponse>({ name: 'ACLED Conflicts' });
 const ucdpBreaker = createCircuitBreaker<ListUcdpEventsResponse>({ name: 'UCDP Events' });
 const hapiBreaker = createCircuitBreaker<GetHumanitarianSummaryResponse>({ name: 'HDX HAPI' });
@@ -263,6 +263,9 @@ export async function fetchUcdpClassifications(): Promise<Map<string, UcdpConfli
     return client.listUcdpEvents({ country: '' });
   }, emptyUcdpFallback);
 
+  // Don't let the breaker cache empty responses — clear so next call retries
+  if (resp.events.length === 0) ucdpBreaker.clearCache();
+
   return deriveUcdpClassifications(resp.events);
 }
 
@@ -301,10 +304,13 @@ export async function fetchUcdpEvents(): Promise<UcdpEventsResponse> {
     return client.listUcdpEvents({ country: '' });
   }, emptyUcdpFallback);
 
+  // Don't let the breaker cache empty responses — clear so next call retries
+  if (resp.events.length === 0) ucdpBreaker.clearCache();
+
   const events = resp.events.map(toUcdpGeoEvent);
 
   return {
-    success: true,
+    success: events.length > 0,
     count: events.length,
     data: events,
     cached_at: '',

@@ -25,6 +25,11 @@ import {
   deduplicateEvents,
   sortBySeverityAndRecency,
 } from './_shared';
+import { CHROME_UA } from '../../../_shared/constants';
+import { getCachedJson, setCachedJson } from '../../../_shared/redis';
+
+const REDIS_CACHE_KEY = 'unrest:events:v1';
+const REDIS_CACHE_TTL = 900; // 15 min — ACLED + GDELT merge
 
 // ---------- ACLED Fetch (ported from api/acled.js + src/services/protests.ts) ----------
 
@@ -55,6 +60,7 @@ async function fetchAcledProtests(req: ListUnrestEventsRequest): Promise<UnrestE
       headers: {
         Accept: 'application/json',
         Authorization: `Bearer ${token}`,
+        'User-Agent': CHROME_UA,
       },
       signal: AbortSignal.timeout(15000),
     });
@@ -118,7 +124,7 @@ async function fetchGdeltEvents(): Promise<UnrestEvent[]> {
     });
 
     const response = await fetch(`${GDELT_GEO_URL}?${params}`, {
-      headers: { Accept: 'application/json' },
+      headers: { Accept: 'application/json', 'User-Agent': CHROME_UA },
       signal: AbortSignal.timeout(10000),
     });
 
@@ -188,13 +194,21 @@ export async function listUnrestEvents(
   req: ListUnrestEventsRequest,
 ): Promise<ListUnrestEventsResponse> {
   try {
+    const cacheKey = `${REDIS_CACHE_KEY}:${req.country || 'all'}:${req.timeRange?.start || 0}:${req.timeRange?.end || 0}`;
+    const cached = (await getCachedJson(cacheKey)) as ListUnrestEventsResponse | null;
+    if (cached?.events?.length) return cached;
+
     const [acledEvents, gdeltEvents] = await Promise.all([
       fetchAcledProtests(req),
       fetchGdeltEvents(),
     ]);
     const merged = deduplicateEvents([...acledEvents, ...gdeltEvents]);
     const sorted = sortBySeverityAndRecency(merged);
-    return { events: sorted, clusters: [], pagination: undefined };
+    const result: ListUnrestEventsResponse = { events: sorted, clusters: [], pagination: undefined };
+    if (sorted.length > 0) {
+      setCachedJson(cacheKey, result, REDIS_CACHE_TTL).catch(() => {});
+    }
+    return result;
   } catch {
     return { events: [], clusters: [], pagination: undefined };
   }

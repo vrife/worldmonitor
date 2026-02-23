@@ -14,6 +14,7 @@ import type {
   UcdpViolenceType,
 } from '../../../../src/generated/server/worldmonitor/conflict/v1/service_server';
 import { getCachedJson, setCachedJson } from '../../../_shared/redis';
+import { CHROME_UA } from '../../../_shared/constants';
 
 const UCDP_PAGE_SIZE = 1000;
 const MAX_PAGES = 12;
@@ -58,12 +59,21 @@ function buildVersionCandidates(): string[] {
   return Array.from(new Set([`${year}.1`, `${year - 1}.1`, '25.1', '24.1']));
 }
 
+// Negative cache: prevent hammering UCDP when it's down
+let lastFailureTimestamp = 0;
+const NEGATIVE_CACHE_MS = 60 * 1000; // 60 seconds backoff after failure
+
+// Discovered version cache: avoid re-probing every request
+let discoveredVersion: string | null = null;
+let discoveredVersionTimestamp = 0;
+const VERSION_CACHE_MS = 60 * 60 * 1000; // 1 hour
+
 async function fetchGedPage(version: string, page: number): Promise<any> {
   const response = await fetch(
     `https://ucdpapi.pcr.uu.se/api/gedevents/${version}?pagesize=${UCDP_PAGE_SIZE}&page=${page}`,
     {
-      headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(8000),
+      headers: { Accept: 'application/json', 'User-Agent': CHROME_UA },
+      signal: AbortSignal.timeout(15000),
     },
   );
   if (!response.ok) {
@@ -73,21 +83,43 @@ async function fetchGedPage(version: string, page: number): Promise<any> {
 }
 
 async function discoverGedVersion(): Promise<{ version: string; page0: any }> {
+  // Use cached version if still valid
+  if (discoveredVersion && (Date.now() - discoveredVersionTimestamp) < VERSION_CACHE_MS) {
+    const page0 = await fetchGedPage(discoveredVersion, 0);
+    if (Array.isArray(page0?.Result)) {
+      return { version: discoveredVersion, page0 };
+    }
+    discoveredVersion = null; // Cached version no longer works
+  }
+
+  // Probe all candidates in parallel instead of sequentially
   const candidates = buildVersionCandidates();
-  for (const version of candidates) {
-    try {
+  const results = await Promise.allSettled(
+    candidates.map(async (version) => {
       const page0 = await fetchGedPage(version, 0);
-      if (Array.isArray(page0?.Result)) {
-        return { version, page0 };
-      }
-    } catch {
-      // Try the next version candidate.
+      if (!Array.isArray(page0?.Result)) throw new Error('No results');
+      return { version, page0 };
+    }),
+  );
+
+  for (const result of results) {
+    if (result.status === 'fulfilled') {
+      discoveredVersion = result.value.version;
+      discoveredVersionTimestamp = Date.now();
+      return result.value;
     }
   }
-  throw new Error('Unable to discover UCDP GED API version');
+
+  throw new Error('No valid UCDP GED version found');
 }
 
 async function fetchUcdpGedEvents(req: ListUcdpEventsRequest): Promise<UcdpViolenceEvent[]> {
+  // Negative cache: skip fetch if UCDP failed recently
+  if (lastFailureTimestamp && (Date.now() - lastFailureTimestamp) < NEGATIVE_CACHE_MS) {
+    if (fallbackCache.data) return fallbackCache.data;
+    return [];
+  }
+
   try {
     const { version, page0 } = await discoverGedVersion();
     const totalPages = Math.max(1, Number(page0?.TotalPages) || 1);
@@ -159,13 +191,21 @@ async function fetchUcdpGedEvents(req: ListUcdpEventsRequest): Promise<UcdpViole
     // Sort by dateStart descending (newest first)
     mapped.sort((a, b) => b.dateStart - a.dateStart);
 
+    // Success: clear negative cache
+    lastFailureTimestamp = 0;
+
     // Cache with TTL based on completeness (ported from main #198)
+    // Only cache non-empty results to avoid serving stale empty data for hours
     const ttl = isPartial ? CACHE_TTL_PARTIAL : CACHE_TTL_FULL;
-    await setCachedJson(CACHE_KEY, mapped, ttl).catch(() => {});
-    fallbackCache = { data: mapped, timestamp: Date.now(), ttlMs: ttl * 1000 };
+    if (mapped.length > 0) {
+      await setCachedJson(CACHE_KEY, mapped, ttl).catch(() => {});
+      fallbackCache = { data: mapped, timestamp: Date.now(), ttlMs: ttl * 1000 };
+    }
 
     return mapped;
   } catch {
+    lastFailureTimestamp = Date.now();
+    if (fallbackCache.data) return fallbackCache.data;
     return [];
   }
 }

@@ -5,6 +5,12 @@ import type {
   NavigationalWarning,
 } from '../../../../src/generated/server/worldmonitor/maritime/v1/service_server';
 
+import { CHROME_UA } from '../../../_shared/constants';
+import { getCachedJson, setCachedJson } from '../../../_shared/redis';
+
+const REDIS_CACHE_KEY = 'maritime:navwarnings:v1';
+const REDIS_CACHE_TTL = 3600; // 1 hr — NGA broadcasts update daily
+
 // ========================================================================
 // Helpers
 // ========================================================================
@@ -31,7 +37,7 @@ function parseNgaDate(dateStr: unknown): number {
 async function fetchNgaWarnings(area?: string): Promise<NavigationalWarning[]> {
   try {
     const response = await fetch(NGA_WARNINGS_URL, {
-      headers: { Accept: 'application/json' },
+      headers: { Accept: 'application/json', 'User-Agent': CHROME_UA },
       signal: AbortSignal.timeout(15000),
     });
 
@@ -75,8 +81,16 @@ export async function listNavigationalWarnings(
   req: ListNavigationalWarningsRequest,
 ): Promise<ListNavigationalWarningsResponse> {
   try {
+    const cacheKey = `${REDIS_CACHE_KEY}:${req.area || 'all'}`;
+    const cached = (await getCachedJson(cacheKey)) as ListNavigationalWarningsResponse | null;
+    if (cached?.warnings?.length) return cached;
+
     const warnings = await fetchNgaWarnings(req.area);
-    return { warnings, pagination: undefined };
+    const result: ListNavigationalWarningsResponse = { warnings, pagination: undefined };
+    if (warnings.length > 0) {
+      setCachedJson(cacheKey, result, REDIS_CACHE_TTL).catch(() => {});
+    }
+    return result;
   } catch {
     return { warnings: [], pagination: undefined };
   }

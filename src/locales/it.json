@@ -1160,7 +1160,19 @@
       "retry": "Retry",
       "notLive": "{{name}} is not currently live",
       "cannotEmbed": "{{name}} cannot be embedded in this app (YouTube {{code}})",
-      "openOnYouTube": "Open on YouTube"
+      "openOnYouTube": "Open on YouTube",
+      "manage": "Gestisci canali",
+      "addChannel": "Aggiungi canale",
+      "remove": "Rimuovi",
+      "youtubeHandle": "Handle YouTube (es. @Channel)",
+      "displayName": "Nome visualizzato (opzionale)",
+      "openPanelSettings": "Impostazioni visualizzazione pannello",
+      "channelSettings": "Impostazioni canale",
+      "save": "Salva",
+      "cancel": "Annulla",
+      "confirmDelete": "Eliminare questo canale?",
+      "confirmTitle": "Conferma",
+      "restoreDefaults": "Ripristina canali predefiniti"
     }
   },
   "popups": {
@@ -1292,6 +1304,9 @@
       "repairStatus": {
         "onStation": "Sulla stazione",
         "enRoute": "In viaggio"
+      },
+      "health": {
+        "evidence": "EVIDENZE DI STATO"
       },
       "description": "Cavo sottomarino per telecomunicazioni che trasporta traffico Internet internazionale. Questi cavi in ​​fibra ottica costituiscono la spina dorsale della connettività Internet globale, trasmettendo oltre il 95% dei dati intercontinentali."
     },
@@ -1746,6 +1761,7 @@
     "noData": "Nessun dato disponibile",
     "updated": "Aggiornato ora",
     "ago": "{{time}} fa",
+    "retrying": "Nuovo tentativo...",
     "failedToLoad": "Errore nel caricamento dei dati",
     "noDataShort": "Nessun dato",
     "noDataAvailable": "Nessun dato disponibile",

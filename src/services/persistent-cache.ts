@@ -127,6 +127,40 @@ export async function setPersistentCache<T>(key: string, data: T): Promise<void>
   }
 }
 
+export async function deletePersistentCache(key: string): Promise<void> {
+  if (isDesktopRuntime()) {
+    try {
+      await invokeTauri<void>('delete_cache_entry', { key });
+      return;
+    } catch {
+      // Fall through to browser storage
+    }
+  }
+
+  if (isIndexedDbAvailable()) {
+    try {
+      const db = await getCacheDb();
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(CACHE_STORE, 'readwrite');
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.objectStore(CACHE_STORE).delete(key);
+      });
+      return;
+    } catch (error) {
+      console.warn('[persistent-cache] IndexedDB delete failed; falling back to localStorage', error);
+      cacheDbPromise = null;
+    }
+  }
+
+  if (isStorageQuotaExceeded()) return;
+  try {
+    localStorage.removeItem(`${CACHE_PREFIX}${key}`);
+  } catch {
+    // Ignore
+  }
+}
+
 export function cacheAgeMs(updatedAt: number): number {
   return Math.max(0, Date.now() - updatedAt);
 }

@@ -17,6 +17,12 @@ import type {
   ClimateAnomaly,
 } from '../../../../src/generated/server/worldmonitor/climate/v1/service_server';
 
+import { CHROME_UA } from '../../../_shared/constants';
+import { getCachedJson, setCachedJson } from '../../../_shared/redis';
+
+const REDIS_CACHE_KEY = 'climate:anomalies:v1';
+const REDIS_CACHE_TTL = 1800; // 30 min — daily archive data, slow-moving
+
 /** The 15 monitored zones matching the legacy api/climate-anomalies.js list. */
 const ZONES: { name: string; lat: number; lon: number }[] = [
   { name: 'Ukraine', lat: 48.4, lon: 31.2 },
@@ -85,7 +91,7 @@ async function fetchZone(
 ): Promise<ClimateAnomaly | null> {
   const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${zone.lat}&longitude=${zone.lon}&start_date=${startDate}&end_date=${endDate}&daily=temperature_2m_mean,precipitation_sum&timezone=UTC`;
 
-  const response = await fetch(url, { signal: AbortSignal.timeout(20_000) });
+  const response = await fetch(url, { headers: { 'User-Agent': CHROME_UA }, signal: AbortSignal.timeout(20_000) });
   if (!response.ok) {
     throw new Error(`Open-Meteo ${response.status} for ${zone.name}`);
   }
@@ -133,6 +139,10 @@ export const listClimateAnomalies: ClimateServiceHandler['listClimateAnomalies']
   _ctx: ServerContext,
   _req: ListClimateAnomaliesRequest,
 ): Promise<ListClimateAnomaliesResponse> => {
+  // Redis shared cache
+  const cached = (await getCachedJson(REDIS_CACHE_KEY)) as ListClimateAnomaliesResponse | null;
+  if (cached?.anomalies?.length) return cached;
+
   // Compute 30-day date range
   const endDate = new Date().toISOString().slice(0, 10);
   const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
@@ -156,5 +166,9 @@ export const listClimateAnomalies: ClimateServiceHandler['listClimateAnomalies']
     }
   }
 
-  return { anomalies, pagination: undefined };
+  const result: ListClimateAnomaliesResponse = { anomalies, pagination: undefined };
+  if (anomalies.length > 0) {
+    setCachedJson(REDIS_CACHE_KEY, result, REDIS_CACHE_TTL).catch(() => {});
+  }
+  return result;
 };

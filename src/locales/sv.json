@@ -1068,7 +1068,19 @@
       "retry": "Retry",
       "notLive": "{{name}} is not currently live",
       "cannotEmbed": "{{name}} cannot be embedded in this app (YouTube {{code}})",
-      "openOnYouTube": "Open on YouTube"
+      "openOnYouTube": "Open on YouTube",
+      "manage": "Hantera kanaler",
+      "addChannel": "Lägg till kanal",
+      "remove": "Ta bort",
+      "youtubeHandle": "YouTube-handtag (t.ex. @Channel)",
+      "displayName": "Visningsnamn (valfritt)",
+      "openPanelSettings": "Panelvisningsinställningar",
+      "channelSettings": "Kanalinställningar",
+      "save": "Spara",
+      "cancel": "Avbryt",
+      "confirmDelete": "Ta bort denna kanal?",
+      "confirmTitle": "Bekräfta",
+      "restoreDefaults": "Återställ standardkanaler"
     }
   },
   "popups": {
@@ -1200,6 +1212,9 @@
       "repairStatus": {
         "onStation": "På Station",
         "enRoute": "På väg"
+      },
+      "health": {
+        "evidence": "HÄLSOBEVIS"
       },
       "description": "Undervattens telekommunikationskabel för internationell internettrafik. Dessa fiberoptiska kablar utgör ryggraden i global internetanslutning och överför över 95 % av interkontinental data."
     },
@@ -1652,6 +1667,7 @@
     "loading": "Laddar...",
     "error": "Ett fel inträffade",
     "updated": "Uppdaterad: {{time}}",
+    "retrying": "Försöker igen...",
     "failedToLoad": "Kunde inte ladda data",
     "noDataShort": "Inga data",
     "noDataAvailable": "Inga data tillgängliga",

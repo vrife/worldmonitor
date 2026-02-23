@@ -48,7 +48,7 @@ export interface EnrichedAircraftInfo {
 
 // ---- Sebuf client ----
 
-const client = new MilitaryServiceClient('', { fetch: fetch.bind(globalThis) });
+const client = new MilitaryServiceClient('', { fetch: (...args) => globalThis.fetch(...args) });
 
 // Client-side cache for aircraft details
 const localCache = new Map<string, { data: WingbitsAircraftDetails; timestamp: number }>();

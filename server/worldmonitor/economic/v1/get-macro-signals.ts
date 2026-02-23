@@ -19,6 +19,10 @@ import {
   extractClosePrices,
   extractAlignedPriceVolume,
 } from './_shared';
+import { getCachedJson, setCachedJson } from '../../../_shared/redis';
+
+const REDIS_CACHE_KEY = 'economic:macro-signals:v1';
+const REDIS_CACHE_TTL = 300; // 5 min — matches in-memory TTL
 
 const MACRO_CACHE_TTL = 300; // 5 minutes in seconds
 let macroSignalsCached: GetMacroSignalsResponse | null = null;
@@ -46,11 +50,14 @@ function buildFallbackResult(): GetMacroSignalsResponse {
 
 async function computeMacroSignals(): Promise<GetMacroSignalsResponse> {
   const yahooBase = 'https://query1.finance.yahoo.com/v8/finance/chart';
-  const [jpyChart, btcChart, qqqChart, xlpChart, fearGreed, mempoolHash] = await Promise.allSettled([
-    fetchJSON(`${yahooBase}/JPY=X?range=1y&interval=1d`),
-    fetchJSON(`${yahooBase}/BTC-USD?range=1y&interval=1d`),
-    fetchJSON(`${yahooBase}/QQQ?range=1y&interval=1d`),
-    fetchJSON(`${yahooBase}/XLP?range=1y&interval=1d`),
+
+  // Yahoo calls go through global yahooGate() in fetchJSON
+  const jpyChart = await Promise.allSettled([fetchJSON(`${yahooBase}/JPY=X?range=1y&interval=1d`)]).then(r => r[0]!);
+  const btcChart = await Promise.allSettled([fetchJSON(`${yahooBase}/BTC-USD?range=1y&interval=1d`)]).then(r => r[0]!);
+  const qqqChart = await Promise.allSettled([fetchJSON(`${yahooBase}/QQQ?range=1y&interval=1d`)]).then(r => r[0]!);
+  const xlpChart = await Promise.allSettled([fetchJSON(`${yahooBase}/XLP?range=1y&interval=1d`)]).then(r => r[0]!);
+  // Non-Yahoo calls can go in parallel
+  const [fearGreed, mempoolHash] = await Promise.allSettled([
     fetchJSON('https://api.alternative.me/fng/?limit=30&format=json'),
     fetchJSON('https://mempool.space/api/v1/mining/hashrate/1m'),
   ]);
@@ -178,6 +185,11 @@ async function computeMacroSignals(): Promise<GetMacroSignalsResponse> {
 
   const verdict = totalCount === 0 ? 'UNKNOWN' : (bullishCount / totalCount >= 0.57 ? 'BUY' : 'CASH');
 
+  // Stale-while-revalidate: if Yahoo rate-limited all calls, serve cached data
+  if (totalCount === 0 && macroSignalsCached && !macroSignalsCached.unavailable) {
+    return macroSignalsCached;
+  }
+
   return {
     timestamp: new Date().toISOString(),
     verdict,
@@ -233,10 +245,21 @@ export async function getMacroSignals(
     return macroSignalsCached;
   }
 
+  // Redis shared cache (cross-instance)
+  const redisCached = (await getCachedJson(REDIS_CACHE_KEY)) as GetMacroSignalsResponse | null;
+  if (redisCached && !redisCached.unavailable && redisCached.totalCount > 0) {
+    macroSignalsCached = redisCached;
+    macroSignalsCacheTimestamp = now;
+    return redisCached;
+  }
+
   try {
     const result = await computeMacroSignals();
     macroSignalsCached = result;
     macroSignalsCacheTimestamp = now;
+    if (!result.unavailable) {
+      setCachedJson(REDIS_CACHE_KEY, result, REDIS_CACHE_TTL).catch(() => {});
+    }
     return result;
   } catch {
     const fallback = macroSignalsCached || buildFallbackResult();

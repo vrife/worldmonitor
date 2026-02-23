@@ -10,6 +10,11 @@ import type {
   Stablecoin,
 } from '../../../../src/generated/server/worldmonitor/market/v1/service_server';
 import { UPSTREAM_TIMEOUT_MS } from './_shared';
+import { CHROME_UA } from '../../../_shared/constants';
+import { getCachedJson, setCachedJson } from '../../../_shared/redis';
+
+const REDIS_CACHE_KEY = 'market:stablecoins:v1';
+const REDIS_CACHE_TTL = 180; // 3 min — CoinGecko rate-limited
 
 // ========================================================================
 // Constants and cache
@@ -54,10 +59,19 @@ export async function listStablecoinMarkets(
     ? req.coins.filter(c => /^[a-z0-9-]+$/.test(c)).join(',')
     : DEFAULT_STABLECOIN_IDS;
 
+  // Redis shared cache (cross-instance)
+  const redisKey = `${REDIS_CACHE_KEY}:${coins}`;
+  const redisCached = (await getCachedJson(redisKey)) as ListStablecoinMarketsResponse | null;
+  if (redisCached?.stablecoins?.length) {
+    stablecoinCache = redisCached;
+    stablecoinCacheTimestamp = now;
+    return redisCached;
+  }
+
   try {
     const url = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${coins}&order=market_cap_desc&sparkline=false&price_change_percentage=7d`;
     const resp = await fetch(url, {
-      headers: { Accept: 'application/json' },
+      headers: { Accept: 'application/json', 'User-Agent': CHROME_UA },
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     });
 
@@ -107,6 +121,7 @@ export async function listStablecoinMarkets(
 
     stablecoinCache = result;
     stablecoinCacheTimestamp = now;
+    setCachedJson(redisKey, result, REDIS_CACHE_TTL).catch(() => {});
     return result;
   } catch {
     if (stablecoinCache) return stablecoinCache;

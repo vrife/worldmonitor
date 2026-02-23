@@ -19,6 +19,7 @@ CLAUDE.md
 .windsurf/
 skills/
 ideas/
+docs/internal/
 test-results/
 src-tauri/sidecar/node/*
 !src-tauri/sidecar/node/.gitkeep

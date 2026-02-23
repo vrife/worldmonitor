@@ -9,6 +9,7 @@ import type {
 } from '../../../../src/generated/server/worldmonitor/military/v1/service_server';
 
 import { getCachedJson, setCachedJson } from '../../../_shared/redis';
+import { CHROME_UA } from '../../../_shared/constants';
 
 const USNI_CACHE_KEY = 'usni-fleet:sebuf:v1';
 const USNI_STALE_CACHE_KEY = 'usni-fleet:sebuf:stale:v1';
@@ -383,7 +384,7 @@ export async function getUSNIFleetReport(
       const response = await fetch(
         'https://news.usni.org/wp-json/wp/v2/posts?categories=4137&per_page=1',
         {
-          headers: { Accept: 'application/json', 'User-Agent': 'WorldMonitor/2.0' },
+          headers: { Accept: 'application/json', 'User-Agent': CHROME_UA },
           signal: controller.signal,
         },
       );

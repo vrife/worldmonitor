@@ -151,6 +151,10 @@ function isLocalOnlyApiTarget(target: string): boolean {
   return target.startsWith('/api/local-');
 }
 
+function isKeyFreeApiTarget(target: string): boolean {
+  return target.startsWith('/api/register-interest');
+}
+
 async function fetchLocalWithStartupRetry(
   nativeFetch: typeof window.fetch,
   localUrl: string,
@@ -221,12 +225,16 @@ export function installRuntimeFetchPatch(): void {
     if (debug) console.log(`[fetch] intercept → ${target}`);
     let allowCloudFallback = !isLocalOnlyApiTarget(target);
 
-    if (allowCloudFallback) {
+    if (allowCloudFallback && !isKeyFreeApiTarget(target)) {
       try {
-        const { secretsReady } = await import('@/services/runtime-config');
+        const { getSecretState, secretsReady } = await import('@/services/runtime-config');
         await Promise.race([secretsReady, new Promise<void>(r => setTimeout(r, 2000))]);
+        const wmKeyState = getSecretState('WORLDMONITOR_API_KEY');
+        if (!wmKeyState.present || !wmKeyState.valid) {
+          allowCloudFallback = false;
+        }
       } catch {
-        // secrets module failed to load — still allow cloud fallback
+        allowCloudFallback = false;
       }
     }
 

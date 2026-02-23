@@ -10,6 +10,7 @@
  */
 
 const http = require('http');
+const https = require('https');
 const zlib = require('zlib');
 const { WebSocketServer, WebSocket } = require('ws');
 
@@ -24,27 +25,67 @@ if (!API_KEY) {
 }
 
 const MAX_WS_CLIENTS = 10; // Cap WS clients — app uses HTTP snapshots, not WS
+const UPSTREAM_QUEUE_HIGH_WATER = Math.max(500, Number(process.env.AIS_UPSTREAM_QUEUE_HIGH_WATER || 4000));
+const UPSTREAM_QUEUE_LOW_WATER = Math.max(
+  100,
+  Math.min(UPSTREAM_QUEUE_HIGH_WATER - 1, Number(process.env.AIS_UPSTREAM_QUEUE_LOW_WATER || 1000))
+);
+const UPSTREAM_QUEUE_HARD_CAP = Math.max(
+  UPSTREAM_QUEUE_HIGH_WATER + 1,
+  Number(process.env.AIS_UPSTREAM_QUEUE_HARD_CAP || 8000)
+);
+const UPSTREAM_DRAIN_BATCH = Math.max(1, Number(process.env.AIS_UPSTREAM_DRAIN_BATCH || 250));
+const UPSTREAM_DRAIN_BUDGET_MS = Math.max(2, Number(process.env.AIS_UPSTREAM_DRAIN_BUDGET_MS || 20));
+const MAX_VESSELS = 50000; // hard cap on vessels Map
+const MAX_VESSEL_HISTORY = 50000;
+const MAX_DENSITY_CELLS = 5000;
 
 let upstreamSocket = null;
+let upstreamPaused = false;
+let upstreamQueue = [];
+let upstreamQueueReadIndex = 0;
+let upstreamDrainScheduled = false;
 let clients = new Set();
 let messageCount = 0;
+let droppedMessages = 0;
+
+// Safe response: guard against "headers already sent" crashes
+function safeEnd(res, statusCode, headers, body) {
+  if (res.headersSent || res.writableEnded) return false;
+  try {
+    res.writeHead(statusCode, headers);
+    res.end(body);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 // gzip compress & send a response (reduces egress ~80% for JSON)
 function sendCompressed(req, res, statusCode, headers, body) {
+  if (res.headersSent || res.writableEnded) return;
   const acceptEncoding = req.headers['accept-encoding'] || '';
   if (acceptEncoding.includes('gzip')) {
     zlib.gzip(typeof body === 'string' ? Buffer.from(body) : body, (err, compressed) => {
-      if (err) {
-        res.writeHead(statusCode, headers);
-        res.end(body);
+      if (err || res.headersSent || res.writableEnded) {
+        safeEnd(res, statusCode, headers, body);
         return;
       }
-      res.writeHead(statusCode, { ...headers, 'Content-Encoding': 'gzip', 'Vary': 'Accept-Encoding' });
-      res.end(compressed);
+      safeEnd(res, statusCode, { ...headers, 'Content-Encoding': 'gzip', 'Vary': 'Accept-Encoding' }, compressed);
     });
   } else {
-    res.writeHead(statusCode, headers);
-    res.end(body);
+    safeEnd(res, statusCode, headers, body);
+  }
+}
+
+// Pre-gzipped response: serve a cached gzip buffer directly (zero CPU per request)
+function sendPreGzipped(req, res, statusCode, headers, rawBody, gzippedBody) {
+  if (res.headersSent || res.writableEnded) return;
+  const acceptEncoding = req.headers['accept-encoding'] || '';
+  if (acceptEncoding.includes('gzip') && gzippedBody) {
+    safeEnd(res, statusCode, { ...headers, 'Content-Encoding': 'gzip', 'Vary': 'Accept-Encoding' }, gzippedBody);
+  } else {
+    safeEnd(res, statusCode, headers, rawBody);
   }
 }
 
@@ -65,6 +106,16 @@ const candidateReports = new Map();
 let snapshotSequence = 0;
 let lastSnapshot = null;
 let lastSnapshotAt = 0;
+// Pre-serialized cache: avoids JSON.stringify + gzip per request
+let lastSnapshotJson = null;       // cached JSON string (no candidates)
+let lastSnapshotGzip = null;       // cached gzip buffer (no candidates)
+let lastSnapshotWithCandJson = null;
+let lastSnapshotWithCandGzip = null;
+
+// Chokepoint spatial index: bucket vessels into grid cells at ingest time
+// instead of O(chokepoints * vessels) on every snapshot
+const chokepointBuckets = new Map(); // key: gridKey -> Set of MMSI
+const vesselChokepoints = new Map(); // key: MMSI -> Set of chokepoint names
 
 const CHOKEPOINTS = [
   { name: 'Strait of Hormuz', lat: 26.5, lon: 56.5, radius: 2 },
@@ -102,6 +153,121 @@ function isLikelyMilitaryCandidate(meta) {
   }
 
   return false;
+}
+
+function getUpstreamQueueSize() {
+  return upstreamQueue.length - upstreamQueueReadIndex;
+}
+
+function enqueueUpstreamMessage(raw) {
+  upstreamQueue.push(raw);
+}
+
+function dequeueUpstreamMessage() {
+  if (upstreamQueueReadIndex >= upstreamQueue.length) return null;
+  const raw = upstreamQueue[upstreamQueueReadIndex++];
+  // Compact queue periodically to avoid unbounded sparse arrays.
+  if (upstreamQueueReadIndex >= 1024 && upstreamQueueReadIndex * 2 >= upstreamQueue.length) {
+    upstreamQueue = upstreamQueue.slice(upstreamQueueReadIndex);
+    upstreamQueueReadIndex = 0;
+  }
+  return raw;
+}
+
+function clearUpstreamQueue() {
+  upstreamQueue = [];
+  upstreamQueueReadIndex = 0;
+  upstreamDrainScheduled = false;
+}
+
+function evictMapByTimestamp(map, maxSize, getTimestamp) {
+  if (map.size <= maxSize) return;
+  const sorted = [...map.entries()].sort((a, b) => {
+    const tsA = Number(getTimestamp(a[1])) || 0;
+    const tsB = Number(getTimestamp(b[1])) || 0;
+    return tsA - tsB;
+  });
+  const removeCount = map.size - maxSize;
+  for (let i = 0; i < removeCount; i++) {
+    map.delete(sorted[i][0]);
+  }
+}
+
+function removeVesselFromChokepoints(mmsi) {
+  const previous = vesselChokepoints.get(mmsi);
+  if (!previous) return;
+
+  for (const cpName of previous) {
+    const bucket = chokepointBuckets.get(cpName);
+    if (!bucket) continue;
+    bucket.delete(mmsi);
+    if (bucket.size === 0) chokepointBuckets.delete(cpName);
+  }
+
+  vesselChokepoints.delete(mmsi);
+}
+
+function updateVesselChokepoints(mmsi, lat, lon) {
+  const next = new Set();
+  for (const cp of CHOKEPOINTS) {
+    const dlat = lat - cp.lat;
+    const dlon = lon - cp.lon;
+    if (dlat * dlat + dlon * dlon <= cp.radius * cp.radius) {
+      next.add(cp.name);
+    }
+  }
+
+  const previous = vesselChokepoints.get(mmsi) || new Set();
+  for (const cpName of previous) {
+    if (next.has(cpName)) continue;
+    const bucket = chokepointBuckets.get(cpName);
+    if (!bucket) continue;
+    bucket.delete(mmsi);
+    if (bucket.size === 0) chokepointBuckets.delete(cpName);
+  }
+
+  for (const cpName of next) {
+    let bucket = chokepointBuckets.get(cpName);
+    if (!bucket) {
+      bucket = new Set();
+      chokepointBuckets.set(cpName, bucket);
+    }
+    bucket.add(mmsi);
+  }
+
+  if (next.size === 0) vesselChokepoints.delete(mmsi);
+  else vesselChokepoints.set(mmsi, next);
+}
+
+function processRawUpstreamMessage(raw) {
+  messageCount++;
+  if (messageCount % 5000 === 0) {
+    const mem = process.memoryUsage();
+    console.log(`[Relay] ${messageCount} msgs, ${clients.size} ws-clients, ${vessels.size} vessels, queue=${getUpstreamQueueSize()}, dropped=${droppedMessages}, rss=${(mem.rss / 1024 / 1024).toFixed(0)}MB heap=${(mem.heapUsed / 1024 / 1024).toFixed(0)}MB, cache: opensky=${openskyResponseCache.size} rss_feed=${rssResponseCache.size}`);
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed?.MessageType === 'PositionReport') {
+      processPositionReportForSnapshot(parsed);
+    }
+  } catch {
+    // Ignore malformed upstream payloads
+  }
+
+  // Heavily throttled WS fanout: every 50th message only
+  // The app primarily uses HTTP snapshot polling, WS is for rare external consumers
+  if (clients.size > 0 && messageCount % 50 === 0) {
+    const message = raw.toString();
+    for (const client of clients) {
+      if (client.readyState === WebSocket.OPEN) {
+        // Per-client backpressure: skip if client buffer is backed up
+        if (client.bufferedAmount < 1024 * 1024) {
+          client.send(message);
+        }
+      }
+    }
+  }
 }
 
 function processPositionReportForSnapshot(data) {
@@ -150,6 +316,9 @@ function processPositionReportForSnapshot(data) {
   cell.vessels.add(mmsi);
   cell.lastUpdate = now;
 
+  // Maintain exact chokepoint membership so moving vessels don't get "stuck" in old buckets.
+  updateVesselChokepoints(mmsi, lat, lon);
+
   if (isLikelyMilitaryCandidate(meta)) {
     candidateReports.set(mmsi, {
       mmsi,
@@ -172,6 +341,16 @@ function cleanupAggregates() {
   for (const [mmsi, vessel] of vessels) {
     if (vessel.timestamp < cutoff) {
       vessels.delete(mmsi);
+      removeVesselFromChokepoints(mmsi);
+    }
+  }
+  // Hard cap: if still over limit, evict oldest
+  if (vessels.size > MAX_VESSELS) {
+    const sorted = [...vessels.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
+    const toRemove = sorted.slice(0, vessels.size - MAX_VESSELS);
+    for (const [mmsi] of toRemove) {
+      vessels.delete(mmsi);
+      removeVesselFromChokepoints(mmsi);
     }
   }
 
@@ -183,6 +362,8 @@ function cleanupAggregates() {
       vesselHistory.set(mmsi, filtered);
     }
   }
+  // Hard cap: keep the most recent vessel histories.
+  evictMapByTimestamp(vesselHistory, MAX_VESSEL_HISTORY, (history) => history[history.length - 1] || 0);
 
   for (const [key, cell] of densityGrid) {
     cell.previousCount = cell.vessels.size;
@@ -198,11 +379,29 @@ function cleanupAggregates() {
       densityGrid.delete(key);
     }
   }
+  // Hard cap: keep the most recently updated cells.
+  evictMapByTimestamp(densityGrid, MAX_DENSITY_CELLS, (cell) => cell.lastUpdate || 0);
 
   for (const [mmsi, report] of candidateReports) {
     if (report.timestamp < now - CANDIDATE_RETENTION_MS) {
       candidateReports.delete(mmsi);
     }
+  }
+  // Hard cap: keep freshest candidate reports.
+  evictMapByTimestamp(candidateReports, MAX_CANDIDATE_REPORTS, (report) => report.timestamp || 0);
+
+  // Clean chokepoint buckets: remove stale vessels
+  for (const [cpName, bucket] of chokepointBuckets) {
+    for (const mmsi of bucket) {
+      if (vessels.has(mmsi)) continue;
+      bucket.delete(mmsi);
+      const memberships = vesselChokepoints.get(mmsi);
+      if (memberships) {
+        memberships.delete(cpName);
+        if (memberships.size === 0) vesselChokepoints.delete(mmsi);
+      }
+    }
+    if (bucket.size === 0) chokepointBuckets.delete(cpName);
   }
 }
 
@@ -210,18 +409,10 @@ function detectDisruptions() {
   const disruptions = [];
   const now = Date.now();
 
+  // O(chokepoints) using pre-built spatial buckets instead of O(chokepoints × vessels)
   for (const chokepoint of CHOKEPOINTS) {
-    let vesselCount = 0;
-
-    for (const vessel of vessels.values()) {
-      const distance = Math.sqrt(
-        Math.pow(vessel.lat - chokepoint.lat, 2) +
-        Math.pow(vessel.lon - chokepoint.lon, 2)
-      );
-      if (distance <= chokepoint.radius) {
-        vesselCount++;
-      }
-    }
+    const bucket = chokepointBuckets.get(chokepoint.name);
+    const vesselCount = bucket ? bucket.size : 0;
 
     if (vesselCount >= 5) {
       const normalTraffic = chokepoint.radius * 10;
@@ -340,11 +531,28 @@ function buildSnapshot() {
       vessels: vessels.size,
       messages: messageCount,
       clients: clients.size,
+      droppedMessages,
     },
     disruptions: detectDisruptions(),
     density: calculateDensityZones(),
   };
   lastSnapshotAt = now;
+
+  // Pre-serialize JSON once (avoid per-request JSON.stringify)
+  const basePayload = { ...lastSnapshot, candidateReports: [] };
+  lastSnapshotJson = JSON.stringify(basePayload);
+
+  const withCandPayload = { ...lastSnapshot, candidateReports: getCandidateReportsSnapshot() };
+  lastSnapshotWithCandJson = JSON.stringify(withCandPayload);
+
+  // Pre-gzip both variants asynchronously (zero CPU on request path)
+  zlib.gzip(Buffer.from(lastSnapshotJson), (err, buf) => {
+    if (!err) lastSnapshotGzip = buf;
+  });
+  zlib.gzip(Buffer.from(lastSnapshotWithCandJson), (err, buf) => {
+    if (!err) lastSnapshotWithCandGzip = buf;
+  });
+
   return lastSnapshot;
 }
 
@@ -391,7 +599,6 @@ function ucdpBuildVersionCandidates() {
 }
 
 async function ucdpFetchPage(version, page) {
-  const https = require('https');
   const url = `https://ucdpapi.pcr.uu.se/api/gedevents/${version}?pagesize=${UCDP_PAGE_SIZE}&page=${page}`;
 
   return new Promise((resolve, reject) => {
@@ -541,9 +748,11 @@ async function handleUcdpEventsRequest(req, res) {
 const openskyResponseCache = new Map(); // key: sorted query params → { data, timestamp }
 const openskyInFlight = new Map(); // key: cacheKey → Promise (dedup concurrent requests)
 const OPENSKY_CACHE_TTL_MS = 30 * 1000; // 30s — OpenSky updates every ~10s but 58 clients hammer it
-const rssResponseCache = new Map(); // key: feed URL → { data, contentType, timestamp }
+const rssResponseCache = new Map(); // key: feed URL → { data, contentType, timestamp, statusCode }
 const rssInFlight = new Map(); // key: feed URL → Promise (dedup concurrent requests)
 const RSS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 min — RSS feeds rarely update faster
+const RSS_NEGATIVE_CACHE_TTL_MS = 60 * 1000; // 1 min — cache failures to prevent thundering herd
+const RSS_CACHE_MAX_ENTRIES = 200; // hard cap — ~20 allowed domains × ~5 paths max, with headroom
 
 // OpenSky OAuth2 token cache + mutex to prevent thundering herd
 let openskyToken = null;
@@ -586,7 +795,6 @@ async function getOpenSkyToken() {
 async function _fetchOpenSkyToken(clientId, clientSecret) {
   try {
     console.log('[Relay] Fetching new OpenSky OAuth2 token...');
-    const https = require('https');
 
     const token = await new Promise((resolve) => {
       const postData = `grant_type=client_credentials&client_id=${encodeURIComponent(clientId)}&client_secret=${encodeURIComponent(clientSecret)}`;
@@ -702,7 +910,7 @@ async function handleOpenSkyRequest(req, res, PORT) {
     console.log('[Relay] OpenSky request (MISS):', openskyUrl);
 
     const fetchPromise = new Promise((resolve, reject) => {
-      const https = require('https');
+      let responded = false;
       const request = https.get(openskyUrl, {
         headers: {
           'Accept': 'application/json',
@@ -722,34 +930,41 @@ async function handleOpenSkyRequest(req, res, PORT) {
             openskyResponseCache.set(cacheKey, { data, timestamp: Date.now() });
           }
           resolve();
-          sendCompressed(req, res, response.statusCode, {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'public, max-age=30',
-            'X-Cache': 'MISS',
-          }, data);
+          if (!responded) {
+            responded = true;
+            sendCompressed(req, res, response.statusCode, {
+              'Content-Type': 'application/json',
+              'Cache-Control': 'public, max-age=30',
+              'X-Cache': 'MISS',
+            }, data);
+          }
         });
       });
 
       request.on('error', (err) => {
         console.error('[Relay] OpenSky error:', err.message);
+        if (responded) return;
+        responded = true;
         if (cached) {
           resolve();
           return sendCompressed(req, res, 200, { 'Content-Type': 'application/json', 'X-Cache': 'STALE' }, cached.data);
         }
         reject(err);
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: err.message, time: Date.now(), states: null }));
+        safeEnd(res, 500, { 'Content-Type': 'application/json' },
+          JSON.stringify({ error: err.message, time: Date.now(), states: null }));
       });
 
       request.on('timeout', () => {
         request.destroy();
+        if (responded) return;
+        responded = true;
         if (cached) {
           resolve();
           return sendCompressed(req, res, 200, { 'Content-Type': 'application/json', 'X-Cache': 'STALE' }, cached.data);
         }
         reject(new Error('timeout'));
-        res.writeHead(504, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Request timeout', time: Date.now(), states: null }));
+        safeEnd(res, 504, { 'Content-Type': 'application/json' },
+          JSON.stringify({ error: 'Request timeout', time: Date.now(), states: null }));
       });
     });
 
@@ -868,7 +1083,6 @@ function handleWorldBankRequest(req, res) {
 
   console.log('[Relay] World Bank request (MISS):', indicator);
 
-  const https = require('https');
   const request = https.get(wbUrl, {
     headers: {
       'Accept': 'application/json',
@@ -994,7 +1208,6 @@ function handlePolymarketRequest(req, res) {
   const gammaUrl = `https://gamma-api.polymarket.com/${endpoint}?${params}`;
   console.log('[Relay] Polymarket request (MISS):', endpoint, tag || '');
 
-  const https = require('https');
   const request = https.get(gammaUrl, {
     headers: { 'Accept': 'application/json' },
     timeout: 10000,
@@ -1049,7 +1262,9 @@ setInterval(() => {
     if (now - entry.timestamp > OPENSKY_CACHE_TTL_MS * 2) openskyResponseCache.delete(key);
   }
   for (const [key, entry] of rssResponseCache) {
-    if (now - entry.timestamp > RSS_CACHE_TTL_MS * 2) rssResponseCache.delete(key);
+    const maxAge = (entry.statusCode && entry.statusCode >= 200 && entry.statusCode < 300)
+      ? RSS_CACHE_TTL_MS * 2 : RSS_NEGATIVE_CACHE_TTL_MS * 2;
+    if (now - entry.timestamp > maxAge) rssResponseCache.delete(key);
   }
   for (const [key, entry] of worldbankCache) {
     if (now - entry.timestamp > WORLDBANK_CACHE_TTL_MS * 2) worldbankCache.delete(key);
@@ -1095,13 +1310,21 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.url === '/health' || req.url === '/') {
+    const mem = process.memoryUsage();
     sendCompressed(req, res, 200, { 'Content-Type': 'application/json' }, JSON.stringify({
       status: 'ok',
       clients: clients.size,
       messages: messageCount,
+      droppedMessages,
       connected: upstreamSocket?.readyState === WebSocket.OPEN,
+      upstreamPaused,
       vessels: vessels.size,
       densityZones: Array.from(densityGrid.values()).filter(c => c.vessels.size >= 2).length,
+      memory: {
+        rss: `${(mem.rss / 1024 / 1024).toFixed(0)}MB`,
+        heapUsed: `${(mem.heapUsed / 1024 / 1024).toFixed(0)}MB`,
+        heapTotal: `${(mem.heapTotal / 1024 / 1024).toFixed(0)}MB`,
+      },
       cache: {
         opensky: openskyResponseCache.size,
         rss: rssResponseCache.size,
@@ -1111,19 +1334,27 @@ const server = http.createServer(async (req, res) => {
       },
     }));
   } else if (req.url.startsWith('/ais/snapshot')) {
-    // Aggregated AIS snapshot for server-side fanout
+    // Aggregated AIS snapshot for server-side fanout — serve pre-serialized + pre-gzipped
     connectUpstream();
+    buildSnapshot(); // ensures cache is warm
     const url = new URL(req.url, `http://localhost:${PORT}`);
     const includeCandidates = url.searchParams.get('candidates') === 'true';
-    const snapshot = buildSnapshot();
-    const payload = includeCandidates
-      ? { ...snapshot, candidateReports: getCandidateReportsSnapshot() }
-      : { ...snapshot, candidateReports: [] };
+    const json = includeCandidates ? lastSnapshotWithCandJson : lastSnapshotJson;
+    const gz = includeCandidates ? lastSnapshotWithCandGzip : lastSnapshotGzip;
 
-    sendCompressed(req, res, 200, {
-      'Content-Type': 'application/json',
-      'Cache-Control': 'public, max-age=2'
-    }, JSON.stringify(payload));
+    if (json) {
+      sendPreGzipped(req, res, 200, {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, max-age=2',
+      }, json, gz);
+    } else {
+      // Cold start fallback
+      const payload = { ...lastSnapshot, candidateReports: includeCandidates ? getCandidateReportsSnapshot() : [] };
+      sendCompressed(req, res, 200, {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, max-age=2',
+      }, JSON.stringify(payload));
+    }
   } else if (req.url === '/opensky-diag') {
     // Temporary diagnostic route with safe output only (no token payloads).
     const now = Date.now();
@@ -1161,7 +1392,6 @@ const server = http.createServer(async (req, res) => {
     });
 
     if (token) {
-      const https = require('https');
       const apiResult = await new Promise((resolve) => {
         const start = Date.now();
         const apiReq = https.get('https://opensky-network.org/api/states/all?lamin=47&lomin=5&lamax=48&lomax=6', {
@@ -1230,14 +1460,18 @@ const server = http.createServer(async (req, res) => {
         return res.end(JSON.stringify({ error: 'Domain not allowed on Railway proxy' }));
       }
 
-      // Serve from cache if fresh (5 min TTL)
+      // Serve from cache if fresh (5 min for success, 1 min for failures)
       const rssCached = rssResponseCache.get(feedUrl);
-      if (rssCached && Date.now() - rssCached.timestamp < RSS_CACHE_TTL_MS) {
-        return sendCompressed(req, res, 200, {
-          'Content-Type': rssCached.contentType || 'application/xml',
-          'Cache-Control': 'public, max-age=300',
-          'X-Cache': 'HIT',
-        }, rssCached.data);
+      if (rssCached) {
+        const ttl = (rssCached.statusCode && rssCached.statusCode >= 200 && rssCached.statusCode < 300)
+          ? RSS_CACHE_TTL_MS : RSS_NEGATIVE_CACHE_TTL_MS;
+        if (Date.now() - rssCached.timestamp < ttl) {
+          return sendCompressed(req, res, rssCached.statusCode || 200, {
+            'Content-Type': rssCached.contentType || 'application/xml',
+            'Cache-Control': rssCached.statusCode >= 200 && rssCached.statusCode < 300 ? 'public, max-age=300' : 'no-cache',
+            'X-Cache': 'HIT',
+          }, rssCached.data);
+        }
       }
 
       // In-flight dedup: if another request for the same feed is already fetching,
@@ -1248,21 +1482,25 @@ const server = http.createServer(async (req, res) => {
           await existing;
           const deduped = rssResponseCache.get(feedUrl);
           if (deduped) {
-            return sendCompressed(req, res, 200, {
+            return sendCompressed(req, res, deduped.statusCode || 200, {
               'Content-Type': deduped.contentType || 'application/xml',
-              'Cache-Control': 'public, max-age=300',
+              'Cache-Control': deduped.statusCode >= 200 && deduped.statusCode < 300 ? 'public, max-age=300' : 'no-cache',
               'X-Cache': 'DEDUP',
             }, deduped.data);
           }
-        } catch { /* in-flight failed, fall through to own fetch */ }
+          // In-flight completed but nothing cached — serve 502 instead of cascading
+          return safeEnd(res, 502, { 'Content-Type': 'application/json' },
+            JSON.stringify({ error: 'Upstream fetch completed but not cached' }));
+        } catch {
+          // In-flight fetch failed — serve 502 instead of starting another fetch
+          return safeEnd(res, 502, { 'Content-Type': 'application/json' },
+            JSON.stringify({ error: 'Upstream fetch failed' }));
+        }
       }
 
       console.log('[Relay] RSS request (MISS):', feedUrl);
 
       const fetchPromise = new Promise((resolveInFlight, rejectInFlight) => {
-      const https = require('https');
-      const http = require('http');
-
       let responseHandled = false;
 
       const sendError = (statusCode, message) => {
@@ -1298,7 +1536,6 @@ const server = http.createServer(async (req, res) => {
           const encoding = response.headers['content-encoding'];
           let stream = response;
           if (encoding === 'gzip' || encoding === 'deflate') {
-            const zlib = require('zlib');
             stream = encoding === 'gzip' ? response.pipe(zlib.createGunzip()) : response.pipe(zlib.createInflate());
           }
 
@@ -1308,14 +1545,20 @@ const server = http.createServer(async (req, res) => {
             if (responseHandled || res.headersSent) return;
             responseHandled = true;
             const data = Buffer.concat(chunks);
-            // Cache successful responses
-            if (response.statusCode >= 200 && response.statusCode < 300) {
-              rssResponseCache.set(feedUrl, { data, contentType: 'application/xml', timestamp: Date.now() });
+            // Cache all responses: 2xx with full TTL, non-2xx with short TTL (negative cache)
+            // FIFO eviction: drop oldest-inserted entry if at capacity
+            if (rssResponseCache.size >= RSS_CACHE_MAX_ENTRIES && !rssResponseCache.has(feedUrl)) {
+              const oldest = rssResponseCache.keys().next().value;
+              if (oldest) rssResponseCache.delete(oldest);
+            }
+            rssResponseCache.set(feedUrl, { data, contentType: 'application/xml', statusCode: response.statusCode, timestamp: Date.now() });
+            if (response.statusCode < 200 || response.statusCode >= 300) {
+              console.warn(`[Relay] RSS upstream ${response.statusCode} for ${feedUrl}`);
             }
             resolveInFlight();
             sendCompressed(req, res, response.statusCode, {
               'Content-Type': 'application/xml',
-              'Cache-Control': 'public, max-age=300',
+              'Cache-Control': response.statusCode >= 200 && response.statusCode < 300 ? 'public, max-age=300' : 'no-cache',
               'X-Cache': 'MISS',
             }, data);
           });
@@ -1333,6 +1576,7 @@ const server = http.createServer(async (req, res) => {
               responseHandled = true;
               sendCompressed(req, res, 200, { 'Content-Type': 'application/xml', 'X-Cache': 'STALE' }, rssCached.data);
             }
+            resolveInFlight();
             return;
           }
           sendError(502, err.message);
@@ -1342,7 +1586,9 @@ const server = http.createServer(async (req, res) => {
           request.destroy();
           if (rssCached && !responseHandled && !res.headersSent) {
             responseHandled = true;
-            return sendCompressed(req, res, 200, { 'Content-Type': 'application/xml', 'X-Cache': 'STALE' }, rssCached.data);
+            sendCompressed(req, res, 200, { 'Content-Type': 'application/xml', 'X-Cache': 'STALE' }, rssCached.data);
+            resolveInFlight();
+            return;
           }
           sendError(504, 'Request timeout');
         });
@@ -1382,6 +1628,48 @@ function connectUpstream() {
   console.log('[Relay] Connecting to aisstream.io...');
   const socket = new WebSocket(AISSTREAM_URL);
   upstreamSocket = socket;
+  clearUpstreamQueue();
+  upstreamPaused = false;
+
+  const scheduleUpstreamDrain = () => {
+    if (upstreamDrainScheduled) return;
+    upstreamDrainScheduled = true;
+    setImmediate(drainUpstreamQueue);
+  };
+
+  const drainUpstreamQueue = () => {
+    if (upstreamSocket !== socket) {
+      clearUpstreamQueue();
+      upstreamPaused = false;
+      return;
+    }
+
+    upstreamDrainScheduled = false;
+    const startedAt = Date.now();
+    let processed = 0;
+
+    while (processed < UPSTREAM_DRAIN_BATCH &&
+           getUpstreamQueueSize() > 0 &&
+           Date.now() - startedAt < UPSTREAM_DRAIN_BUDGET_MS) {
+      const raw = dequeueUpstreamMessage();
+      if (!raw) break;
+      processRawUpstreamMessage(raw);
+      processed++;
+    }
+
+    const queueSize = getUpstreamQueueSize();
+    if (queueSize >= UPSTREAM_QUEUE_HIGH_WATER && !upstreamPaused) {
+      upstreamPaused = true;
+      socket.pause();
+      console.warn(`[Relay] Upstream paused (queue=${queueSize}, dropped=${droppedMessages})`);
+    } else if (upstreamPaused && queueSize <= UPSTREAM_QUEUE_LOW_WATER) {
+      upstreamPaused = false;
+      socket.resume();
+      console.log(`[Relay] Upstream resumed (queue=${queueSize})`);
+    }
+
+    if (queueSize > 0) scheduleUpstreamDrain();
+  };
 
   socket.on('open', () => {
     // Verify this socket is still the current one (race condition guard)
@@ -1400,34 +1688,27 @@ function connectUpstream() {
 
   socket.on('message', (data) => {
     if (upstreamSocket !== socket) return;
-    messageCount++;
-    if (messageCount % 1000 === 0) {
-      console.log(`[Relay] ${messageCount} messages, ${clients.size} clients, cache: opensky=${openskyResponseCache.size} rss=${rssResponseCache.size}`);
-    }
-    const message = data.toString();
-    try {
-      const parsed = JSON.parse(message);
-      if (parsed?.MessageType === 'PositionReport') {
-        processPositionReportForSnapshot(parsed);
-      }
-    } catch {
-      // Ignore malformed upstream payloads
+
+    const raw = data instanceof Buffer ? data : Buffer.from(data);
+    if (getUpstreamQueueSize() >= UPSTREAM_QUEUE_HARD_CAP) {
+      droppedMessages++;
+      return;
     }
 
-    // Throttled fanout: only forward every 10th message to WS clients
-    // The app uses HTTP snapshot polling, not WS — this is mostly for external consumers
-    if (clients.size > 0 && messageCount % 10 === 0) {
-      for (const client of clients) {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(message);
-        }
-      }
+    enqueueUpstreamMessage(raw);
+    if (!upstreamPaused && getUpstreamQueueSize() >= UPSTREAM_QUEUE_HIGH_WATER) {
+      upstreamPaused = true;
+      socket.pause();
+      console.warn(`[Relay] Upstream paused (queue=${getUpstreamQueueSize()}, dropped=${droppedMessages})`);
     }
+    scheduleUpstreamDrain();
   });
 
   socket.on('close', () => {
     if (upstreamSocket === socket) {
       upstreamSocket = null;
+      clearUpstreamQueue();
+      upstreamPaused = false;
       console.log('[Relay] Disconnected, reconnecting in 5s...');
       setTimeout(connectUpstream, 5000);
     }
@@ -1460,5 +1741,21 @@ wss.on('connection', (ws, req) => {
 
   ws.on('error', (err) => {
     console.error('[Relay] Client error:', err.message);
+    clients.delete(ws);
   });
 });
+
+// Memory / health monitor — log every 60s and force GC if available
+setInterval(() => {
+  const mem = process.memoryUsage();
+  const rssGB = mem.rss / 1024 / 1024 / 1024;
+  console.log(`[Monitor] rss=${(mem.rss / 1024 / 1024).toFixed(0)}MB heap=${(mem.heapUsed / 1024 / 1024).toFixed(0)}MB/${(mem.heapTotal / 1024 / 1024).toFixed(0)}MB external=${(mem.external / 1024 / 1024).toFixed(0)}MB vessels=${vessels.size} density=${densityGrid.size} candidates=${candidateReports.size} msgs=${messageCount} dropped=${droppedMessages}`);
+  // Emergency cleanup if memory exceeds 450MB RSS
+  if (rssGB > 0.45) {
+    console.warn('[Monitor] High memory — forcing aggressive cleanup');
+    cleanupAggregates();
+    // Clear heavy caches only (RSS/polymarket/worldbank are tiny, keep them)
+    openskyResponseCache.clear();
+    if (global.gc) global.gc();
+  }
+}, 60 * 1000);

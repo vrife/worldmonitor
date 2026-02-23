@@ -1068,7 +1068,19 @@
       "retry": "Retry",
       "notLive": "{{name}} is not currently live",
       "cannotEmbed": "{{name}} cannot be embedded in this app (YouTube {{code}})",
-      "openOnYouTube": "Open on YouTube"
+      "openOnYouTube": "Open on YouTube",
+      "manage": "Gerir canais",
+      "addChannel": "Adicionar canal",
+      "remove": "Remover",
+      "youtubeHandle": "Handle do YouTube (ex.: @Channel)",
+      "displayName": "Nome de exibição (opcional)",
+      "openPanelSettings": "Configurações de exibição do painel",
+      "channelSettings": "Configurações do canal",
+      "save": "Salvar",
+      "cancel": "Cancelar",
+      "confirmDelete": "Excluir este canal?",
+      "confirmTitle": "Confirmar",
+      "restoreDefaults": "Restaurar canais padrão"
     }
   },
   "popups": {
@@ -1200,6 +1212,9 @@
       "repairStatus": {
         "onStation": "Na estação",
         "enRoute": "A caminho"
+      },
+      "health": {
+        "evidence": "EVIDÊNCIA DE ESTADO"
       },
       "description": "Cabo submarino de telecomunicações que transporta tráfego internacional de Internet. Estes cabos de fibra óptica constituem a espinha dorsal da conectividade global à Internet, transmitindo mais de 95% dos dados intercontinentais."
     },
@@ -1652,6 +1667,7 @@
     "loading": "Carregando...",
     "error": "Ocorreu um erro",
     "updated": "Atualizado: {{time}}",
+    "retrying": "Tentando novamente...",
     "failedToLoad": "Falha ao carregar os dados",
     "noDataShort": "Sem dados",
     "noDataAvailable": "Nenhum dado disponível",

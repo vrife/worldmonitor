@@ -1160,7 +1160,19 @@
       "retry": "Retry",
       "notLive": "{{name}} is not currently live",
       "cannotEmbed": "{{name}} cannot be embedded in this app (YouTube {{code}})",
-      "openOnYouTube": "Open on YouTube"
+      "openOnYouTube": "Open on YouTube",
+      "manage": "Kanalları yönet",
+      "addChannel": "Kanal ekle",
+      "remove": "Kaldır",
+      "youtubeHandle": "YouTube tanıtıcı (örn. @Channel)",
+      "displayName": "Görünen ad (isteğe bağlı)",
+      "openPanelSettings": "Panel görüntü ayarları",
+      "channelSettings": "Kanal ayarları",
+      "save": "Kaydet",
+      "cancel": "İptal",
+      "confirmDelete": "Bu kanal silinsin mi?",
+      "confirmTitle": "Onayla",
+      "restoreDefaults": "Varsayılan kanalları geri yükle"
     }
   },
   "popups": {
@@ -1293,6 +1305,9 @@
       "repairStatus": {
         "onStation": "Konumda",
         "enRoute": "Yolda"
+      },
+      "health": {
+        "evidence": "SAĞLIK KANITI"
       },
       "description": "Uluslararasi internet trafigi tasiyan denizalti telekomünikasyon kablosu. Bu fiber optik kablolar kuresel internet baglantisinin omurgasini olusturur ve kitalar arasi verilerin %95'inden fazlasini tasir."
     },
@@ -1747,6 +1762,7 @@
     "noDataAvailable": "Veri mevcut degil",
     "updated": "Az once guncellendi",
     "ago": "{{time}} once",
+    "retrying": "Tekrar deneniyor...",
     "failedToLoad": "Veri yuklenemedi",
     "noDataShort": "Veri yok",
     "upstreamUnavailable": "Ust kaynak API'si kullanilamiyor — otomatik yeniden denenecek",

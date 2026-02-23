@@ -1160,7 +1160,19 @@
       "retry": "Retry",
       "notLive": "{{name}} is not currently live",
       "cannotEmbed": "{{name}} cannot be embedded in this app (YouTube {{code}})",
-      "openOnYouTube": "Open on YouTube"
+      "openOnYouTube": "Open on YouTube",
+      "manage": "Zarządzaj kanałami",
+      "addChannel": "Dodaj kanał",
+      "remove": "Usuń",
+      "youtubeHandle": "Handle YouTube (np. @Channel)",
+      "displayName": "Nazwa wyświetlana (opcjonalnie)",
+      "openPanelSettings": "Ustawienia wyświetlania panelu",
+      "channelSettings": "Ustawienia kanału",
+      "save": "Zapisz",
+      "cancel": "Anuluj",
+      "confirmDelete": "Usunąć ten kanał?",
+      "confirmTitle": "Potwierdź",
+      "restoreDefaults": "Przywróć domyślne kanały"
     }
   },
   "popups": {
@@ -1292,6 +1304,9 @@
       "repairStatus": {
         "onStation": "Na stacji",
         "enRoute": "W drodze"
+      },
+      "health": {
+        "evidence": "DOWODY STANU"
       },
       "description": "Podmorski kabel telekomunikacyjny przenoszący międzynarodowy ruch internetowy. Te kable światłowodowe stanowią szkielet globalnej łączności internetowej, przesyłając ponad 95% danych międzykontynentalnych."
     },
@@ -1746,6 +1761,7 @@
     "noData": "Brak danych",
     "updated": "Zaktualizowano przed chwilą",
     "ago": "{{time}} temu",
+    "retrying": "Ponawiam próbę...",
     "failedToLoad": "Nie udało się załadować danych",
     "noDataShort": "Brak danych",
     "noDataAvailable": "Brak dostępnych danych",

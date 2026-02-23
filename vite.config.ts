@@ -533,12 +533,34 @@ export default defineConfig({
             },
           },
           {
-            urlPattern: /^https?:\/\/.*\/api\/.*/i,
+            urlPattern: ({ url, sameOrigin }: { url: URL; sameOrigin: boolean }) =>
+              sameOrigin && /^\/api\//.test(url.pathname),
             handler: 'NetworkOnly',
+            method: 'GET',
           },
           {
-            urlPattern: /^https?:\/\/.*\/rss\/.*/i,
+            urlPattern: ({ url, sameOrigin }: { url: URL; sameOrigin: boolean }) =>
+              sameOrigin && /^\/api\//.test(url.pathname),
             handler: 'NetworkOnly',
+            method: 'POST',
+          },
+          {
+            urlPattern: ({ url, sameOrigin }: { url: URL; sameOrigin: boolean }) =>
+              sameOrigin && /^\/ingest\//.test(url.pathname),
+            handler: 'NetworkOnly',
+            method: 'GET',
+          },
+          {
+            urlPattern: ({ url, sameOrigin }: { url: URL; sameOrigin: boolean }) =>
+              sameOrigin && /^\/ingest\//.test(url.pathname),
+            handler: 'NetworkOnly',
+            method: 'POST',
+          },
+          {
+            urlPattern: ({ url, sameOrigin }: { url: URL; sameOrigin: boolean }) =>
+              sameOrigin && /^\/rss\//.test(url.pathname),
+            handler: 'NetworkOnly',
+            method: 'GET',
           },
           {
             urlPattern: /^https:\/\/api\.maptiler\.com\//,
@@ -610,6 +632,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         settings: resolve(__dirname, 'settings.html'),
+        liveChannels: resolve(__dirname, 'live-channels.html'),
       },
       output: {
         manualChunks(id) {

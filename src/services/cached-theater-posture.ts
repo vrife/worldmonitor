@@ -14,7 +14,7 @@ import {
 
 // ---- Sebuf client ----
 
-const client = new MilitaryServiceClient('', { fetch: fetch.bind(globalThis) });
+const client = new MilitaryServiceClient('', { fetch: (...args) => globalThis.fetch(...args) });
 
 // ---- Legacy interface (preserved for consumer compatibility) ----
 

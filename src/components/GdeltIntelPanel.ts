@@ -67,14 +67,30 @@ export class GdeltIntelPanel extends Panel {
   private async loadActiveTopic(): Promise<void> {
     this.showLoading();
 
-    try {
-      const data = await fetchTopicIntelligence(this.activeTopic);
-      this.topicData.set(this.activeTopic.id, data);
-      this.renderArticles(data.articles);
-      this.setCount(data.articles.length);
-    } catch (error) {
-      console.error('[GdeltIntelPanel] Load error:', error);
-      this.showError(t('common.failedIntelFeed'));
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const data = await fetchTopicIntelligence(this.activeTopic);
+        this.topicData.set(this.activeTopic.id, data);
+
+        if (data.articles.length === 0 && attempt < 2) {
+          this.showRetrying();
+          await new Promise(r => setTimeout(r, 15_000));
+          continue;
+        }
+
+        this.renderArticles(data.articles);
+        this.setCount(data.articles.length);
+        return;
+      } catch (error) {
+        if (this.isAbortError(error)) return;
+        console.error(`[GdeltIntelPanel] Load error (attempt ${attempt + 1}):`, error);
+        if (attempt < 2) {
+          this.showRetrying();
+          await new Promise(r => setTimeout(r, 15_000));
+          continue;
+        }
+        this.showError(t('common.failedIntelFeed'));
+      }
     }
   }
 

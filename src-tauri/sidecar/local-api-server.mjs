@@ -424,7 +424,7 @@ const SIDECAR_ALLOWED_ORIGINS = [
   /^tauri:\/\/localhost$/,
   /^https?:\/\/localhost(:\d+)?$/,
   /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
-  /^https:\/\/tauri\.localhost(:\d+)?$/,
+  /^https?:\/\/tauri\.localhost(:\d+)?$/,
   /^https:\/\/(.*\.)?worldmonitor\.app$/,
 ];
 
@@ -796,11 +796,12 @@ async function dispatch(requestUrl, req, routes, context) {
     }
     return json({ verboseMode });
   }
-  // Registration — call Convex directly (Vercel Attack Challenge Mode blocks server-side)
+  // Registration — call Convex directly (desktop frontend bypasses sidecar for this endpoint;
+  // this handler only runs when CONVEX_URL is available, e.g. self-hosted deployments)
   if (requestUrl.pathname === '/api/register-interest' && req.method === 'POST') {
     const convexUrl = process.env.CONVEX_URL;
     if (!convexUrl) {
-      return json({ error: 'Registration service not configured' }, 503);
+      return json({ error: 'Registration service not configured — use cloud endpoint directly' }, 503);
     }
     try {
       const body = await new Promise((resolve, reject) => {

@@ -6,6 +6,8 @@ import type {
   ListCyberThreatsResponse,
 } from '../../../../src/generated/server/worldmonitor/cyber/v1/service_server';
 
+import { getCachedJson, setCachedJson } from '../../../_shared/redis';
+
 import {
   DEFAULT_LIMIT,
   MAX_LIMIT,
@@ -26,12 +28,20 @@ import {
   toProtoCyberThreat,
 } from './_shared';
 
+const REDIS_CACHE_KEY = 'cyber:threats:v1';
+const REDIS_CACHE_TTL = 900; // 15 min — threat feeds update infrequently
+
 export async function listCyberThreats(
   _ctx: ServerContext,
   req: ListCyberThreatsRequest,
 ): Promise<ListCyberThreatsResponse> {
   try {
     const now = Date.now();
+
+    // Redis shared cache (keyed by page size + time range for most common calls)
+    const cacheKey = `${REDIS_CACHE_KEY}:${req.pagination?.pageSize || 0}:${req.timeRange?.start || 0}:${req.type || ''}:${req.source || ''}:${req.minSeverity || ''}`;
+    const cached = (await getCachedJson(cacheKey)) as ListCyberThreatsResponse | null;
+    if (cached?.threats?.length) return cached;
     const pageSize = clampInt(req.pagination?.pageSize, DEFAULT_LIMIT, 1, MAX_LIMIT);
 
     // Derive days from timeRange or use default
@@ -97,10 +107,14 @@ export async function listCyberThreats(
       })
       .slice(0, pageSize);
 
-    return {
+    const result: ListCyberThreatsResponse = {
       threats: results.map(toProtoCyberThreat),
       pagination: undefined,
     };
+    if (result.threats.length > 0) {
+      setCachedJson(cacheKey, result, REDIS_CACHE_TTL).catch(() => {});
+    }
+    return result;
   } catch {
     return { threats: [], pagination: undefined };
   }

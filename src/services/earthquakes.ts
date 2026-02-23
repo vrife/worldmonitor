@@ -8,7 +8,7 @@ import { createCircuitBreaker } from '@/utils';
 // Re-export the proto Earthquake type as the domain's public type
 export type { Earthquake };
 
-const client = new SeismologyServiceClient('', { fetch: fetch.bind(globalThis) });
+const client = new SeismologyServiceClient('', { fetch: (...args) => globalThis.fetch(...args) });
 const breaker = createCircuitBreaker<ListEarthquakesResponse>({ name: 'Seismology' });
 
 const emptyFallback: ListEarthquakesResponse = { earthquakes: [] };

@@ -17,6 +17,12 @@ import type {
   FireConfidence,
 } from '../../../../src/generated/server/worldmonitor/wildfire/v1/service_server';
 
+import { CHROME_UA } from '../../../_shared/constants';
+import { getCachedJson, setCachedJson } from '../../../_shared/redis';
+
+const REDIS_CACHE_KEY = 'wildfire:fires:v1';
+const REDIS_CACHE_TTL = 1800; // 30 min — daily FIRMS data
+
 const FIRMS_SOURCE = 'VIIRS_SNPP_NRT';
 
 /** Bounding boxes as west,south,east,north */
@@ -91,13 +97,17 @@ export const listFireDetections: WildfireServiceHandler['listFireDetections'] = 
     return { fireDetections: [], pagination: undefined };
   }
 
+  // Redis shared cache (cross-instance)
+  const cached = (await getCachedJson(REDIS_CACHE_KEY)) as ListFireDetectionsResponse | null;
+  if (cached?.fireDetections?.length) return cached;
+
   const entries = Object.entries(MONITORED_REGIONS);
 
   const results = await Promise.allSettled(
     entries.map(async ([regionName, bbox]) => {
       const url = `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${apiKey}/${FIRMS_SOURCE}/${bbox}/1`;
       const res = await fetch(url, {
-        headers: { Accept: 'text/csv' },
+        headers: { Accept: 'text/csv', 'User-Agent': CHROME_UA },
         signal: AbortSignal.timeout(15_000),
       });
       if (!res.ok) {
@@ -139,5 +149,9 @@ export const listFireDetections: WildfireServiceHandler['listFireDetections'] = 
     }
   }
 
-  return { fireDetections, pagination: undefined };
+  const result: ListFireDetectionsResponse = { fireDetections, pagination: undefined };
+  if (fireDetections.length > 0) {
+    setCachedJson(REDIS_CACHE_KEY, result, REDIS_CACHE_TTL).catch(() => {});
+  }
+  return result;
 };

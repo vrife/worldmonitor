@@ -19,7 +19,7 @@ import { isFeatureAvailable } from '../runtime-config';
 
 // ---- Client + Circuit Breakers ----
 
-const client = new InfrastructureServiceClient('', { fetch: fetch.bind(globalThis) });
+const client = new InfrastructureServiceClient('', { fetch: (...args) => globalThis.fetch(...args) });
 const outageBreaker = createCircuitBreaker<ListInternetOutagesResponse>({ name: 'Internet Outages' });
 const statusBreaker = createCircuitBreaker<ListServiceStatusesResponse>({ name: 'Service Statuses' });
 

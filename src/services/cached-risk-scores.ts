@@ -16,7 +16,7 @@ import {
 
 // ---- Sebuf client ----
 
-const client = new IntelligenceServiceClient('', { fetch: fetch.bind(globalThis) });
+const client = new IntelligenceServiceClient('', { fetch: (...args) => globalThis.fetch(...args) });
 
 // ---- Legacy types (preserved for consumer compatibility) ----
 

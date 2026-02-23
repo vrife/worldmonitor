@@ -12,6 +12,12 @@ import type {
   HackernewsItem,
 } from '../../../../src/generated/server/worldmonitor/research/v1/service_server';
 
+import { CHROME_UA } from '../../../_shared/constants';
+import { getCachedJson, setCachedJson } from '../../../_shared/redis';
+
+const REDIS_CACHE_KEY = 'research:hackernews:v1';
+const REDIS_CACHE_TTL = 600; // 10 min
+
 // ---------- Constants ----------
 
 const ALLOWED_HN_FEEDS = new Set(['top', 'new', 'best', 'ask', 'show', 'job']);
@@ -26,6 +32,7 @@ async function fetchHackernewsItems(req: ListHackernewsItemsRequest): Promise<Ha
   // Step 1: Fetch story IDs
   const idsUrl = `https://hacker-news.firebaseio.com/v0/${feedType}stories.json`;
   const idsResponse = await fetch(idsUrl, {
+    headers: { 'User-Agent': CHROME_UA },
     signal: AbortSignal.timeout(10000),
   });
 
@@ -45,7 +52,7 @@ async function fetchHackernewsItems(req: ListHackernewsItemsRequest): Promise<Ha
         try {
           const res = await fetch(
             `https://hacker-news.firebaseio.com/v0/item/${id}.json`,
-            { signal: AbortSignal.timeout(5000) },
+            { headers: { 'User-Agent': CHROME_UA }, signal: AbortSignal.timeout(5000) },
           );
           if (!res.ok) return null;
           const raw: any = await res.json();
@@ -79,8 +86,17 @@ export async function listHackernewsItems(
   req: ListHackernewsItemsRequest,
 ): Promise<ListHackernewsItemsResponse> {
   try {
+    const feedType = ALLOWED_HN_FEEDS.has(req.feedType) ? req.feedType : 'top';
+    const cacheKey = `${REDIS_CACHE_KEY}:${feedType}:${req.pagination?.pageSize || 30}`;
+    const cached = (await getCachedJson(cacheKey)) as ListHackernewsItemsResponse | null;
+    if (cached?.items?.length) return cached;
+
     const items = await fetchHackernewsItems(req);
-    return { items, pagination: undefined };
+    const result: ListHackernewsItemsResponse = { items, pagination: undefined };
+    if (items.length > 0) {
+      setCachedJson(cacheKey, result, REDIS_CACHE_TTL).catch(() => {});
+    }
+    return result;
   } catch {
     return { items: [], pagination: undefined };
   }

@@ -40,7 +40,7 @@ Sentry.init({
     /requestFullscreen/,
     /webkitEnterFullscreen/,
     /vc_text_indicators_context/,
-    /Program failed to link: null/,
+    /Program failed to link/,
     /too much recursion/,
     /zaloJSV2/,
     /Java bridge method invocation error/,
@@ -61,6 +61,7 @@ Sentry.init({
     /Unexpected end of input/,
     /window\.android\.\w+ is not a function/,
     /Attempted to assign to readonly property/,
+    /Cannot assign to read only property/,
     /FetchEvent\.respondWith/,
     /e\.toLowerCase is not a function/,
     /\.trim is not a function/,
@@ -71,13 +72,28 @@ Sentry.init({
     /^fetchError: Network request failed$/,
     /window\.ethereum/,
     /^SyntaxError: Unexpected token/,
+    /^Operation timed out\.?$/,
+    /setting 'luma'/,
+    /ML request .* timed out/,
+    /^Element not found$/,
+    /^The operation was aborted\.?\s*$/,
+    /Unexpected end of script/,
+    /error loading dynamically imported module/,
+    /Style is not done loading/,
+    /Event `CustomEvent`.*captured as promise rejection/,
+    /getProgramInfoLog/,
+    /__firefox__/,
+    /ifameElement\.contentDocument/,
+    /Invalid video id/,
+    /Fetch is aborted/,
+    /Stylesheet append timeout/,
   ],
   beforeSend(event) {
     const msg = event.exception?.values?.[0]?.value ?? '';
     if (msg.length <= 3 && /^[a-zA-Z_$]+$/.test(msg)) return null;
     const frames = event.exception?.values?.[0]?.stacktrace?.frames ?? [];
     // Suppress maplibre internal null-access crashes (light, placement) only when stack is in map chunk
-    if (/this\.style\._layers|reading '_layers'|this\.light is null|can't access property "(id|type|setFilter)", \w+ is (null|undefined)|Cannot read properties of null \(reading '(id|type|setFilter|_layers)'\)|null is not an object \(evaluating '(E\.|this\.style)/.test(msg)) {
+    if (/this\.style\._layers|reading '_layers'|this\.light is null|can't access property "(id|type|setFilter)", \w+ is (null|undefined)|Cannot read properties of null \(reading '(id|type|setFilter|_layers)'\)|null is not an object \(evaluating '(E\.|this\.style)|^\w{1,2} is null$/.test(msg)) {
       if (frames.some(f => /\/map-[A-Za-z0-9]+\.js/.test(f.filename ?? ''))) return null;
     }
     // Suppress any TypeError that happens entirely within maplibre internals (no app code outside the map chunk)
@@ -132,14 +148,32 @@ requestAnimationFrame(() => {
 // Clear stale settings-open flag (survives ungraceful shutdown)
 localStorage.removeItem('wm-settings-open');
 
-const app = new App('app');
-app
-  .init()
-  .then(() => {
-    // Clear the one-shot guard after a successful boot so future stale-chunk incidents can recover.
-    clearChunkReloadGuard(chunkReloadStorageKey);
-  })
-  .catch(console.error);
+// Standalone windows: ?settings=1 = panel display settings, ?live-channels=1 = channel management
+// Both need i18n initialized so t() does not return undefined.
+const urlParams = new URL(location.href).searchParams;
+if (urlParams.get('settings') === '1') {
+  void Promise.all([import('./services/i18n'), import('./settings-window')]).then(
+    async ([i18n, m]) => {
+      await i18n.initI18n();
+      m.initSettingsWindow();
+    }
+  );
+} else if (urlParams.get('live-channels') === '1') {
+  void Promise.all([import('./services/i18n'), import('./live-channels-window')]).then(
+    async ([i18n, m]) => {
+      await i18n.initI18n();
+      m.initLiveChannelsWindow();
+    }
+  );
+} else {
+  const app = new App('app');
+  app
+    .init()
+    .then(() => {
+      clearChunkReloadGuard(chunkReloadStorageKey);
+    })
+    .catch(console.error);
+}
 
 // Debug helpers for geo-convergence testing (remove in production)
 (window as unknown as Record<string, unknown>).geoDebug = {

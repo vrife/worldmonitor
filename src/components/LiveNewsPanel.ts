@@ -1,7 +1,10 @@
 import { Panel } from './Panel';
 import { fetchLiveVideoId } from '@/services/live-news';
 import { isDesktopRuntime, getRemoteApiBaseUrl } from '@/services/runtime';
+import { invokeTauri } from '@/services/tauri-bridge';
 import { t } from '../services/i18n';
+import { loadFromStorage, saveToStorage } from '@/utils';
+import { STORAGE_KEYS } from '@/config';
 
 // YouTube IFrame Player API types
 type YouTubePlayer = {
@@ -39,7 +42,7 @@ declare global {
   }
 }
 
-interface LiveChannel {
+export interface LiveChannel {
   id: string;
   name: string;
   handle: string; // YouTube channel handle (e.g., @bloomberg)
@@ -71,11 +74,69 @@ const TECH_LIVE_CHANNELS: LiveChannel[] = [
   { id: 'nasa', name: 'NASA TV', handle: '@NASA', fallbackVideoId: 'fO9e9jnhYK8', useFallbackOnly: true },
 ];
 
-const LIVE_CHANNELS = SITE_VARIANT === 'tech' ? TECH_LIVE_CHANNELS : FULL_LIVE_CHANNELS;
+const DEFAULT_LIVE_CHANNELS = SITE_VARIANT === 'tech' ? TECH_LIVE_CHANNELS : FULL_LIVE_CHANNELS;
+
+/** Default channel list for the current variant (for restore in channel management). */
+export function getDefaultLiveChannels(): LiveChannel[] {
+  return [...DEFAULT_LIVE_CHANNELS];
+}
+
+export interface StoredLiveChannels {
+  order: string[];
+  custom?: LiveChannel[];
+  /** Display name overrides for built-in channels (and custom). */
+  displayNameOverrides?: Record<string, string>;
+}
+
+const DEFAULT_STORED: StoredLiveChannels = {
+  order: DEFAULT_LIVE_CHANNELS.map((c) => c.id),
+};
+
+export const BUILTIN_IDS = new Set([
+  ...FULL_LIVE_CHANNELS.map((c) => c.id),
+  ...TECH_LIVE_CHANNELS.map((c) => c.id),
+]);
+
+export function loadChannelsFromStorage(): LiveChannel[] {
+  const stored = loadFromStorage<StoredLiveChannels>(STORAGE_KEYS.liveChannels, DEFAULT_STORED);
+  const order = stored.order?.length ? stored.order : DEFAULT_STORED.order;
+  const channelMap = new Map<string, LiveChannel>();
+  for (const c of FULL_LIVE_CHANNELS) channelMap.set(c.id, { ...c });
+  for (const c of TECH_LIVE_CHANNELS) channelMap.set(c.id, { ...c });
+  for (const c of stored.custom ?? []) {
+    if (c.id && c.handle) channelMap.set(c.id, { ...c });
+  }
+  const overrides = stored.displayNameOverrides ?? {};
+  for (const [id, name] of Object.entries(overrides)) {
+    const ch = channelMap.get(id);
+    if (ch) ch.name = name;
+  }
+  const result: LiveChannel[] = [];
+  for (const id of order) {
+    const ch = channelMap.get(id);
+    if (ch) result.push(ch);
+  }
+  return result;
+}
+
+export function saveChannelsToStorage(channels: LiveChannel[]): void {
+  const order = channels.map((c) => c.id);
+  const custom = channels.filter((c) => !BUILTIN_IDS.has(c.id));
+  const builtinNames = new Map<string, string>();
+  for (const c of [...FULL_LIVE_CHANNELS, ...TECH_LIVE_CHANNELS]) builtinNames.set(c.id, c.name);
+  const displayNameOverrides: Record<string, string> = {};
+  for (const c of channels) {
+    if (builtinNames.has(c.id) && c.name !== builtinNames.get(c.id)) {
+      displayNameOverrides[c.id] = c.name;
+    }
+  }
+  saveToStorage(STORAGE_KEYS.liveChannels, { order, custom, displayNameOverrides });
+}
 
 export class LiveNewsPanel extends Panel {
   private static apiPromise: Promise<void> | null = null;
-  private activeChannel: LiveChannel = LIVE_CHANNELS[0]!;
+  private channels: LiveChannel[] = [];
+  private activeChannel!: LiveChannel;
   private channelSwitcher: HTMLElement | null = null;
   private isMuted = true;
   private isPlaying = true;
@@ -109,12 +170,19 @@ export class LiveNewsPanel extends Panel {
     this.youtubeOrigin = LiveNewsPanel.resolveYouTubeOrigin();
     this.playerElementId = `live-news-player-${Date.now()}`;
     this.element.classList.add('panel-wide');
+    this.channels = loadChannelsFromStorage();
+    if (this.channels.length === 0) this.channels = getDefaultLiveChannels();
+    this.activeChannel = this.channels[0]!;
     this.createLiveButton();
     this.createMuteButton();
     this.createChannelSwitcher();
     this.setupBridgeMessageListener();
     this.renderPlayer();
     this.setupIdleDetection();
+  }
+
+  private saveChannels(): void {
+    saveChannelsToStorage(this.channels);
   }
 
   private get embedOrigin(): string {
@@ -302,20 +370,100 @@ export class LiveNewsPanel extends Panel {
     this.syncPlayerState();
   }
 
+  /** Creates a single channel tab button with click and drag handlers. */
+  private createChannelButton(channel: LiveChannel): HTMLButtonElement {
+    const btn = document.createElement('button');
+    btn.className = `live-channel-btn ${channel.id === this.activeChannel.id ? 'active' : ''}`;
+    btn.dataset.channelId = channel.id;
+    btn.draggable = true;
+    btn.textContent = channel.name;
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      this.switchChannel(channel);
+    });
+    btn.addEventListener('dragstart', (e) => {
+      btn.classList.add('live-channel-dragging');
+      if (e.dataTransfer) {
+        e.dataTransfer.setData('text/plain', channel.id);
+        e.dataTransfer.effectAllowed = 'move';
+      }
+    });
+    btn.addEventListener('dragend', () => {
+      btn.classList.remove('live-channel-dragging');
+      this.applyChannelOrderFromDom();
+    });
+    return btn;
+  }
+
   private createChannelSwitcher(): void {
     this.channelSwitcher = document.createElement('div');
     this.channelSwitcher.className = 'live-news-switcher';
 
-    LIVE_CHANNELS.forEach(channel => {
-      const btn = document.createElement('button');
-      btn.className = `live-channel-btn ${channel.id === this.activeChannel.id ? 'active' : ''}`;
-      btn.dataset.channelId = channel.id;
-      btn.textContent = channel.name;
-      btn.addEventListener('click', () => this.switchChannel(channel));
-      this.channelSwitcher!.appendChild(btn);
+    for (const channel of this.channels) {
+      this.channelSwitcher.appendChild(this.createChannelButton(channel));
+    }
+
+    this.channelSwitcher.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      const dragging = this.channelSwitcher?.querySelector('.live-channel-dragging');
+      if (!dragging || !this.channelSwitcher) return;
+      const target = (e.target as HTMLElement).closest?.('.live-channel-btn');
+      if (!target || target === dragging) return;
+      const all = Array.from(this.channelSwitcher.querySelectorAll('.live-channel-btn'));
+      const idx = all.indexOf(dragging as Element);
+      const targetIdx = all.indexOf(target);
+      if (idx === -1 || targetIdx === -1) return;
+      if (idx < targetIdx) {
+        target.parentElement?.insertBefore(dragging, target.nextSibling);
+      } else {
+        target.parentElement?.insertBefore(dragging, target);
+      }
     });
 
-    this.element.insertBefore(this.channelSwitcher, this.content);
+    const toolbar = document.createElement('div');
+    toolbar.className = 'live-news-toolbar';
+    toolbar.appendChild(this.channelSwitcher);
+    this.createManageButton(toolbar);
+    this.element.insertBefore(toolbar, this.content);
+  }
+
+  private createManageButton(toolbar: HTMLElement): void {
+    const openBtn = document.createElement('button');
+    openBtn.type = 'button';
+    openBtn.className = 'live-news-settings-btn';
+    openBtn.title = t('components.liveNews.channelSettings') ?? 'Channel Settings';
+    openBtn.innerHTML =
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
+    openBtn.addEventListener('click', () => {
+      if (isDesktopRuntime()) {
+        void invokeTauri<void>('open_live_channels_window_command', {
+          base_url: window.location.origin,
+        }).catch(() => {});
+        return;
+      }
+      const url = new URL(window.location.href);
+      url.searchParams.set('live-channels', '1');
+      window.open(url.toString(), 'worldmonitor-live-channels', 'width=440,height=560,scrollbars=yes');
+    });
+    toolbar.appendChild(openBtn);
+  }
+
+  private refreshChannelSwitcher(): void {
+    if (!this.channelSwitcher) return;
+    this.channelSwitcher.innerHTML = '';
+    for (const channel of this.channels) {
+      this.channelSwitcher.appendChild(this.createChannelButton(channel));
+    }
+  }
+
+  private applyChannelOrderFromDom(): void {
+    if (!this.channelSwitcher) return;
+    const ids = Array.from(this.channelSwitcher.querySelectorAll<HTMLElement>('.live-channel-btn'))
+      .map((el) => el.dataset.channelId)
+      .filter((id): id is string => !!id);
+    const orderMap = new Map(this.channels.map((c) => [c.id, c]));
+    this.channels = ids.map((id) => orderMap.get(id)).filter((c): c is LiveChannel => !!c);
+    this.saveChannels();
   }
 
   private async resolveChannelVideo(channel: LiveChannel, forceFallback = false): Promise<void> {
@@ -680,6 +828,17 @@ export class LiveNewsPanel extends Panel {
 
   public refresh(): void {
     this.syncPlayerState();
+  }
+
+  /** Reload channel list from storage (e.g. after edit in separate channel management window). */
+  public refreshChannelsFromStorage(): void {
+    this.channels = loadChannelsFromStorage();
+    if (this.channels.length === 0) this.channels = getDefaultLiveChannels();
+    if (!this.channels.some((c) => c.id === this.activeChannel.id)) {
+      this.activeChannel = this.channels[0]!;
+      void this.switchChannel(this.activeChannel);
+    }
+    this.refreshChannelSwitcher();
   }
 
   public destroy(): void {

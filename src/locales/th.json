@@ -1137,7 +1137,19 @@
       "retry": "ลองใหม่",
       "notLive": "{{name}} ไม่ได้ถ่ายทอดสดอยู่ในขณะนี้",
       "cannotEmbed": "ไม่สามารถฝัง {{name}} ในแอปนี้ได้ (YouTube {{code}})",
-      "openOnYouTube": "เปิดบน YouTube"
+      "openOnYouTube": "เปิดบน YouTube",
+      "manage": "จัดการช่อง",
+      "addChannel": "เพิ่มช่อง",
+      "remove": "ลบ",
+      "youtubeHandle": "YouTube handle (เช่น @Channel)",
+      "displayName": "ชื่อที่แสดง (ไม่บังคับ)",
+      "openPanelSettings": "การตั้งค่าการแสดงผลแผง",
+      "channelSettings": "การตั้งค่าช่อง",
+      "save": "บันทึก",
+      "cancel": "ยกเลิก",
+      "confirmDelete": "ลบช่องนี้หรือไม่?",
+      "confirmTitle": "ยืนยัน",
+      "restoreDefaults": "คืนค่าช่องเริ่มต้น"
     }
   },
   "popups": {
@@ -1270,6 +1282,9 @@
       "repairStatus": {
         "onStation": "ประจำตำแหน่ง",
         "enRoute": "ระหว่างทาง"
+      },
+      "health": {
+        "evidence": "หลักฐานสถานะ"
       },
       "description": "สายเคเบิลโทรคมนาคมใต้ทะเลที่รองรับการรับส่งข้อมูลอินเทอร์เน็ตระหว่างประเทศ สายเคเบิลใยแก้วนำแสงเหล่านี้เป็นกระดูกสันหลังของการเชื่อมต่ออินเทอร์เน็ตทั่วโลก รองรับการส่งข้อมูลข้ามทวีปมากกว่า 95%"
     },
@@ -1724,6 +1739,7 @@
     "noDataAvailable": "ไม่มีข้อมูล",
     "updated": "อัปเดตเมื่อสักครู่",
     "ago": "{{time}} ที่แล้ว",
+    "retrying": "กำลังลองใหม่...",
     "failedToLoad": "โหลดข้อมูลไม่สำเร็จ",
     "noDataShort": "ไม่มีข้อมูล",
     "upstreamUnavailable": "API ต้นทางไม่พร้อมใช้งาน — จะลองใหม่อัตโนมัติ",

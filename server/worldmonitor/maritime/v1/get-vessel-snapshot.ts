@@ -11,6 +11,8 @@ import type {
   AisDisruptionSeverity,
 } from '../../../../src/generated/server/worldmonitor/maritime/v1/service_server';
 
+import { CHROME_UA } from '../../../_shared/constants';
+
 // ========================================================================
 // Helpers
 // ========================================================================
@@ -74,7 +76,7 @@ async function fetchVesselSnapshotFromRelay(): Promise<VesselSnapshot | undefine
     const response = await fetch(
       `${relayBaseUrl}/ais/snapshot?candidates=false`,
       {
-        headers: { Accept: 'application/json' },
+        headers: { Accept: 'application/json', 'User-Agent': CHROME_UA },
         signal: AbortSignal.timeout(10000),
       },
     );

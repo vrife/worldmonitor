@@ -89,7 +89,8 @@
     "filterSources": "ソースを絞り込み...",
     "sourcesEnabled": "{{enabled}}/{{total}} 有効",
     "finance": "金融",
-    "toggleTheme": "ダーク/ライトモード切替"
+    "toggleTheme": "ダーク/ライトモード切替",
+    "panelDisplayCaption": "ダッシュボードに表示するパネルを選択"
   },
   "panels": {
     "liveNews": "ライブニュース",
@@ -1160,7 +1161,19 @@
       "retry": "Retry",
       "notLive": "{{name}} is not currently live",
       "cannotEmbed": "{{name}} cannot be embedded in this app (YouTube {{code}})",
-      "openOnYouTube": "Open on YouTube"
+      "openOnYouTube": "Open on YouTube",
+      "manage": "チャンネル管理",
+      "addChannel": "チャンネルを追加",
+      "remove": "削除",
+      "youtubeHandle": "YouTube ハンドル（例: @Channel）",
+      "displayName": "表示名（任意）",
+      "openPanelSettings": "表示パネル設定",
+      "channelSettings": "チャンネル設定",
+      "save": "保存",
+      "cancel": "キャンセル",
+      "confirmDelete": "このチャンネルを削除しますか？",
+      "confirmTitle": "確認",
+      "restoreDefaults": "デフォルトのチャンネルを復元"
     }
   },
   "popups": {
@@ -1293,6 +1306,9 @@
       "repairStatus": {
         "onStation": "現地到着",
         "enRoute": "移動中"
+      },
+      "health": {
+        "evidence": "健全性の証拠"
       },
       "description": "国際インターネットトラフィックを伝送する海底通信ケーブル。これらの光ファイバーケーブルはグローバルインターネット接続の基盤を形成し、大陸間データの95%以上を伝送。"
     },
@@ -1747,6 +1763,7 @@
     "noDataAvailable": "データなし",
     "updated": "たった今更新",
     "ago": "{{time}}前",
+    "retrying": "再試行中...",
     "failedToLoad": "データの読み込みに失敗",
     "noDataShort": "データなし",
     "upstreamUnavailable": "上流APIが利用不可 — 自動リトライ予定",

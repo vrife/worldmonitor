@@ -28,7 +28,7 @@ export type ProgressCallback = (step: number, total: number, message: string) =>
 
 // ── Sebuf client (replaces direct fetch to /api/{provider}-summarize) ──
 
-const newsClient = new NewsServiceClient('', { fetch: fetch.bind(globalThis) });
+const newsClient = new NewsServiceClient('', { fetch: (...args) => globalThis.fetch(...args) });
 const summaryBreaker = createCircuitBreaker<SummarizeArticleResponse>({ name: 'News Summarization' });
 
 const emptySummaryFallback: SummarizeArticleResponse = { summary: '', provider: '', model: '', cached: false, skipped: false, fallback: true, tokens: 0, reason: '', error: '', errorType: '' };

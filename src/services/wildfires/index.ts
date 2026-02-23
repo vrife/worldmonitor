@@ -38,7 +38,7 @@ export interface MapFire {
 
 // -- Client --
 
-const client = new WildfireServiceClient('', { fetch: fetch.bind(globalThis) });
+const client = new WildfireServiceClient('', { fetch: (...args) => globalThis.fetch(...args) });
 const breaker = createCircuitBreaker<ListFireDetectionsResponse>({ name: 'Wildfires' });
 
 const emptyFallback: ListFireDetectionsResponse = { fireDetections: [] };

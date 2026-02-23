@@ -15,6 +15,12 @@ import type {
   PredictionMarket,
 } from '../../../../src/generated/server/worldmonitor/prediction/v1/service_server';
 
+import { CHROME_UA } from '../../../_shared/constants';
+import { getCachedJson, setCachedJson } from '../../../_shared/redis';
+
+const REDIS_CACHE_KEY = 'prediction:markets:v1';
+const REDIS_CACHE_TTL = 300; // 5 min
+
 const GAMMA_BASE = 'https://gamma-api.polymarket.com';
 const FETCH_TIMEOUT = 8000;
 
@@ -94,6 +100,11 @@ export const listPredictionMarkets: PredictionServiceHandler['listPredictionMark
   req: ListPredictionMarketsRequest,
 ): Promise<ListPredictionMarketsResponse> => {
   try {
+    // Redis shared cache (cross-instance)
+    const cacheKey = `${REDIS_CACHE_KEY}:${req.category || 'all'}:${req.query || ''}:${req.pagination?.pageSize || 50}`;
+    const cached = (await getCachedJson(cacheKey)) as ListPredictionMarketsResponse | null;
+    if (cached?.markets?.length) return cached;
+
     // Determine endpoint: events (with tag_slug) or markets
     const useEvents = !!req.category;
     const endpoint = useEvents ? 'events' : 'markets';
@@ -120,7 +131,7 @@ export const listPredictionMarkets: PredictionServiceHandler['listPredictionMark
       const response = await fetch(
         `${GAMMA_BASE}/${endpoint}?${params}`,
         {
-          headers: { Accept: 'application/json' },
+          headers: { Accept: 'application/json', 'User-Agent': CHROME_UA },
           signal: controller.signal,
         },
       );
@@ -153,7 +164,11 @@ export const listPredictionMarkets: PredictionServiceHandler['listPredictionMark
       );
     }
 
-    return { markets, pagination: undefined };
+    const result: ListPredictionMarketsResponse = { markets, pagination: undefined };
+    if (markets.length > 0) {
+      setCachedJson(cacheKey, result, REDIS_CACHE_TTL).catch(() => {});
+    }
+    return result;
   } catch {
     // Catch-all: return empty on ANY failure
     return { markets: [], pagination: undefined };

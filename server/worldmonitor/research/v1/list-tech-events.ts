@@ -19,6 +19,11 @@ import type {
   TechEventCoords,
 } from '../../../../src/generated/server/worldmonitor/research/v1/service_server';
 import { CITY_COORDS } from '../../../../api/data/city-coords';
+import { CHROME_UA } from '../../../_shared/constants';
+import { getCachedJson, setCachedJson } from '../../../_shared/redis';
+
+const REDIS_CACHE_KEY = 'research:tech-events:v1';
+const REDIS_CACHE_TTL = 21600; // 6 hr — weekly event data
 
 // ---------- Constants ----------
 
@@ -255,10 +260,10 @@ async function fetchTechEvents(req: ListTechEventsRequest): Promise<ListTechEven
   // Fetch both sources in parallel
   const [icsResponse, rssResponse] = await Promise.allSettled([
     fetch(ICS_URL, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; WorldMonitor/1.0)' },
+      headers: { 'User-Agent': CHROME_UA },
     }),
     fetch(DEV_EVENTS_RSS, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; WorldMonitor/1.0)' },
+      headers: { 'User-Agent': CHROME_UA },
     }),
   ]);
 
@@ -341,6 +346,13 @@ async function fetchTechEvents(req: ListTechEventsRequest): Promise<ListTechEven
   };
 }
 
+function applyLimit(res: ListTechEventsResponse, limit: number): ListTechEventsResponse {
+  const events = res.events.slice(0, limit);
+  const conferences = events.filter(e => e.type === 'conference');
+  const mappableCount = conferences.filter(e => e.coords && !e.coords.virtual).length;
+  return { ...res, events, count: events.length, conferenceCount: conferences.length, mappableCount };
+}
+
 // ---------- Handler ----------
 
 export async function listTechEvents(
@@ -348,7 +360,23 @@ export async function listTechEvents(
   req: ListTechEventsRequest,
 ): Promise<ListTechEventsResponse> {
   try {
-    return await fetchTechEvents(req);
+    const cacheKey = `${REDIS_CACHE_KEY}:${req.type || 'all'}:${req.mappable ? 1 : 0}:${req.days || 0}`;
+    const cached = (await getCachedJson(cacheKey)) as ListTechEventsResponse | null;
+    if (cached?.events?.length) {
+      if (req.limit > 0 && cached.events.length > req.limit) {
+        return applyLimit(cached, req.limit);
+      }
+      return cached;
+    }
+
+    const result = await fetchTechEvents({ ...req, limit: 0 });
+    if (result.events.length > 0) {
+      setCachedJson(cacheKey, result, REDIS_CACHE_TTL).catch(() => {});
+    }
+    if (req.limit > 0 && result.events.length > req.limit) {
+      return applyLimit(result, req.limit);
+    }
+    return result;
   } catch (error) {
     return {
       success: false,

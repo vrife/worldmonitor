@@ -142,6 +142,16 @@ const ALLOWED_DOMAINS = [
   'www.lemonde.fr',
   'rss.dw.com',
   'www.africanews.com',
+  // Nigeria
+  'www.premiumtimesng.com',
+  'www.vanguardngr.com',
+  'www.channelstv.com',
+  'dailytrust.com',
+  'www.thisdaylive.com',
+  // Greek
+  'www.naftemporiki.gr',
+  'www.in.gr',
+  'www.iefimerida.gr',
   'www.lasillavacia.com',
   'www.channelnewsasia.com',
   'www.thehindu.com',
@@ -177,7 +187,7 @@ const ALLOWED_DOMAINS = [
   'www.fao.org',
   'worldbank.org',
   'www.imf.org',
-  // Regional locale feeds (tr, pl, ru, th, vi)
+  // Regional locale feeds (tr, pl, ru, th, vi, pt)
   'www.hurriyet.com.tr',
   'tvn24.pl',
   'www.polsatnews.pl',
@@ -187,6 +197,7 @@ const ALLOWED_DOMAINS = [
   'www.bangkokpost.com',
   'vnexpress.net',
   'www.abc.net.au',
+  'www.brasilparalelo.com.br',
   // Additional
   'news.ycombinator.com',
   // Finance variant

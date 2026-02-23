@@ -33,7 +33,9 @@ export class ETFFlowsPanel extends Panel {
 
   constructor() {
     super({ id: 'etf-flows', title: t('panels.etfFlows'), showCount: false });
-    void this.fetchData();
+    // Delay initial fetch by 8s to avoid competing with stock/commodity Yahoo calls
+    // during cold start — all share a global yahooGate() rate limiter on the sidecar
+    setTimeout(() => void this.fetchData(), 8_000);
     this.refreshInterval = setInterval(() => this.fetchData(), 3 * 60000);
   }
 
@@ -45,17 +47,30 @@ export class ETFFlowsPanel extends Panel {
   }
 
   private async fetchData(): Promise<void> {
-    try {
-      const client = new MarketServiceClient('', { fetch: fetch.bind(globalThis) });
-      this.data = await client.listEtfFlows({});
-      this.error = null;
-    } catch (err) {
-      if (this.isAbortError(err)) return;
-      this.error = err instanceof Error ? err.message : 'Failed to fetch';
-    } finally {
-      this.loading = false;
-      this.renderPanel();
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const client = new MarketServiceClient('', { fetch: (...args) => globalThis.fetch(...args) });
+        this.data = await client.listEtfFlows({});
+        this.error = null;
+
+        if (this.data && this.data.etfs.length === 0 && attempt < 2) {
+          this.showRetrying();
+          await new Promise(r => setTimeout(r, 20_000));
+          continue;
+        }
+        break;
+      } catch (err) {
+        if (this.isAbortError(err)) return;
+        if (attempt < 2) {
+          this.showRetrying();
+          await new Promise(r => setTimeout(r, 20_000));
+          continue;
+        }
+        this.error = err instanceof Error ? err.message : 'Failed to fetch';
+      }
     }
+    this.loading = false;
+    this.renderPanel();
   }
 
   private renderPanel(): void {

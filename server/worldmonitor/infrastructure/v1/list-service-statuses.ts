@@ -8,6 +8,7 @@ import type {
 
 import { UPSTREAM_TIMEOUT_MS } from './_shared';
 import { getCachedJson, setCachedJson } from '../../../_shared/redis';
+import { CHROME_UA } from '../../../_shared/constants';
 
 // ========================================================================
 // Service status page definitions and parsers
@@ -110,7 +111,7 @@ async function checkServiceStatus(service: ServiceDef): Promise<ServiceStatus> {
       'Cache-Control': 'no-cache',
     };
     if (service.customParser !== 'incidentio') {
-      headers['User-Agent'] = 'Mozilla/5.0 (compatible; WorldMonitor/1.0)';
+      headers['User-Agent'] = CHROME_UA;
     }
 
     const start = Date.now();

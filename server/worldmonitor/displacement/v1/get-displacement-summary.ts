@@ -12,6 +12,12 @@ import type {
   GeoCoordinates,
 } from '../../../../src/generated/server/worldmonitor/displacement/v1/service_server';
 
+import { CHROME_UA } from '../../../_shared/constants';
+import { getCachedJson, setCachedJson } from '../../../_shared/redis';
+
+const REDIS_CACHE_KEY = 'displacement:summary:v1';
+const REDIS_CACHE_TTL = 43200; // 12 hr — annual UNHCR data, very slow-moving
+
 // ---------- Country centroids (ISO3 -> [lat, lon]) ----------
 
 const COUNTRY_CENTROIDS: Record<string, [number, number]> = {
@@ -51,7 +57,7 @@ async function fetchUnhcrYearItems(year: number): Promise<UnhcrRawItem[] | null>
   for (let page = 1; page <= maxPageGuard; page++) {
     const response = await fetch(
       `https://api.unhcr.org/population/v1/population/?year=${year}&limit=${limit}&page=${page}`,
-      { headers: { Accept: 'application/json' } },
+      { headers: { Accept: 'application/json', 'User-Agent': CHROME_UA } },
     );
 
     if (!response.ok) return null;
@@ -124,6 +130,12 @@ export async function getDisplacementSummary(
   req: GetDisplacementSummaryRequest,
 ): Promise<GetDisplacementSummaryResponse> {
   try {
+    // Redis shared cache (keyed by year)
+    const year = req.year > 0 ? req.year : new Date().getFullYear();
+    const cacheKey = `${REDIS_CACHE_KEY}:${year}:${req.countryLimit || 0}:${req.flowLimit || 0}`;
+    const cached = (await getCachedJson(cacheKey)) as GetDisplacementSummaryResponse | null;
+    if (cached?.summary) return cached;
+
     // 1. Determine year with fallback
     const currentYear = new Date().getFullYear();
     const requestYear = req.year > 0 ? req.year : 0;
@@ -295,7 +307,7 @@ export async function getDisplacementSummary(
       }));
 
     // 8. Return proto-shaped response
-    return {
+    const result: GetDisplacementSummaryResponse = {
       summary: {
         year: dataYearUsed,
         globalTotals: {
@@ -309,6 +321,8 @@ export async function getDisplacementSummary(
         topFlows: protoFlows,
       },
     };
+    setCachedJson(cacheKey, result, REDIS_CACHE_TTL).catch(() => {});
+    return result;
   } catch {
     // Graceful degradation: return empty summary on ANY failure
     return {

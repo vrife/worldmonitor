@@ -106,7 +106,7 @@ function toDisplayFlow(proto: ProtoFlow): DisplacementFlow {
 
 // ─── Client + circuit breaker ───
 
-const client = new DisplacementServiceClient('', { fetch: fetch.bind(globalThis) });
+const client = new DisplacementServiceClient('', { fetch: (...args) => globalThis.fetch(...args) });
 
 const emptyResult: UnhcrSummary = {
   year: new Date().getFullYear(),

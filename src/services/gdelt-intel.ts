@@ -86,7 +86,7 @@ export function getIntelTopics(): IntelTopic[] {
 
 // ---- Sebuf client ----
 
-const client = new IntelligenceServiceClient('', { fetch: fetch.bind(globalThis) });
+const client = new IntelligenceServiceClient('', { fetch: (...args) => globalThis.fetch(...args) });
 const gdeltBreaker = createCircuitBreaker<SearchGdeltDocumentsResponse>({ name: 'GDELT Intelligence' });
 
 const emptyGdeltFallback: SearchGdeltDocumentsResponse = { articles: [], query: '', error: '' };

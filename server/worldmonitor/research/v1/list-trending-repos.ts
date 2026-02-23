@@ -12,6 +12,12 @@ import type {
   GithubRepo,
 } from '../../../../src/generated/server/worldmonitor/research/v1/service_server';
 
+import { CHROME_UA } from '../../../_shared/constants';
+import { getCachedJson, setCachedJson } from '../../../_shared/redis';
+
+const REDIS_CACHE_KEY = 'research:trending:v1';
+const REDIS_CACHE_TTL = 3600; // 1 hr — daily trending data
+
 // ---------- Fetch ----------
 
 async function fetchTrendingRepos(req: ListTrendingReposRequest): Promise<GithubRepo[]> {
@@ -25,7 +31,7 @@ async function fetchTrendingRepos(req: ListTrendingReposRequest): Promise<Github
 
   try {
     const response = await fetch(primaryUrl, {
-      headers: { Accept: 'application/json', 'User-Agent': 'WorldMonitor/1.0' },
+      headers: { Accept: 'application/json', 'User-Agent': CHROME_UA },
       signal: AbortSignal.timeout(10000),
     });
 
@@ -36,7 +42,7 @@ async function fetchTrendingRepos(req: ListTrendingReposRequest): Promise<Github
     try {
       const fallbackUrl = `https://gh-trending-api.herokuapp.com/repositories/${language}?since=${period}`;
       const fallbackResponse = await fetch(fallbackUrl, {
-        headers: { Accept: 'application/json' },
+        headers: { Accept: 'application/json', 'User-Agent': CHROME_UA },
         signal: AbortSignal.timeout(10000),
       });
 
@@ -67,8 +73,16 @@ export async function listTrendingRepos(
   req: ListTrendingReposRequest,
 ): Promise<ListTrendingReposResponse> {
   try {
+    const cacheKey = `${REDIS_CACHE_KEY}:${req.language || 'python'}:${req.period || 'daily'}:${req.pagination?.pageSize || 50}`;
+    const cached = (await getCachedJson(cacheKey)) as ListTrendingReposResponse | null;
+    if (cached?.repos?.length) return cached;
+
     const repos = await fetchTrendingRepos(req);
-    return { repos, pagination: undefined };
+    const result: ListTrendingReposResponse = { repos, pagination: undefined };
+    if (repos.length > 0) {
+      setCachedJson(cacheKey, result, REDIS_CACHE_TTL).catch(() => {});
+    }
+    return result;
   } catch {
     return { repos: [], pagination: undefined };
   }

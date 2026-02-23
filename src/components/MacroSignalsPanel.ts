@@ -22,7 +22,7 @@ interface MacroSignalData {
   unavailable?: boolean;
 }
 
-const economicClient = new EconomicServiceClient('', { fetch: fetch.bind(globalThis) });
+const economicClient = new EconomicServiceClient('', { fetch: (...args) => globalThis.fetch(...args) });
 
 /** Map proto response (optional fields = undefined) to MacroSignalData (null for absent values). */
 function mapProtoToData(r: GetMacroSignalsResponse): MacroSignalData {
@@ -139,17 +139,30 @@ export class MacroSignalsPanel extends Panel {
   }
 
   private async fetchData(): Promise<void> {
-    try {
-      const res = await economicClient.getMacroSignals({});
-      this.data = mapProtoToData(res);
-      this.error = null;
-    } catch (err) {
-      if (this.isAbortError(err)) return;
-      this.error = err instanceof Error ? err.message : 'Failed to fetch';
-    } finally {
-      this.loading = false;
-      this.renderPanel();
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const res = await economicClient.getMacroSignals({});
+        this.data = mapProtoToData(res);
+        this.error = null;
+
+        if (this.data && this.data.unavailable && attempt < 2) {
+          this.showRetrying();
+          await new Promise(r => setTimeout(r, 20_000));
+          continue;
+        }
+        break;
+      } catch (err) {
+        if (this.isAbortError(err)) return;
+        if (attempt < 2) {
+          this.showRetrying();
+          await new Promise(r => setTimeout(r, 20_000));
+          continue;
+        }
+        this.error = err instanceof Error ? err.message : 'Failed to fetch';
+      }
     }
+    this.loading = false;
+    this.renderPanel();
   }
 
   private renderPanel(): void {

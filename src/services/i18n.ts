@@ -4,7 +4,7 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 // English is always needed as fallback — bundle it eagerly.
 import enTranslation from '../locales/en.json';
 
-const SUPPORTED_LANGUAGES = ['en', 'fr', 'de', 'es', 'it', 'pl', 'pt', 'nl', 'sv', 'ru', 'ar', 'zh', 'ja', 'tr', 'th', 'vi'] as const;
+const SUPPORTED_LANGUAGES = ['en', 'fr', 'de', 'el', 'es', 'it', 'pl', 'pt', 'nl', 'sv', 'ru', 'ar', 'zh', 'ja', 'tr', 'th', 'vi'] as const;
 type SupportedLanguage = typeof SUPPORTED_LANGUAGES[number];
 type TranslationDictionary = Record<string, unknown>;
 
@@ -125,7 +125,7 @@ export function isRTL(): boolean {
 
 export function getLocale(): string {
   const lang = getCurrentLanguage();
-  const map: Record<string, string> = { en: 'en-US', zh: 'zh-CN', pt: 'pt-BR', ja: 'ja-JP', tr: 'tr-TR', th: 'th-TH', vi: 'vi-VN' };
+  const map: Record<string, string> = { en: 'en-US', el: 'el-GR', zh: 'zh-CN', pt: 'pt-BR', ja: 'ja-JP', tr: 'tr-TR', th: 'th-TH', vi: 'vi-VN' };
   return map[lang] || lang;
 }
 
@@ -135,6 +135,7 @@ export const LANGUAGES = [
   { code: 'zh', label: '中文', flag: '🇨🇳' },
   { code: 'fr', label: 'Français', flag: '🇫🇷' },
   { code: 'de', label: 'Deutsch', flag: '🇩🇪' },
+  { code: 'el', label: 'Ελληνικά', flag: '🇬🇷' },
   { code: 'es', label: 'Español', flag: '🇪🇸' },
   { code: 'it', label: 'Italiano', flag: '🇮🇹' },
   { code: 'pl', label: 'Polski', flag: '🇵🇱' },

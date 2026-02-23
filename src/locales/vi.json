@@ -1137,7 +1137,19 @@
       "retry": "Thử lại",
       "notLive": "{{name}} hiện không phát trực tiếp",
       "cannotEmbed": "{{name}} không thể nhúng trong ứng dụng này (YouTube {{code}})",
-      "openOnYouTube": "Mở trên YouTube"
+      "openOnYouTube": "Mở trên YouTube",
+      "manage": "Quản lý kênh",
+      "addChannel": "Thêm kênh",
+      "remove": "Xóa",
+      "youtubeHandle": "Handle YouTube (vd: @Channel)",
+      "displayName": "Tên hiển thị (tùy chọn)",
+      "openPanelSettings": "Cài đặt hiển thị bảng",
+      "channelSettings": "Cài đặt kênh",
+      "save": "Lưu",
+      "cancel": "Hủy",
+      "confirmDelete": "Xóa kênh này?",
+      "confirmTitle": "Xác nhận",
+      "restoreDefaults": "Khôi phục kênh mặc định"
     }
   },
   "popups": {
@@ -1270,6 +1282,9 @@
       "repairStatus": {
         "onStation": "Tại vị trí",
         "enRoute": "Đang trên đường"
+      },
+      "health": {
+        "evidence": "BẰNG CHỨNG TÌNH TRẠNG"
       },
       "description": "Cáp viễn thông ngầm mang lưu lượng internet quốc tế. Các cáp quang này tạo thành xương sống kết nối internet toàn cầu, truyền tải hơn 95% dữ liệu liên lục địa."
     },
@@ -1724,6 +1739,7 @@
     "noDataAvailable": "Không có dữ liệu",
     "updated": "Vừa cập nhật",
     "ago": "{{time}} trước",
+    "retrying": "Đang thử lại...",
     "failedToLoad": "Không thể tải dữ liệu",
     "noDataShort": "Không có dữ liệu",
     "upstreamUnavailable": "API nguồn không khả dụng — sẽ tự động thử lại",

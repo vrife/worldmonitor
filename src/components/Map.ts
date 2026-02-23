@@ -4,7 +4,7 @@ import { escapeHtml } from '@/utils/sanitize';
 import { getCSSColor } from '@/utils';
 import type { Topology, GeometryCollection } from 'topojson-specification';
 import type { Feature, Geometry } from 'geojson';
-import type { MapLayers, Hotspot, NewsItem, InternetOutage, RelatedAsset, AssetType, AisDisruptionEvent, AisDensityZone, CableAdvisory, RepairShip, SocialUnrestEvent, MilitaryFlight, MilitaryVessel, MilitaryFlightCluster, MilitaryVesselCluster, NaturalEvent, CyberThreat } from '@/types';
+import type { MapLayers, Hotspot, NewsItem, InternetOutage, RelatedAsset, AssetType, AisDisruptionEvent, AisDensityZone, CableAdvisory, RepairShip, SocialUnrestEvent, MilitaryFlight, MilitaryVessel, MilitaryFlightCluster, MilitaryVesselCluster, NaturalEvent, CyberThreat, CableHealthRecord } from '@/types';
 import type { AirportDelayAlert } from '@/services/aviation';
 import type { Earthquake } from '@/services/earthquakes';
 import type { TechHubActivity } from '@/services/tech-activity';
@@ -121,6 +121,7 @@ export class MapComponent {
   private aisDensity: AisDensityZone[] = [];
   private cableAdvisories: CableAdvisory[] = [];
   private repairShips: RepairShip[] = [];
+  private healthByCableId: Record<string, CableHealthRecord> = {};
   private protests: SocialUnrestEvent[] = [];
   private flightDelays: AirportDelayAlert[] = [];
   private militaryFlights: MilitaryFlight[] = [];
@@ -442,16 +443,17 @@ export class MapComponent {
           helpItem(label('cloudRegions'), 'techCloudRegions'),
           helpItem(label('techHQs'), 'techHQs'),
           helpItem(label('accelerators'), 'techAccelerators'),
+          helpItem(label('techEvents'), 'techEvents'),
         ])}
         ${helpSection('infrastructure', [
           helpItem(label('underseaCables'), 'infraCables'),
           helpItem(label('aiDataCenters'), 'infraDatacenters'),
           helpItem(label('internetOutages'), 'infraOutages'),
+          helpItem(label('cyberThreats'), 'techCyberThreats'),
         ])}
         ${helpSection('naturalEconomic', [
           helpItem(label('naturalEvents'), 'naturalEventsTech'),
-          helpItem(label('weatherAlerts'), 'weatherAlerts'),
-          helpItem(label('economicCenters'), 'economicCenters'),
+          helpItem(label('fires'), 'techFires'),
           helpItem(staticLabel('countries'), 'countriesOverlay'),
         ])}
       </div>
@@ -465,6 +467,7 @@ export class MapComponent {
           helpItem(label('financialCenters'), 'financeCenters'),
           helpItem(label('centralBanks'), 'financeCentralBanks'),
           helpItem(label('commodityHubs'), 'financeCommodityHubs'),
+          helpItem(label('gulfInvestments'), 'financeGulfInvestments'),
         ])}
         ${helpSection('infrastructureRisk', [
           helpItem(label('underseaCables'), 'financeCables'),
@@ -493,27 +496,34 @@ export class MapComponent {
           helpItem(label('intelHotspots'), 'geoHotspots'),
           helpItem(staticLabel('sanctions'), 'geoSanctions'),
           helpItem(label('protests'), 'geoProtests'),
+          helpItem(label('ucdpEvents'), 'geoUcdpEvents'),
+          helpItem(label('displacementFlows'), 'geoDisplacement'),
         ])}
         ${helpSection('militaryStrategic', [
           helpItem(label('militaryBases'), 'militaryBases'),
           helpItem(label('nuclearSites'), 'militaryNuclear'),
           helpItem(label('gammaIrradiators'), 'militaryIrradiators'),
           helpItem(label('militaryActivity'), 'militaryActivity'),
+          helpItem(label('spaceports'), 'militarySpaceports'),
         ])}
         ${helpSection('infrastructure', [
           helpItem(label('underseaCables'), 'infraCablesFull'),
           helpItem(label('pipelines'), 'infraPipelinesFull'),
           helpItem(label('internetOutages'), 'infraOutages'),
           helpItem(label('aiDataCenters'), 'infraDatacentersFull'),
+          helpItem(label('cyberThreats'), 'infraCyberThreats'),
         ])}
         ${helpSection('transport', [
-          helpItem(staticLabel('shipping'), 'transportShipping'),
+          helpItem(label('shipTraffic'), 'transportShipping'),
           helpItem(label('flightDelays'), 'transportDelays'),
         ])}
         ${helpSection('naturalEconomic', [
           helpItem(label('naturalEvents'), 'naturalEventsFull'),
+          helpItem(label('fires'), 'firesFull'),
           helpItem(label('weatherAlerts'), 'weatherAlerts'),
+          helpItem(label('climateAnomalies'), 'climateAnomalies'),
           helpItem(label('economicCenters'), 'economicCenters'),
+          helpItem(label('criticalMinerals'), 'mineralsFull'),
         ])}
         ${helpSection('labels', [
           helpItem(staticLabel('countries'), 'countriesOverlay'),
@@ -1041,11 +1051,13 @@ export class MapComponent {
       const isHighlighted = this.highlightedAssets.cable.has(cable.id);
       const cableAdvisory = this.getCableAdvisory(cable.id);
       const advisoryClass = cableAdvisory ? `cable-${cableAdvisory.severity}` : '';
+      const healthRecord = this.healthByCableId[cable.id];
+      const healthClass = healthRecord?.status === 'fault' ? 'cable-health-fault' : healthRecord?.status === 'degraded' ? 'cable-health-degraded' : '';
       const highlightClass = isHighlighted ? 'asset-highlight asset-highlight-cable' : '';
 
       const path = cableGroup
         .append('path')
-        .attr('class', `cable-path ${advisoryClass} ${highlightClass}`.trim())
+        .attr('class', `cable-path ${advisoryClass} ${healthClass} ${highlightClass}`.trim())
         .attr('d', lineGenerator(cable.points));
 
       path.append('title').text(cable.name);
@@ -3398,6 +3410,11 @@ export class MapComponent {
     this.cableAdvisories = advisories;
     this.repairShips = repairShips;
     this.popup.setCableActivity(advisories, repairShips);
+    this.render();
+  }
+
+  public setCableHealth(healthMap: Record<string, CableHealthRecord>): void {
+    this.healthByCableId = healthMap;
     this.render();
   }
 

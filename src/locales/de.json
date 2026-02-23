@@ -1160,7 +1160,19 @@
       "retry": "Retry",
       "notLive": "{{name}} is not currently live",
       "cannotEmbed": "{{name}} cannot be embedded in this app (YouTube {{code}})",
-      "openOnYouTube": "Open on YouTube"
+      "openOnYouTube": "Open on YouTube",
+      "manage": "Kanäle verwalten",
+      "addChannel": "Kanal hinzufügen",
+      "remove": "Entfernen",
+      "youtubeHandle": "YouTube-Handle (z. B. @Channel)",
+      "displayName": "Anzeigename (optional)",
+      "openPanelSettings": "Panelanzeige-Einstellungen",
+      "channelSettings": "Kanaleinstellungen",
+      "save": "Speichern",
+      "cancel": "Abbrechen",
+      "confirmDelete": "Diesen Kanal löschen?",
+      "confirmTitle": "Bestätigen",
+      "restoreDefaults": "Standardkanäle wiederherstellen"
     }
   },
   "popups": {
@@ -1292,6 +1304,9 @@
       "repairStatus": {
         "onStation": "Auf der Station",
         "enRoute": "Unterwegs"
+      },
+      "health": {
+        "evidence": "ZUSTANDSNACHWEIS"
       },
       "description": "Untersee-Telekommunikationskabel für den internationalen Internetverkehr. Diese Glasfaserkabel bilden das Rückgrat der globalen Internetkonnektivität und übertragen über 95 % der interkontinentalen Daten."
     },
@@ -1746,6 +1761,7 @@
     "noData": "Keine Daten verfügbar",
     "updated": "Gerade aktualisiert",
     "ago": "vor {{time}}",
+    "retrying": "Wird wiederholt...",
     "failedToLoad": "Fehler beim Laden der Daten",
     "noDataShort": "Keine Daten",
     "noDataAvailable": "Keine Daten verfügbar",

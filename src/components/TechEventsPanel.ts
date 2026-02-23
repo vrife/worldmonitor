@@ -7,7 +7,7 @@ import type { TechEvent } from '@/generated/client/worldmonitor/research/v1/serv
 
 type ViewMode = 'upcoming' | 'conferences' | 'earnings' | 'all';
 
-const researchClient = new ResearchServiceClient('', { fetch: fetch.bind(globalThis) });
+const researchClient = new ResearchServiceClient('', { fetch: (...args) => globalThis.fetch(...args) });
 
 export class TechEventsPanel extends Panel {
   private viewMode: ViewMode = 'upcoming';
@@ -26,25 +26,39 @@ export class TechEventsPanel extends Panel {
     this.error = null;
     this.render();
 
-    try {
-      const data = await researchClient.listTechEvents({
-        type: '',
-        mappable: false,
-        days: 180,
-        limit: 100,
-      });
-      if (!data.success) throw new Error(data.error || 'Unknown error');
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const data = await researchClient.listTechEvents({
+          type: '',
+          mappable: false,
+          days: 180,
+          limit: 100,
+        });
+        if (!data.success) throw new Error(data.error || 'Unknown error');
 
-      this.events = data.events;
-      this.setCount(data.conferenceCount);
-    } catch (err) {
-      if (this.isAbortError(err)) return;
-      this.error = err instanceof Error ? err.message : 'Failed to fetch events';
-      console.error('[TechEvents] Fetch error:', err);
-    } finally {
-      this.loading = false;
-      this.render();
+        this.events = data.events;
+        this.setCount(data.conferenceCount);
+        this.error = null;
+
+        if (this.events.length === 0 && attempt < 2) {
+          this.showRetrying();
+          await new Promise(r => setTimeout(r, 15_000));
+          continue;
+        }
+        break;
+      } catch (err) {
+        if (this.isAbortError(err)) return;
+        if (attempt < 2) {
+          this.showRetrying();
+          await new Promise(r => setTimeout(r, 15_000));
+          continue;
+        }
+        this.error = err instanceof Error ? err.message : 'Failed to fetch events';
+        console.error('[TechEvents] Fetch error:', err);
+      }
     }
+    this.loading = false;
+    this.render();
   }
 
   protected render(): void {

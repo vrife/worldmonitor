@@ -24,6 +24,8 @@ import type {
   CriticalityLevel,
 } from '../../../../src/generated/server/worldmonitor/cyber/v1/service_server';
 
+import { CHROME_UA } from '../../../_shared/constants';
+
 // ========================================================================
 // Constants
 // ========================================================================
@@ -276,6 +278,7 @@ async function fetchGeoIp(
   // Primary: ipinfo.io
   try {
     const resp = await fetch(`https://ipinfo.io/${encodeURIComponent(ip)}/json`, {
+      headers: { 'User-Agent': CHROME_UA },
       signal: signal || AbortSignal.timeout(GEO_PER_IP_TIMEOUT_MS),
     });
     if (resp.ok) {
@@ -295,6 +298,7 @@ async function fetchGeoIp(
   // Fallback: freeipapi.com
   try {
     const resp = await fetch(`https://freeipapi.com/api/json/${encodeURIComponent(ip)}`, {
+      headers: { 'User-Agent': CHROME_UA },
       signal: signal || AbortSignal.timeout(GEO_PER_IP_TIMEOUT_MS),
     });
     if (!resp.ok) return null;
@@ -434,7 +438,7 @@ function parseFeodoRecord(record: any, cutoffMs: number): RawThreat | null {
 export async function fetchFeodoSource(limit: number, cutoffMs: number): Promise<SourceResult> {
   try {
     const response = await fetch(FEODO_URL, {
-      headers: { Accept: 'application/json' },
+      headers: { Accept: 'application/json', 'User-Agent': CHROME_UA },
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     });
     if (!response.ok) return { ok: false, threats: [] };
@@ -524,7 +528,7 @@ export async function fetchUrlhausSource(limit: number, cutoffMs: number): Promi
   try {
     const response = await fetch(URLHAUS_RECENT_URL(limit), {
       method: 'GET',
-      headers: { Accept: 'application/json', 'Auth-Key': authKey },
+      headers: { Accept: 'application/json', 'Auth-Key': authKey, 'User-Agent': CHROME_UA },
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     });
     if (!response.ok) return { ok: false, threats: [] };
@@ -591,7 +595,7 @@ function parseC2IntelCsvLine(line: string): RawThreat | null {
 export async function fetchC2IntelSource(limit: number): Promise<SourceResult> {
   try {
     const response = await fetch(C2INTEL_URL, {
-      headers: { Accept: 'text/plain' },
+      headers: { Accept: 'text/plain', 'User-Agent': CHROME_UA },
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     });
     if (!response.ok) return { ok: false, threats: [] };
@@ -621,7 +625,7 @@ export async function fetchOtxSource(limit: number, days: number): Promise<Sourc
     const response = await fetch(
       `${OTX_INDICATORS_URL}${encodeURIComponent(since)}`,
       {
-        headers: { Accept: 'application/json', 'X-OTX-API-KEY': apiKey },
+        headers: { Accept: 'application/json', 'X-OTX-API-KEY': apiKey, 'User-Agent': CHROME_UA },
         signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
       },
     );
@@ -675,7 +679,7 @@ export async function fetchAbuseIpDbSource(limit: number): Promise<SourceResult>
   try {
     const url = `${ABUSEIPDB_BLACKLIST_URL}?confidenceMinimum=90&limit=${Math.min(limit, 500)}`;
     const response = await fetch(url, {
-      headers: { Accept: 'application/json', Key: apiKey },
+      headers: { Accept: 'application/json', Key: apiKey, 'User-Agent': CHROME_UA },
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     });
     if (!response.ok) return { ok: false, threats: [] };

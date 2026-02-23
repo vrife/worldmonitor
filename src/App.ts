@@ -14,7 +14,7 @@ import {
   LAYER_TO_SOURCE,
 } from '@/config';
 import { BETA_MODE } from '@/config/beta';
-import { fetchCategoryFeeds, getFeedFailures, fetchMultipleStocks, fetchCrypto, fetchPredictions, fetchEarthquakes, fetchWeatherAlerts, fetchFredData, fetchInternetOutages, isOutagesConfigured, fetchAisSignals, initAisStream, getAisStatus, disconnectAisStream, isAisConfigured, fetchCableActivity, fetchProtestEvents, getProtestStatus, fetchFlightDelays, fetchMilitaryFlights, fetchMilitaryVessels, initMilitaryVesselStream, isMilitaryVesselTrackingConfigured, fetchUSNIFleetReport, initDB, updateBaseline, calculateDeviation, addToSignalHistory, saveSnapshot, cleanOldSnapshots, analysisWorker, fetchPizzIntStatus, fetchGdeltTensions, fetchNaturalEvents, fetchRecentAwards, fetchOilAnalytics, fetchCyberThreats, drainTrendingSignals } from '@/services';
+import { fetchCategoryFeeds, getFeedFailures, fetchMultipleStocks, fetchCrypto, fetchPredictions, fetchEarthquakes, fetchWeatherAlerts, fetchFredData, fetchInternetOutages, isOutagesConfigured, fetchAisSignals, initAisStream, getAisStatus, disconnectAisStream, isAisConfigured, fetchCableActivity, fetchCableHealth, fetchProtestEvents, getProtestStatus, fetchFlightDelays, fetchMilitaryFlights, fetchMilitaryVessels, initMilitaryVesselStream, isMilitaryVesselTrackingConfigured, fetchUSNIFleetReport, initDB, updateBaseline, calculateDeviation, addToSignalHistory, saveSnapshot, cleanOldSnapshots, analysisWorker, fetchPizzIntStatus, fetchGdeltTensions, fetchNaturalEvents, fetchRecentAwards, fetchOilAnalytics, fetchCyberThreats, drainTrendingSignals } from '@/services';
 import { fetchCountryMarkets } from '@/services/prediction';
 import { mlWorker } from '@/services/ml-worker';
 import { clusterNewsHybrid } from '@/services/clustering';
@@ -174,6 +174,8 @@ export class App {
   private seenGeoAlerts: Set<string> = new Set();
   private snapshotIntervalId: ReturnType<typeof setInterval> | null = null;
   private refreshTimeoutIds: Map<string, ReturnType<typeof setTimeout>> = new Map();
+  private refreshRunners = new Map<string, { run: () => Promise<void>; intervalMs: number }>();
+  private hiddenSince = 0;
   private isDestroyed = false;
   private boundKeydownHandler: ((e: KeyboardEvent) => void) | null = null;
   private boundFullscreenHandler: (() => void) | null = null;
@@ -904,7 +906,7 @@ export class App {
     const shareUrl = this.getShareUrl();
     if (shareUrl) history.replaceState(null, '', shareUrl);
 
-    const marketClient = new MarketServiceClient('', { fetch: fetch.bind(globalThis) });
+    const marketClient = new MarketServiceClient('', { fetch: (...args) => globalThis.fetch(...args) });
     const stockPromise = marketClient.getCountryStockIndex({ countryCode: code })
       .then((resp) => ({
         available: resp.available,
@@ -986,7 +988,7 @@ export class App {
 
       let briefText = '';
       try {
-        const intelClient = new IntelligenceServiceClient('', { fetch: fetch.bind(globalThis) });
+        const intelClient = new IntelligenceServiceClient('', { fetch: (...args) => globalThis.fetch(...args) });
         const resp = await intelClient.getCountryIntelBrief({ countryCode: code });
         briefText = resp.brief;
       } catch { /* server unreachable */ }
@@ -1297,7 +1299,7 @@ export class App {
   }
 
   private shouldShowIntelligenceNotifications(): boolean {
-    return !this.isMobile && !!this.findingsBadge?.isEnabled();
+    return !this.isMobile && !!this.findingsBadge?.isEnabled() && !!this.findingsBadge?.isPopupEnabled();
   }
 
   private setupSearchModal(): void {
@@ -2051,6 +2053,7 @@ export class App {
       clearTimeout(timeoutId);
     }
     this.refreshTimeoutIds.clear();
+    this.refreshRunners.clear();
 
     // Remove global event listeners
     if (this.boundKeydownHandler) {
@@ -2643,6 +2646,26 @@ export class App {
       document.getElementById('settingsModal')?.classList.add('active');
     });
 
+    // Sync panel state when settings are changed in the separate settings window
+    window.addEventListener('storage', (e) => {
+      if (e.key === STORAGE_KEYS.panels && e.newValue) {
+        try {
+          this.panelSettings = JSON.parse(e.newValue) as Record<string, PanelConfig>;
+          this.applyPanelSettings();
+          this.renderPanelToggles();
+        } catch (_) {}
+      }
+      if (e.key === 'worldmonitor-intel-findings' && this.findingsBadge) {
+        this.findingsBadge.setEnabled(e.newValue !== 'hidden');
+      }
+      if (e.key === STORAGE_KEYS.liveChannels && e.newValue) {
+        const panel = this.panels['live-news'];
+        if (panel && typeof (panel as unknown as { refreshChannelsFromStorage?: () => void }).refreshChannelsFromStorage === 'function') {
+          (panel as unknown as { refreshChannelsFromStorage: () => void }).refreshChannelsFromStorage();
+        }
+      }
+    });
+
     document.getElementById('modalClose')?.addEventListener('click', () => {
       document.getElementById('settingsModal')?.classList.remove('active');
     });
@@ -2716,13 +2739,16 @@ export class App {
     // Map pin toggle
     this.setupMapPin();
 
-    // Pause animations when tab is hidden, unload ML models to free memory
+    // Pause animations when tab is hidden, unload ML models to free memory.
+    // On return, flush any data refreshes that went stale while hidden.
     this.boundVisibilityHandler = () => {
       document.body.classList.toggle('animations-paused', document.hidden);
       if (document.hidden) {
+        this.hiddenSince = this.hiddenSince || Date.now();
         mlWorker.unloadOptionalModels();
       } else {
         this.resetIdleTimer();
+        this.flushStaleRefreshes();
       }
     };
     document.addEventListener('visibilitychange', this.boundVisibilityHandler);
@@ -2839,11 +2865,11 @@ export class App {
 
   private toggleFullscreen(): void {
     if (document.fullscreenElement) {
-      void document.exitFullscreen().catch(() => {});
+      try { void document.exitFullscreen()?.catch(() => {}); } catch {}
     } else {
       const el = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => void };
       if (el.requestFullscreen) {
-        void el.requestFullscreen().catch(() => {});
+        try { void el.requestFullscreen()?.catch(() => {}); } catch {}
       } else if (el.webkitRequestFullscreen) {
         try { el.webkitRequestFullscreen(); } catch {}
       }
@@ -3139,6 +3165,7 @@ export class App {
     if (this.mapLayers.weather) tasks.push({ name: 'weather', task: runGuarded('weather', () => this.loadWeatherAlerts()) });
     if (this.mapLayers.ais) tasks.push({ name: 'ais', task: runGuarded('ais', () => this.loadAisSignals()) });
     if (this.mapLayers.cables) tasks.push({ name: 'cables', task: runGuarded('cables', () => this.loadCableActivity()) });
+    if (this.mapLayers.cables) tasks.push({ name: 'cableHealth', task: runGuarded('cableHealth', () => this.loadCableHealth()) });
     if (this.mapLayers.flights) tasks.push({ name: 'flights', task: runGuarded('flights', () => this.loadFlightDelays()) });
     if (CYBER_LAYER_ENABLED && this.mapLayers.cyberThreats) tasks.push({ name: 'cyberThreats', task: runGuarded('cyberThreats', () => this.loadCyberThreats()) });
     if (this.mapLayers.techEvents || SITE_VARIANT === 'tech') tasks.push({ name: 'techEvents', task: runGuarded('techEvents', () => this.loadTechEvents()) });
@@ -3187,7 +3214,7 @@ export class App {
           await this.loadAisSignals();
           break;
         case 'cables':
-          await this.loadCableActivity();
+          await Promise.all([this.loadCableActivity(), this.loadCableHealth()]);
           break;
         case 'protests':
           await this.loadProtests();
@@ -3563,30 +3590,41 @@ export class App {
         );
       }
 
-      const commoditiesResult = await fetchMultipleStocks(COMMODITIES, {
-        onBatch: (partialCommodities) => {
-          (this.panels['commodities'] as CommoditiesPanel).renderCommodities(
-            partialCommodities.map((c) => ({
-              display: c.display,
-              price: c.price,
-              change: c.change,
-              sparkline: c.sparkline,
-            }))
-          );
-        },
-      });
-      (this.panels['commodities'] as CommoditiesPanel).renderCommodities(
-        commoditiesResult.data.map((c) => ({ display: c.display, price: c.price, change: c.change, sparkline: c.sparkline }))
-      );
+      const commoditiesPanel = this.panels['commodities'] as CommoditiesPanel;
+      const mapCommodity = (c: MarketData) => ({ display: c.display, price: c.price, change: c.change, sparkline: c.sparkline });
+
+      let commoditiesLoaded = false;
+      for (let attempt = 0; attempt < 3 && !commoditiesLoaded; attempt++) {
+        if (attempt > 0) {
+          commoditiesPanel.showRetrying();
+          await new Promise(r => setTimeout(r, 20_000));
+        }
+        const commoditiesResult = await fetchMultipleStocks(COMMODITIES, {
+          onBatch: (partial) => commoditiesPanel.renderCommodities(partial.map(mapCommodity)),
+        });
+        const mapped = commoditiesResult.data.map(mapCommodity);
+        if (mapped.some(d => d.price !== null)) {
+          commoditiesPanel.renderCommodities(mapped);
+          commoditiesLoaded = true;
+        }
+      }
+      if (!commoditiesLoaded) {
+        commoditiesPanel.renderCommodities([]);
+      }
     } catch {
       this.statusPanel?.updateApi('Finnhub', { status: 'error' });
     }
 
     try {
-      // Crypto
-      const crypto = await fetchCrypto();
+      // Crypto with retry
+      let crypto = await fetchCrypto();
+      if (crypto.length === 0) {
+        (this.panels['crypto'] as CryptoPanel).showRetrying();
+        await new Promise(r => setTimeout(r, 20_000));
+        crypto = await fetchCrypto();
+      }
       (this.panels['crypto'] as CryptoPanel).renderCrypto(crypto);
-      this.statusPanel?.updateApi('CoinGecko', { status: 'ok' });
+      this.statusPanel?.updateApi('CoinGecko', { status: crypto.length > 0 ? 'ok' : 'error' });
     } catch {
       this.statusPanel?.updateApi('CoinGecko', { status: 'error' });
     }
@@ -3663,7 +3701,7 @@ export class App {
     }
 
     try {
-      const client = new ResearchServiceClient('', { fetch: fetch.bind(globalThis) });
+      const client = new ResearchServiceClient('', { fetch: (...args) => globalThis.fetch(...args) });
       const data = await client.listTechEvents({
         type: 'conference',
         mappable: true,
@@ -3897,10 +3935,13 @@ export class App {
     // Fetch UCDP georeferenced events (battles, one-sided violence, non-state conflict)
     tasks.push((async () => {
       try {
-        const [result, protestEvents] = await Promise.all([
-          fetchUcdpEvents(),
-          protestsTask,
-        ]);
+        const protestEvents = await protestsTask;
+        // Retry up to 3 times — UCDP sidecar can return empty on cold start
+        let result = await fetchUcdpEvents();
+        for (let attempt = 1; attempt < 3 && !result.success; attempt++) {
+          await new Promise(r => setTimeout(r, 15_000));
+          result = await fetchUcdpEvents();
+        }
         if (!result.success) {
           dataFreshness.recordError('ucdp_events', 'UCDP events unavailable (retaining prior event state)');
           return;
@@ -3980,6 +4021,8 @@ export class App {
         const exposures = await enrichEventsWithExposure(events);
         (this.panels['population-exposure'] as PopulationExposurePanel)?.setExposures(exposures);
         if (exposures.length > 0) dataFreshness.recordUpdate('worldpop', exposures.length);
+      } else {
+        (this.panels['population-exposure'] as PopulationExposurePanel)?.setExposures([]);
       }
     } catch (error) {
       console.error('[Intelligence] Population exposure fetch failed:', error);
@@ -4122,6 +4165,19 @@ export class App {
       this.statusPanel?.updateFeed('CableOps', { status: 'ok', itemCount });
     } catch {
       this.statusPanel?.updateFeed('CableOps', { status: 'error' });
+    }
+  }
+
+  private async loadCableHealth(): Promise<void> {
+    try {
+      const healthData = await fetchCableHealth();
+      this.map?.setCableHealth(healthData.cables);
+      const cableIds = Object.keys(healthData.cables);
+      const faultCount = cableIds.filter((id) => healthData.cables[id]?.status === 'fault').length;
+      const degradedCount = cableIds.filter((id) => healthData.cables[id]?.status === 'degraded').length;
+      this.statusPanel?.updateFeed('CableHealth', { status: 'ok', itemCount: faultCount + degradedCount });
+    } catch {
+      this.statusPanel?.updateFeed('CableHealth', { status: 'error' });
     }
   }
 
@@ -4331,11 +4387,24 @@ export class App {
       }
 
       if (data.length === 0) {
-        const reason = isFeatureAvailable('economicFred')
-          ? 'FRED data temporarily unavailable — will retry'
-          : 'FRED_API_KEY not configured — add in Settings';
-        economicPanel?.setErrorState(true, reason);
-        this.statusPanel?.updateApi('FRED', { status: 'error' });
+        if (!isFeatureAvailable('economicFred')) {
+          economicPanel?.setErrorState(true, 'FRED_API_KEY not configured — add in Settings');
+          this.statusPanel?.updateApi('FRED', { status: 'error' });
+          return;
+        }
+        // Transient failure — quick retry once
+        economicPanel?.showRetrying();
+        await new Promise(r => setTimeout(r, 20_000));
+        const retryData = await fetchFredData();
+        if (retryData.length === 0) {
+          economicPanel?.setErrorState(true, 'FRED data temporarily unavailable — will retry');
+          this.statusPanel?.updateApi('FRED', { status: 'error' });
+          return;
+        }
+        economicPanel?.setErrorState(false);
+        economicPanel?.update(retryData);
+        this.statusPanel?.updateApi('FRED', { status: 'ok' });
+        dataFreshness.recordUpdate('economic', retryData.length);
         return;
       }
 
@@ -4344,6 +4413,20 @@ export class App {
       this.statusPanel?.updateApi('FRED', { status: 'ok' });
       dataFreshness.recordUpdate('economic', data.length);
     } catch {
+      if (isFeatureAvailable('economicFred')) {
+        economicPanel?.showRetrying();
+        try {
+          await new Promise(r => setTimeout(r, 20_000));
+          const retryData = await fetchFredData();
+          if (retryData.length > 0) {
+            economicPanel?.setErrorState(false);
+            economicPanel?.update(retryData);
+            this.statusPanel?.updateApi('FRED', { status: 'ok' });
+            dataFreshness.recordUpdate('economic', retryData.length);
+            return;
+          }
+        } catch { /* fall through */ }
+      }
       this.statusPanel?.updateApi('FRED', { status: 'error' });
       economicPanel?.setErrorState(true, 'FRED data temporarily unavailable — will retry');
       economicPanel?.setLoading(false);
@@ -4531,7 +4614,25 @@ export class App {
         scheduleNext(computeDelay(intervalMs, false));
       }
     };
+    this.refreshRunners.set(name, { run, intervalMs });
     scheduleNext(computeDelay(intervalMs, document.visibilityState === 'hidden'));
+  }
+
+  /** Cancel pending timeouts for stale services and re-trigger them immediately. */
+  private flushStaleRefreshes(): void {
+    if (!this.hiddenSince) return;
+    const hiddenMs = Date.now() - this.hiddenSince;
+    this.hiddenSince = 0;
+
+    let stagger = 0;
+    for (const [name, { run, intervalMs }] of this.refreshRunners) {
+      if (hiddenMs < intervalMs) continue;
+      const pending = this.refreshTimeoutIds.get(name);
+      if (pending) clearTimeout(pending);
+      const delay = stagger;
+      stagger += 150;
+      this.refreshTimeoutIds.set(name, setTimeout(() => void run(), delay));
+    }
   }
 
   private setupRefreshIntervals(): void {
@@ -4562,6 +4663,7 @@ export class App {
     this.scheduleRefresh('firms', () => this.loadFirmsData(), 30 * 60 * 1000);
     this.scheduleRefresh('ais', () => this.loadAisSignals(), REFRESH_INTERVALS.ais, () => this.mapLayers.ais);
     this.scheduleRefresh('cables', () => this.loadCableActivity(), 30 * 60 * 1000, () => this.mapLayers.cables);
+    this.scheduleRefresh('cableHealth', () => this.loadCableHealth(), 5 * 60 * 1000, () => this.mapLayers.cables);
     this.scheduleRefresh('flights', () => this.loadFlightDelays(), 10 * 60 * 1000, () => this.mapLayers.flights);
     this.scheduleRefresh('cyberThreats', () => {
       this.cyberThreatsCache = null;

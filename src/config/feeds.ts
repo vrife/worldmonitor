@@ -64,6 +64,8 @@ export const SOURCE_TIERS: Record<string, number> = {
   'Reuters World': 1,
   'Reuters Business': 1,
   'OpenAI News': 3,
+  // Portuguese
+  'Brasil Paralelo': 2,
 
   // Tier 1 - Official Government & International Orgs
   'White House': 1,
@@ -186,6 +188,18 @@ export const SOURCE_TIERS: Record<string, number> = {
   'Disrupt Africa': 3,
   'Wamda (MENA)': 3,
   'Magnitt': 3,
+  // Nigeria
+  'Premium Times': 2,
+  'Vanguard Nigeria': 2,
+  'Channels TV': 2,
+  'Daily Trust': 3,
+  'ThisDay': 2,
+  // Greek
+  'Kathimerini': 2,
+  'Naftemporiki': 2,
+  'in.gr': 3,
+  'iefimerida': 3,
+  'Proto Thema': 3,
 
   // Tier 3 - Think Tanks
   'Brookings Tech': 3,
@@ -308,6 +322,8 @@ export const SOURCE_TYPES: Record<string, SourceType> = {
   'ANSA': 'wire', 'Corriere della Sera': 'mainstream', 'Repubblica': 'mainstream',
   'NOS Nieuws': 'mainstream', 'NRC': 'mainstream', 'De Telegraaf': 'mainstream',
   'SVT Nyheter': 'mainstream', 'Dagens Nyheter': 'mainstream', 'Svenska Dagbladet': 'mainstream',
+  // Brazilian Addition
+  'Brasil Paralelo': 'mainstream',
 
   // Market/Finance
   'CNBC': 'market', 'MarketWatch': 'market', 'Yahoo Finance': 'market',
@@ -398,6 +414,7 @@ export const SOURCE_PROPAGANDA_RISK: Record<string, SourceRiskProfile> = {
   'Guardian World': { risk: 'low', knownBiases: ['Center-left'], note: 'Scott Trust ownership, no shareholders' },
   'Financial Times': { risk: 'low', note: 'Business focus, Nikkei-owned' },
   'Bellingcat': { risk: 'low', note: 'Open-source investigations, methodology transparent' },
+  'Brasil Paralelo': { risk: 'low', note: 'Independent media company: no political ties, no public funding, 100% subscriber-funded.' },
 };
 
 export function getSourcePropagandaRisk(sourceName: string): SourceRiskProfile {
@@ -485,6 +502,12 @@ const FULL_FEEDS: Record<string, Feed[]> = {
     // Vietnamese (VI)
     { name: 'VnExpress', url: rss('https://vnexpress.net/rss'), lang: 'vi' },
     { name: 'Tuoi Tre News', url: rss('https://news.google.com/rss/search?q=site:tuoitrenews.vn+when:2d&hl=vi&gl=VN&ceid=VN:vi'), lang: 'vi' },
+    // Greek (EL)
+    { name: 'Kathimerini', url: rss('https://news.google.com/rss/search?q=site:kathimerini.gr+when:2d&hl=el&gl=GR&ceid=GR:el'), lang: 'el' },
+    { name: 'Naftemporiki', url: rss('https://www.naftemporiki.gr/feed/'), lang: 'el' },
+    { name: 'in.gr', url: rss('https://www.in.gr/feed/'), lang: 'el' },
+    { name: 'iefimerida', url: rss('https://www.iefimerida.gr/rss.xml'), lang: 'el' },
+    { name: 'Proto Thema', url: rss('https://news.google.com/rss/search?q=site:protothema.gr+when:2d&hl=el&gl=GR&ceid=GR:el'), lang: 'el' },
   ],
   middleeast: [
     { name: 'BBC Middle East', url: rss('https://feeds.bbci.co.uk/news/world/middle_east/rss.xml') },
@@ -582,6 +605,12 @@ const FULL_FEEDS: Record<string, Feed[]> = {
     { name: 'Jeune Afrique', url: rss('https://www.jeuneafrique.com/feed/'), lang: 'fr' },
     { name: 'Africanews', url: { en: rss('https://www.africanews.com/feed/rss'), fr: rss('https://fr.africanews.com/feed/rss') } },
     { name: 'BBC Afrique', url: rss('https://www.bbc.com/afrique/index.xml'), lang: 'fr' },
+    // Nigeria
+    { name: 'Premium Times', url: rss('https://www.premiumtimesng.com/feed') },
+    { name: 'Vanguard Nigeria', url: rss('https://www.vanguardngr.com/feed/') },
+    { name: 'Channels TV', url: rss('https://www.channelstv.com/feed/') },
+    { name: 'Daily Trust', url: rss('https://dailytrust.com/feed/') },
+    { name: 'ThisDay', url: rss('https://www.thisdaylive.com/feed') },
   ],
   latam: [
     { name: 'Latin America', url: rss('https://news.google.com/rss/search?q=(Brazil+OR+Mexico+OR+Argentina+OR+Venezuela+OR+Colombia)+when:2d&hl=en-US&gl=US&ceid=US:en') },
@@ -592,6 +621,7 @@ const FULL_FEEDS: Record<string, Feed[]> = {
     { name: 'Clarín', url: rss('https://www.clarin.com/rss/lo-ultimo/'), lang: 'es' },
     { name: 'O Globo', url: rss('https://oglobo.globo.com/rss/top_noticias/'), lang: 'pt' },
     { name: 'Folha de S.Paulo', url: rss('https://feeds.folha.uol.com.br/emcimadahora/rss091.xml'), lang: 'pt' },
+    { name: 'Brasil Paralelo', url: rss('https://www.brasilparalelo.com.br/noticias/rss.xml'), lang: 'pt' },
     { name: 'El Tiempo', url: rss('https://www.eltiempo.com/rss/mundo_latinoamerica.xml'), lang: 'es' },
     { name: 'El Universal', url: rss('https://www.eluniversal.com.mx/rss.xml'), lang: 'es' },
     { name: 'La Silla Vacía', url: rss('https://www.lasillavacia.com/rss') },

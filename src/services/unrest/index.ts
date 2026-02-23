@@ -8,7 +8,7 @@ import { createCircuitBreaker } from '@/utils';
 
 // ---- Client + Circuit Breaker ----
 
-const client = new UnrestServiceClient('', { fetch: fetch.bind(globalThis) });
+const client = new UnrestServiceClient('', { fetch: (...args) => globalThis.fetch(...args) });
 const unrestBreaker = createCircuitBreaker<ListUnrestEventsResponse>({
   name: 'Unrest Events',
 });
