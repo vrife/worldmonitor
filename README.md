@@ -1384,12 +1384,3 @@ GNU Affero General Public License v3.0 (AGPL-3.0) — see [LICENSE](LICENSE) for
   <a href="https://tech.worldmonitor.io">tech.worldmonitor.io</a> &nbsp;·&nbsp;
   <a href="https://finance.worldmonitor.io">finance.worldmonitor.io</a>
 </p>
-
-## Star History
-
-<a href="https://api.star-history.com/svg?repos=vrife/worldmonitor&type=Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=vrife/worldmonitor&type=Date&type=Date&theme=dark" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=vrife/worldmonitor&type=Date&type=Date" />
- </picture>
-</a>
