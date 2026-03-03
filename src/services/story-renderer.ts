@@ -30,10 +30,10 @@ function humanizeSignalType(type: string): string {
 }
 
 const LEVEL_COLORS: Record<string, string> = {
-  critical: '#ef4444', high: '#f97316', elevated: '#eab308', normal: '#22c55e', low: '#3b82f6',
+  critical: '#ef4444', high: '#f97316', elevated: '#eab308', normal: '#3b82f6', low: '#44aa44',
 };
 const THREAT_COLORS: Record<string, string> = {
-  critical: '#ef4444', high: '#f97316', medium: '#eab308', low: '#22c55e', info: '#3b82f6',
+  critical: '#ef4444', high: '#f97316', medium: '#eab308', low: '#0DBFE3', info: '#3b82f6',
 };
 
 const LOGO_URL = '/favico/worldmonitor-icon-1024.png';
@@ -74,7 +74,7 @@ export async function renderStoryToCanvas(data: StoryData): Promise<HTMLCanvasEl
   ctx.fillStyle = '#666';
   ctx.font = '700 30px Inter, system-ui, sans-serif';
   ctx.letterSpacing = '6px';
-  ctx.fillText('WORLDMONITOR.APP', textX, y + 26);
+  ctx.fillText('WORLDMONITOR', textX, y + 26);
   ctx.letterSpacing = '0px';
   const dateStr = new Date().toLocaleDateString(getLocale(), { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
   ctx.font = '400 24px Inter, system-ui, sans-serif';
@@ -117,7 +117,7 @@ export async function renderStoryToCanvas(data: StoryData): Promise<HTMLCanvasEl
   if (data.cii?.change24h) {
     const ch = data.cii.change24h;
     const chSign = ch > 0 ? '+' : '';
-    ctx.fillStyle = ch > 0 ? '#ef4444' : ch < 0 ? '#22c55e' : '#888';
+    ctx.fillStyle = ch > 0 ? '#ef4444' : ch < 0 ? '#0DBFE3' : '#888';
     ctx.font = '600 28px Inter, system-ui, sans-serif';
     ctx.fillText(`${chSign}${ch} 24h`, PAD + scoreNumW + 4 + slashW + 16, y);
   }
@@ -225,7 +225,7 @@ export async function renderStoryToCanvas(data: StoryData): Promise<HTMLCanvasEl
 
     y += 46;
     const convScore = Math.round(data.convergence.score);
-    const convColor = convScore >= 70 ? '#ef4444' : convScore >= 40 ? '#eab308' : '#22c55e';
+    const convColor = convScore >= 70 ? '#ef4444' : convScore >= 40 ? '#eab308' : '#0DBFE3';
     ctx.fillStyle = convColor;
     ctx.font = '800 48px Inter, system-ui, sans-serif';
     ctx.fillText(`${convScore}`, PAD, y);
@@ -310,7 +310,7 @@ export async function renderStoryToCanvas(data: StoryData): Promise<HTMLCanvasEl
     drawSectionHeader(ctx, 'MILITARY POSTURE', PAD, y);
 
     const postureColor = data.theater.postureLevel === 'critical' ? '#ef4444'
-      : data.theater.postureLevel === 'elevated' ? '#f97316' : '#22c55e';
+      : data.theater.postureLevel === 'elevated' ? '#f97316' : '#0DBFE3';
 
     y += 52;
     ctx.fillStyle = '#e0e0e0';
@@ -368,7 +368,7 @@ export async function renderStoryToCanvas(data: StoryData): Promise<HTMLCanvasEl
 
       const pct = Math.round(m.yesPrice);
       const pctStr = `${pct}%`;
-      const pctColor = pct >= 70 ? '#ef4444' : pct >= 40 ? '#eab308' : '#22c55e';
+      const pctColor = pct >= 70 ? '#ef4444' : pct >= 40 ? '#eab308' : '#0DBFE3';
       ctx.fillStyle = pctColor;
       ctx.font = '700 28px Inter, system-ui, sans-serif';
       const pctW = ctx.measureText(pctStr).width;

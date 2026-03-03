@@ -133,7 +133,7 @@ export class ServiceStatusPanel extends Panel {
     }
 
     const port = this.localBackend.port ?? getLocalApiPort();
-    const remote = this.localBackend.remoteBase ?? 'https://worldmonitor.app';
+    const remote = this.localBackend.remoteBase ?? 'https://worldmonitor.io';
 
     return h('div', { className: 'service-status-backend' },
       'Local backend active on ', h('strong', null, `127.0.0.1:${port}`),

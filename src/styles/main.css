@@ -405,9 +405,9 @@ canvas,
   gap: 12px;
   padding: 12px 14px;
   background: linear-gradient(135deg, #1a2332 0%, #0f1923 100%);
-  border: 1px solid rgba(68, 255, 136, 0.25);
+  border: 1px solid rgba(13, 191, 227, 0.25);
   border-radius: 10px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(68, 255, 136, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(13, 191, 227, 0.08);
   z-index: 10003;
   opacity: 0;
   transform: translateY(-20px);
@@ -430,8 +430,8 @@ canvas,
   width: 36px;
   height: 36px;
   border-radius: 8px;
-  background: rgba(68, 255, 136, 0.12);
-  color: var(--green);
+  background: rgba(13, 191, 227, 0.12);
+  color: var(--lighter-blue);
 }
 
 .update-toast-body {
@@ -460,7 +460,7 @@ canvas,
   font-weight: 600;
   letter-spacing: 0.3px;
   color: #0a0a0a;
-  background: var(--green);
+  background: var(--lighter-blue);
   border: none;
   border-radius: 6px;
   cursor: pointer;
@@ -1146,7 +1146,7 @@ body.panel-resize-active iframe {
 .panel.dragging {
   opacity: 0.5;
   transform: scale(1.02);
-  box-shadow: 0 8px 24px rgba(0, 255, 136, 0.2);
+  box-shadow: 0 8px 24px rgba(13, 191, 227, 0.2);
   will-change: transform, opacity;
 }
 
@@ -1909,8 +1909,8 @@ body.panel-resize-active iframe {
 }
 
 .live-news-manage-save:hover {
-  border-color: var(--green);
-  color: var(--green);
+  border-color: var(--lighter-blue);
+  color: var(--lighter-blue);
 }
 
 .live-news-manage-cancel:hover {
@@ -2192,8 +2192,8 @@ body.panel-resize-active iframe {
 }
 
 .live-news-manage-card.added {
-  border-color: rgba(68, 255, 136, 0.3);
-  background: rgba(68, 255, 136, 0.05);
+  border-color: rgba(13, 191, 227, 0.3);
+  background: rgba(13, 191, 227, 0.05);
   cursor: pointer;
 }
 .live-news-manage-card.added:hover {
@@ -2255,14 +2255,14 @@ body.panel-resize-active iframe {
 }
 
 .live-news-manage-card:hover .live-news-manage-card-action {
-  color: var(--green);
+  color: var(--lighter-blue);
 }
 
 .live-news-manage-card.added .live-news-manage-card-action {
-  color: var(--green);
+  color: var(--lighter-blue);
 }
-.live-news-manage-card:hover .live-news-manage-card-action { color: var(--green); }
-.live-news-manage-card.added .live-news-manage-card-action { color: var(--green); }
+.live-news-manage-card:hover .live-news-manage-card-action { color: var(--lighter-blue); }
+.live-news-manage-card.added .live-news-manage-card-action { color: var(--lighter-blue); }
 .live-news-manage-card.added:hover .live-news-manage-card-action { color: var(--red); }
 
 /* Tab count badge */
@@ -2356,7 +2356,7 @@ body.panel-resize-active iframe {
 }
 
 .live-mute-btn.unmuted {
-  color: var(--green);
+  color: var(--lighter-blue);
 }
 
 .live-news-fullscreen {
@@ -3028,9 +3028,9 @@ body.live-news-fullscreen-active .community-widget {
 }
 
 .tier-badge.tier-1 {
-  background: linear-gradient(135deg, rgba(0, 255, 136, 0.25), rgba(0, 200, 100, 0.15));
-  color: var(--green);
-  border: 1px solid rgba(0, 255, 136, 0.4);
+  background: linear-gradient(135deg, rgba(13, 191, 227, 0.25), rgba(33, 162, 214, 0.15));
+  color: var(--lighter-blue);
+  border: 1px solid rgba(13, 191, 227, 0.4);
 }
 
 .tier-badge.tier-2 {
@@ -3050,7 +3050,7 @@ body.live-news-fullscreen-active .community-widget {
 /* Enhanced tier indicators for top sources */
 .top-source.tier-1 {
   font-weight: 500;
-  border: 1px solid rgba(0, 255, 136, 0.3);
+  border: 1px solid rgba(13, 191, 227, 0.3);
 }
 
 .top-source.tier-2 {
@@ -3301,7 +3301,7 @@ body.live-news-fullscreen-active .community-widget {
 }
 
 .signal-item.keyword_spike {
-  border-left-color: var(--semantic-high);
+  border-left-color: var(--lighter-blue);
 }
 
 .signal-item.prediction_leads_news {
@@ -3317,7 +3317,7 @@ body.live-news-fullscreen-active .community-widget {
 }
 
 .signal-item.triangulation {
-  border-left-color: var(--semantic-high);
+  border-left-color: var(--lighter-blue);
 }
 
 .signal-item.flow_drop {
@@ -3354,9 +3354,9 @@ body.live-news-fullscreen-active .community-widget {
 }
 
 .suppress-keyword-btn {
-  border: 1px solid rgba(255, 140, 66, 0.5);
-  background: rgba(255, 140, 66, 0.12);
-  color: var(--semantic-high);
+  border: 1px solid rgba(13, 191, 227, 0.4);
+  background: rgba(13, 191, 227, 0.08);
+  color: var(--lighter-blue);
   font-size: 11px;
   padding: 4px 8px;
   border-radius: 4px;
@@ -3364,7 +3364,7 @@ body.live-news-fullscreen-active .community-widget {
 }
 
 .suppress-keyword-btn:hover {
-  background: rgba(255, 140, 66, 0.2);
+  background: rgba(13, 191, 227, 0.2);
 }
 
 .signal-meta {
@@ -3769,8 +3769,8 @@ body.playback-mode .status-dot {
 }
 
 .layer-toggles:not(.deckgl-layer-toggles) .layer-toggle.active {
-  color: var(--green);
-  border-color: var(--green);
+  color: var(--lighter-blue);
+  border-color: var(--lighter-blue);
 }
 
 .layer-toggles:not(.deckgl-layer-toggles) .layer-toggle.auto-hidden {
@@ -3897,10 +3897,10 @@ body.playback-mode .status-dot {
   font-weight: bold;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: var(--green);
+  color: var(--lighter-blue);
   margin-bottom: 6px;
   padding-left: 4px;
-  border-left: 2px solid var(--green);
+  border-left: 2px solid var(--lighter-blue);
 }
 
 .layer-help-item {
@@ -5136,7 +5136,7 @@ body.playback-mode .status-dot {
   height: 8px;
   border-radius: 50%;
   background: var(--status-live);
-  box-shadow: 0 0 6px var(--status-live), 0 0 12px #00ffaa40;
+  box-shadow: 0 0 6px var(--status-live), 0 0 12px #0DBFE340;
   z-index: 51;
   cursor: pointer;
   border: 1px solid var(--semantic-normal);
@@ -5144,7 +5144,7 @@ body.playback-mode .status-dot {
 
 .irradiator-marker:hover {
   background: var(--status-live);
-  box-shadow: 0 0 10px var(--status-live), 0 0 20px #00ffaa60;
+  box-shadow: 0 0 10px var(--status-live), 0 0 20px #0DBFE360;
 }
 
 .irradiator-label {
@@ -5293,7 +5293,7 @@ body.playback-mode .status-dot {
 }
 
 .sector-change.up {
-  color: var(--green);
+  color: var(--lighter-blue);
 }
 
 .sector-change.down {
@@ -5354,7 +5354,7 @@ body.playback-mode .status-dot {
 }
 
 .market-change.up {
-  color: var(--green);
+  color: var(--lighter-blue);
 }
 
 .market-change.down {
@@ -5411,7 +5411,7 @@ body.playback-mode .status-dot {
 }
 
 .commodity-change.up {
-  color: var(--green);
+  color: var(--lighter-blue);
 }
 
 .commodity-change.down {
@@ -5607,7 +5607,7 @@ a.prediction-link:hover {
   height: 64px;
   margin-bottom: 16px;
   position: relative;
-  border: 2px solid rgba(68, 255, 136, 0.3);
+  border: 2px solid rgba(13, 191, 227, 0.3);
   border-radius: 50%;
   overflow: hidden;
 }
@@ -5618,7 +5618,7 @@ a.prediction-link:hover {
   left: 50%;
   width: 50%;
   height: 2px;
-  background: linear-gradient(90deg, transparent, var(--status-live));
+  background: linear-gradient(90deg, transparent, var(--lighter-blue));
   transform-origin: left center;
   animation: panel-radar-sweep 2s linear infinite;
 }
@@ -5630,9 +5630,9 @@ a.prediction-link:hover {
   width: 6px;
   height: 6px;
   margin: -3px;
-  background: var(--status-live);
+  background: var(--lighter-blue);
   border-radius: 50%;
-  box-shadow: 0 0 10px var(--status-live);
+  box-shadow: 0 0 10px var(--lighter-blue);
 }
 
 @keyframes panel-radar-sweep {
@@ -5902,7 +5902,7 @@ a.prediction-link:hover {
 }
 
 .source-toggle-item.active {
-  border-color: var(--green);
+  border-color: var(--lighter-blue);
 }
 
 .source-toggle-checkbox {
@@ -5917,8 +5917,8 @@ a.prediction-link:hover {
 }
 
 .source-toggle-item.active .source-toggle-checkbox {
-  background: var(--green);
-  border-color: var(--green);
+  background: var(--lighter-blue);
+  border-color: var(--lighter-blue);
   color: var(--bg);
 }
 
@@ -6448,7 +6448,7 @@ a.prediction-link:hover {
 
 /* Map grid lines */
 .map-grid-line {
-  stroke: rgba(0, 255, 136, 0.15);
+  stroke: rgba(13, 191, 227, 0.15);
   stroke-width: 0.5;
   fill: none;
 }
@@ -6590,7 +6590,7 @@ a.prediction-link:hover {
 }
 
 .status-row .status-dot.ok {
-  background: var(--green);
+  background: var(--lighter-blue);
 }
 
 .status-row .status-dot.warning {
@@ -6988,7 +6988,7 @@ a.prediction-link:hover {
 }
 
 .mineral-marker.producing .mineral-icon {
-  filter: drop-shadow(0 0 6px var(--status-live)) drop-shadow(0 0 12px #44ff8860);
+  filter: drop-shadow(0 0 6px var(--status-live)) drop-shadow(0 0 12px #0DBFE360);
 }
 
 .mineral-marker.developing .mineral-icon {
@@ -7274,7 +7274,7 @@ a.prediction-link:hover {
 
 .tech-hq-marker.faang .tech-hq-icon {
   font-size: 16px;
-  filter: drop-shadow(0 0 6px var(--status-live)) drop-shadow(0 0 12px #00ffaa60);
+  filter: drop-shadow(0 0 6px var(--status-live)) drop-shadow(0 0 12px #0DBFE360);
 }
 
 .tech-hq-marker.unicorn .tech-hq-icon {
@@ -7624,7 +7624,7 @@ a.prediction-link:hover {
 }
 
 .indicator-value .change.positive {
-  color: var(--green);
+  color: var(--lighter-blue);
 }
 
 .indicator-value .change.negative {
@@ -7670,13 +7670,13 @@ a.prediction-link:hover {
 }
 
 .economic-tab:hover {
-  background: rgba(68, 255, 136, 0.1);
+  background: rgba(13, 191, 227, 0.1);
   color: var(--text);
 }
 
 .economic-tab.active {
-  background: rgba(68, 255, 136, 0.2);
-  color: var(--green);
+  background: rgba(13, 191, 227, 0.2);
+  color: var(--lighter-blue);
 }
 
 .economic-content {
@@ -7695,7 +7695,7 @@ a.prediction-link:hover {
 /* Government Spending */
 .spending-summary {
   padding: 8px;
-  background: rgba(68, 255, 136, 0.05);
+  background: rgba(13, 191, 227, 0.05);
   border-radius: 4px;
   margin-bottom: 8px;
 }
@@ -7703,7 +7703,7 @@ a.prediction-link:hover {
 .spending-total {
   font-size: 14px;
   font-weight: 600;
-  color: var(--green);
+  color: var(--lighter-blue);
 }
 
 .spending-period {
@@ -7729,7 +7729,7 @@ a.prediction-link:hover {
 
 .spending-award:hover {
   background: var(--overlay-light);
-  border-left-color: var(--green);
+  border-left-color: var(--lighter-blue);
 }
 
 .award-header {
@@ -7746,7 +7746,7 @@ a.prediction-link:hover {
 .award-amount {
   font-size: 12px;
   font-weight: 600;
-  color: var(--green);
+  color: var(--lighter-blue);
 }
 
 .award-recipient {
@@ -7799,7 +7799,7 @@ a.prediction-link:hover {
 .trade-restriction-card:hover,
 .trade-barrier-card:hover {
   background: var(--overlay-light);
-  border-left-color: var(--green);
+  border-left-color: var(--lighter-blue);
 }
 
 .trade-restriction-header,
@@ -7819,7 +7819,7 @@ a.prediction-link:hover {
 .trade-badge {
   font-size: 9px;
   padding: 1px 5px;
-  background: rgba(68, 255, 136, 0.1);
+  background: rgba(13, 191, 227, 0.1);
   color: var(--text-dim);
   border-radius: 3px;
   white-space: nowrap;
@@ -7845,8 +7845,8 @@ a.prediction-link:hover {
 }
 
 .trade-status.status-terminated {
-  background: rgba(68, 255, 136, 0.1);
-  color: var(--green);
+  background: rgba(13, 191, 227, 0.1);
+  color: var(--lighter-blue);
 }
 
 .sc-status-dot {
@@ -8031,7 +8031,7 @@ a.prediction-link:hover {
 }
 
 .trade-flow-change.change-positive {
-  color: var(--green);
+  color: var(--lighter-blue);
 }
 
 .trade-flow-change.change-negative {
@@ -8895,7 +8895,7 @@ a.prediction-link:hover {
 
 /* Stat values in military popups - green for readability */
 .popup-body .stat-value {
-  color: var(--green, var(--status-live));
+  color: var(--lighter-blue, var(--status-live));
 }
 
 /* Attribution text - brighter */
@@ -8990,7 +8990,7 @@ a.prediction-link:hover {
 /* "NEW" tag on individual news items */
 .new-tag {
   display: inline-block;
-  background: var(--green);
+  background: var(--lighter-blue);
   color: var(--bg);
   font-size: 8px;
   font-weight: bold;
@@ -9017,18 +9017,18 @@ a.prediction-link:hover {
 
 /* Highlight glow on new items (first 30 seconds) */
 .item.item-new-highlight {
-  background: linear-gradient(90deg, rgba(68, 255, 136, 0.1) 0%, transparent 50%);
-  border-left-color: var(--green) !important;
+  background: linear-gradient(90deg, rgba(13, 191, 227, 0.1) 0%, transparent 50%);
+  border-left-color: var(--lighter-blue) !important;
   animation: item-glow 2s ease-out;
 }
 
 @keyframes item-glow {
   0% {
-    background: linear-gradient(90deg, rgba(68, 255, 136, 0.25) 0%, transparent 60%);
+    background: linear-gradient(90deg, rgba(13, 191, 227, 0.25) 0%, transparent 60%);
   }
 
   100% {
-    background: linear-gradient(90deg, rgba(68, 255, 136, 0.1) 0%, transparent 50%);
+    background: linear-gradient(90deg, rgba(13, 191, 227, 0.1) 0%, transparent 50%);
   }
 }
 
@@ -9059,7 +9059,7 @@ a.prediction-link:hover {
 
 @keyframes panel-flash {
   0% {
-    box-shadow: 0 0 20px rgba(68, 255, 136, 0.4);
+    box-shadow: 0 0 20px rgba(13, 191, 227, 0.4);
   }
 
   100% {
@@ -10324,7 +10324,7 @@ a.prediction-link:hover {
 }
 
 .readiness-score.high {
-  color: var(--green);
+  color: var(--lighter-blue);
 }
 
 .readiness-score.medium {
@@ -10515,9 +10515,9 @@ a.prediction-link:hover {
 }
 
 .cascade-filter-btn.active {
-  background: rgba(68, 255, 136, 0.15);
-  border-color: var(--green);
-  color: var(--green);
+  background: rgba(13, 191, 227, 0.15);
+  border-color: var(--lighter-blue);
+  color: var(--lighter-blue);
 }
 
 .cascade-select {
@@ -10538,7 +10538,7 @@ a.prediction-link:hover {
 
 .cascade-analyze-btn {
   padding: 8px 16px;
-  background: var(--green);
+  background: var(--lighter-blue);
   border: none;
   border-radius: 4px;
   color: var(--bg);
@@ -10575,8 +10575,8 @@ a.prediction-link:hover {
   align-items: center;
   gap: 8px;
   padding: 10px;
-  background: rgba(68, 255, 136, 0.1);
-  border: 1px solid var(--green);
+  background: rgba(13, 191, 227, 0.1);
+  border: 1px solid var(--lighter-blue);
   border-radius: 4px;
 }
 
@@ -10646,7 +10646,7 @@ a.prediction-link:hover {
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
-  background: rgba(68, 255, 136, 0.05);
+  background: rgba(13, 191, 227, 0.05);
   border-radius: 4px;
 }
 
@@ -10657,7 +10657,7 @@ a.prediction-link:hover {
 
 .cascade-redundancy-capacity {
   font-size: 11px;
-  color: var(--green);
+  color: var(--lighter-blue);
   font-weight: bold;
 }
 
@@ -12206,7 +12206,7 @@ a.prediction-link:hover {
 }
 
 .tech-event.is-this-week:not(.is-today) {
-  border-left-color: var(--green);
+  border-left-color: var(--lighter-blue);
 }
 
 .tech-event.type-conference {
@@ -12471,7 +12471,7 @@ a.prediction-link:hover {
 }
 
 .service-status-summary .summary-item.operational .summary-count {
-  color: var(--green);
+  color: var(--lighter-blue);
 }
 
 .service-status-summary .summary-item.degraded .summary-count {
@@ -12547,7 +12547,7 @@ a.prediction-link:hover {
 }
 
 .service-status-item.operational .status-icon {
-  color: var(--green);
+  color: var(--lighter-blue);
 }
 
 .service-status-item.degraded .status-icon {
@@ -12564,7 +12564,7 @@ a.prediction-link:hover {
 
 .service-status-item .status-badge.operational {
   background: rgba(0, 200, 83, 0.15);
-  color: var(--green);
+  color: var(--lighter-blue);
 }
 
 .service-status-item .status-badge.degraded {
@@ -12586,7 +12586,7 @@ a.prediction-link:hover {
   text-align: center;
   padding: 12px;
   font-size: 10px;
-  color: var(--green);
+  color: var(--lighter-blue);
   background: rgba(0, 200, 83, 0.1);
   border-radius: 4px;
   margin-top: 8px;
@@ -12668,7 +12668,7 @@ a.prediction-link:hover {
 
 .deckgl-controls .map-btn:hover {
   background: var(--bg);
-  border-color: var(--green);
+  border-color: var(--lighter-blue);
 }
 
 .deckgl-controls .view-selector {
@@ -12689,7 +12689,7 @@ a.prediction-link:hover {
 }
 
 .deckgl-controls .view-select:hover {
-  border-color: var(--green);
+  border-color: var(--lighter-blue);
 }
 
 /* deck.gl Time Slider */
@@ -12721,13 +12721,13 @@ a.prediction-link:hover {
 }
 
 .deckgl-time-slider .time-btn:hover {
-  border-color: var(--green);
-  color: var(--green);
+  border-color: var(--lighter-blue);
+  color: var(--lighter-blue);
 }
 
 .deckgl-time-slider .time-btn.active {
-  background: var(--green);
-  border-color: var(--green);
+  background: var(--lighter-blue);
+  border-color: var(--lighter-blue);
   color: var(--bg);
   font-weight: bold;
 }
@@ -12823,8 +12823,8 @@ a.prediction-link:hover {
 }
 
 .deckgl-layer-toggles .layer-toggle input[type="checkbox"]:checked {
-  background: var(--green);
-  border-color: var(--green);
+  background: var(--lighter-blue);
+  border-color: var(--lighter-blue);
 }
 
 .deckgl-layer-toggles .layer-toggle input[type="checkbox"]:checked::after {
@@ -12867,11 +12867,11 @@ a.prediction-link:hover {
 }
 
 .deckgl-layer-toggles .layer-toggle.has-data .toggle-label {
-  color: var(--green);
+  color: var(--lighter-blue);
 }
 
 .deckgl-layer-toggles .layer-toggle.has-data {
-  border-color: rgba(68, 255, 136, 0.2);
+  border-color: rgba(13, 191, 227, 0.2);
 }
 
 /* deck.gl Legend - horizontal bar at bottom center */
@@ -13049,8 +13049,8 @@ a.prediction-link:hover {
   bottom: 10px;
   right: 170px;
   z-index: 99;
-  background: rgba(0, 200, 100, 0.15);
-  color: var(--green);
+  background: rgba(33, 162, 214, 0.15);
+  color: var(--lighter-blue);
   padding: 2px 6px;
   border-radius: 2px;
   font-size: 8px;
@@ -13374,7 +13374,7 @@ a.prediction-link:hover {
 
 .insight-badge.confirmed {
   background: rgba(74, 222, 128, 0.15);
-  color: var(--green);
+  color: var(--lighter-blue);
 }
 
 .insight-badge.multi {
@@ -13412,7 +13412,7 @@ a.prediction-link:hover {
 }
 
 .insight-sentiment-dot.positive {
-  background: var(--green);
+  background: var(--lighter-blue);
 }
 
 .insight-sentiment-dot.negative {
@@ -13450,7 +13450,7 @@ a.prediction-link:hover {
 }
 
 .sentiment-bar-positive {
-  background: var(--green);
+  background: var(--lighter-blue);
   height: 100%;
 }
 
@@ -13470,7 +13470,7 @@ a.prediction-link:hover {
 }
 
 .sentiment-label.positive {
-  color: var(--green);
+  color: var(--lighter-blue);
 }
 
 .sentiment-tone {
@@ -13485,7 +13485,7 @@ a.prediction-link:hover {
 }
 
 .sentiment-tone.positive {
-  color: var(--green);
+  color: var(--lighter-blue);
 }
 
 /* ML-Detected Stories Section */
@@ -13776,9 +13776,9 @@ a.prediction-link:hover {
 }
 
 .unified-settings-region-pill.active {
-  background: rgba(68, 255, 136, 0.08);
-  border-color: rgba(68, 255, 136, 0.4);
-  color: var(--green);
+  background: rgba(13, 191, 227, 0.08);
+  border-color: rgba(13, 191, 227, 0.4);
+  color: var(--lighter-blue);
 }
 
 /* Language select */
@@ -13899,7 +13899,7 @@ a.prediction-link:hover {
 }
 
 .ai-flow-switch input:checked+.ai-flow-slider {
-  background: #22c55e;
+  background: var(--lighter-blue);
 }
 
 .ai-flow-switch input:checked+.ai-flow-slider::before {
@@ -13958,7 +13958,7 @@ a.prediction-link:hover {
 }
 
 .ai-flow-status-dot.active {
-  background: #22c55e;
+  background: var(--lighter-blue);
 }
 
 .ai-flow-status-dot.browser-only {
@@ -14559,7 +14559,7 @@ body.has-breaking-alert .panels-grid {
   height: 80px;
   margin: 0 auto 16px;
   position: relative;
-  border: 2px solid rgba(68, 255, 136, 0.3);
+  border: 2px solid rgba(13, 191, 227, 0.3);
   border-radius: 50%;
   overflow: hidden;
 }
@@ -14570,7 +14570,7 @@ body.has-breaking-alert .panels-grid {
   left: 50%;
   width: 50%;
   height: 2px;
-  background: linear-gradient(90deg, transparent, var(--status-live));
+  background: linear-gradient(90deg, transparent, var(--lighter-blue));
   transform-origin: left center;
   animation: radar-sweep 2s linear infinite;
 }
@@ -14582,9 +14582,9 @@ body.has-breaking-alert .panels-grid {
   width: 8px;
   height: 8px;
   margin: -4px;
-  background: var(--status-live);
+  background: var(--lighter-blue);
   border-radius: 50%;
-  box-shadow: 0 0 12px var(--status-live);
+  box-shadow: 0 0 12px var(--lighter-blue);
 }
 
 @keyframes radar-sweep {
@@ -14643,7 +14643,7 @@ body.has-breaking-alert .panels-grid {
 }
 
 .posture-stage.complete .posture-stage-dot {
-  background: rgba(68, 255, 136, 0.6);
+  background: rgba(13, 191, 227, 0.6);
 }
 
 @keyframes pulse-dot {

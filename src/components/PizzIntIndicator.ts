@@ -3,11 +3,11 @@ import { t } from '@/services/i18n';
 import { h, replaceChildren } from '@/utils/dom-utils';
 
 const DEFCON_COLORS: Record<number, string> = {
-  1: '#ff0040',
-  2: '#ff4400',
-  3: '#ffaa00',
-  4: '#00aaff',
-  5: '#2d8a6e',
+  1: '#0a4f66',
+  2: '#0d6e8c',
+  3: '#1488b0',
+  4: '#1a95c4',
+  5: '#21a2d6',
 };
 
 export class PizzIntIndicator {
