@@ -39,10 +39,10 @@ import {
   trackMapViewChange,
   trackMapLayerToggle,
   trackPanelToggled,
-  trackDownloadClicked,
+  // trackDownloadClicked,
 } from '@/services/analytics';
-import { detectPlatform, allButtons, buttonsForPlatform } from '@/components/DownloadBanner';
-import type { Platform } from '@/components/DownloadBanner';
+// import { detectPlatform, allButtons, buttonsForPlatform } from '@/components/DownloadBanner';
+// import type { Platform } from '@/components/DownloadBanner';
 import { invokeTauri } from '@/services/tauri-bridge';
 import { dataFreshness } from '@/services/data-freshness';
 import { mlWorker } from '@/services/ml-worker';
@@ -390,16 +390,16 @@ export class EventHandlerManager implements AppModule {
     document.body.removeChild(textarea);
   }
 
-  private platformLabel(p: Platform): string {
-    switch (p) {
-      case 'macos-arm64': return '\uF8FF Silicon';
-      case 'macos-x64': return '\uF8FF Intel';
-      case 'macos': return '\uF8FF macOS';
-      case 'windows': return 'Windows';
-      case 'linux': return 'Linux';
-      default: return t('header.downloadApp');
-    }
-  }
+  // private platformLabel(p: Platform): string {
+  //   switch (p) {
+  //     case 'macos-arm64': return '\uF8FF Silicon';
+  //     case 'macos-x64': return '\uF8FF Intel';
+  //     case 'macos': return '\uF8FF macOS';
+  //     case 'windows': return 'Windows';
+  //     case 'linux': return 'Linux';
+  //     default: return t('header.downloadApp');
+  //   }
+  // }
 
   // private initDownloadDropdown(): void {
   //   const btn = document.getElementById('downloadBtn');
