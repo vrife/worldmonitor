@@ -44,3 +44,10 @@ scripts/data/osm-military-raw.json
 # Iran events seed script + data (sensitive, not for public repo)
 scripts/seed-iran-events.mjs
 scripts/data/iran-events-latest.json
+
+
+HOST.md
+app_intricacies.md
+notes_to_self.txt
+opensky_credentials.json
+update_code.md
