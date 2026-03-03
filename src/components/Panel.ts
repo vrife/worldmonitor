@@ -681,15 +681,6 @@ export class Panel {
     }
   }
 
-  public setErrorState(hasError: boolean, tooltip?: string): void {
-    this.header.classList.toggle('panel-header-error', hasError);
-    if (tooltip) {
-      this.header.title = tooltip;
-    } else {
-      this.header.removeAttribute('title');
-    }
-  }
-
   public setContent(html: string): void {
     if (this.pendingContentHtml === html || this.content.innerHTML === html) {
       return;
