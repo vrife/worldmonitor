@@ -401,73 +401,73 @@ export class EventHandlerManager implements AppModule {
     }
   }
 
-  private initDownloadDropdown(): void {
-    const btn = document.getElementById('downloadBtn');
-    const dropdown = document.getElementById('downloadDropdown');
-    const label = document.getElementById('downloadBtnLabel');
-    if (!btn || !dropdown) return;
+  // private initDownloadDropdown(): void {
+  //   const btn = document.getElementById('downloadBtn');
+  //   const dropdown = document.getElementById('downloadDropdown');
+  //   const label = document.getElementById('downloadBtnLabel');
+  //   if (!btn || !dropdown) return;
 
-    const platform = detectPlatform();
-    if (label) label.textContent = this.platformLabel(platform);
+  //   const platform = detectPlatform();
+  //   if (label) label.textContent = this.platformLabel(platform);
 
-    const primary = buttonsForPlatform(platform);
-    const all = allButtons();
-    const others = all.filter(b => !primary.some(p => p.href === b.href));
+  //   const primary = buttonsForPlatform(platform);
+  //   const all = allButtons();
+  //   const others = all.filter(b => !primary.some(p => p.href === b.href));
 
-    const renderDropdown = () => {
-      const primaryHtml = primary.map(b =>
-        `<a class="dl-dd-btn ${b.cls} primary" href="${b.href}">${b.label}</a>`
-      ).join('');
-      const othersHtml = others.map(b =>
-        `<a class="dl-dd-btn ${b.cls}" href="${b.href}">${b.label}</a>`
-      ).join('');
+  //   const renderDropdown = () => {
+  //     const primaryHtml = primary.map(b =>
+  //       `<a class="dl-dd-btn ${b.cls} primary" href="${b.href}">${b.label}</a>`
+  //     ).join('');
+  //     const othersHtml = others.map(b =>
+  //       `<a class="dl-dd-btn ${b.cls}" href="${b.href}">${b.label}</a>`
+  //     ).join('');
 
-      dropdown.innerHTML = `
-        <div class="dl-dd-tagline">${t('modals.downloadBanner.description')}</div>
-        <div class="dl-dd-buttons">${primaryHtml}</div>
-        ${others.length ? `<button class="dl-dd-toggle" id="dlDdToggle">${t('modals.downloadBanner.showAllPlatforms')}</button>
-        <div class="dl-dd-others" id="dlDdOthers">${othersHtml}</div>` : ''}
-      `;
+  //     dropdown.innerHTML = `
+  //       <div class="dl-dd-tagline">${t('modals.downloadBanner.description')}</div>
+  //       <div class="dl-dd-buttons">${primaryHtml}</div>
+  //       ${others.length ? `<button class="dl-dd-toggle" id="dlDdToggle">${t('modals.downloadBanner.showAllPlatforms')}</button>
+  //       <div class="dl-dd-others" id="dlDdOthers">${othersHtml}</div>` : ''}
+  //     `;
 
-      dropdown.querySelectorAll<HTMLAnchorElement>('.dl-dd-btn').forEach(a => {
-        a.addEventListener('click', (e) => {
-          e.preventDefault();
-          const plat = new URL(a.href, location.origin).searchParams.get('platform') || 'unknown';
-          trackDownloadClicked(plat);
-          window.open(a.href, '_blank');
-          dropdown.classList.remove('open');
-        });
-      });
+  //     dropdown.querySelectorAll<HTMLAnchorElement>('.dl-dd-btn').forEach(a => {
+  //       a.addEventListener('click', (e) => {
+  //         e.preventDefault();
+  //         const plat = new URL(a.href, location.origin).searchParams.get('platform') || 'unknown';
+  //         trackDownloadClicked(plat);
+  //         window.open(a.href, '_blank');
+  //         dropdown.classList.remove('open');
+  //       });
+  //     });
 
-      const toggle = dropdown.querySelector('#dlDdToggle');
-      const othersEl = dropdown.querySelector('#dlDdOthers') as HTMLElement | null;
-      if (toggle && othersEl) {
-        toggle.addEventListener('click', () => {
-          const showing = othersEl.classList.toggle('show');
-          toggle.textContent = showing
-            ? t('modals.downloadBanner.showLess')
-            : t('modals.downloadBanner.showAllPlatforms');
-        });
-      }
-    };
+  //     const toggle = dropdown.querySelector('#dlDdToggle');
+  //     const othersEl = dropdown.querySelector('#dlDdOthers') as HTMLElement | null;
+  //     if (toggle && othersEl) {
+  //       toggle.addEventListener('click', () => {
+  //         const showing = othersEl.classList.toggle('show');
+  //         toggle.textContent = showing
+  //           ? t('modals.downloadBanner.showLess')
+  //           : t('modals.downloadBanner.showAllPlatforms');
+  //       });
+  //     }
+  //   };
 
-    renderDropdown();
+  //   renderDropdown();
 
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      dropdown.classList.toggle('open');
-    });
+  //   btn.addEventListener('click', (e) => {
+  //     e.stopPropagation();
+  //     dropdown.classList.toggle('open');
+  //   });
 
-    document.addEventListener('click', (e) => {
-      if (!dropdown.contains(e.target as Node) && !btn.contains(e.target as Node)) {
-        dropdown.classList.remove('open');
-      }
-    });
+  //   document.addEventListener('click', (e) => {
+  //     if (!dropdown.contains(e.target as Node) && !btn.contains(e.target as Node)) {
+  //       dropdown.classList.remove('open');
+  //     }
+  //   });
 
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') dropdown.classList.remove('open');
-    });
-  }
+  //   document.addEventListener('keydown', (e) => {
+  //     if (e.key === 'Escape') dropdown.classList.remove('open');
+  //   });
+  // }
 
   private setCopyLinkFeedback(button: HTMLElement | null, message: string): void {
     if (!button) return;
