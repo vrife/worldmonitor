@@ -339,7 +339,6 @@ export class App {
       await mlWorker.init();
       if (BETA_MODE) mlWorker.loadModel('summarization-beta').catch(() => { });
     }
-  }
 
     if (aiFlow.headlineMemory) {
       mlWorker.init().then(ok => {
