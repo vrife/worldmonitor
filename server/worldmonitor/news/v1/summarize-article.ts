@@ -4,7 +4,7 @@ import type {
   SummarizeArticleResponse,
 } from '../../../../src/generated/server/worldmonitor/news/v1/service_server';
 
-import { getCachedJson, setCachedJson } from '../../../_shared/redis';
+import { cachedFetchJsonWithMeta } from '../../../_shared/redis';
 import {
   CACHE_TTL_SECONDS,
   deduplicateHeadlines,
@@ -13,6 +13,18 @@ import {
   getCacheKey,
 } from './_shared';
 import { CHROME_UA } from '../../../_shared/constants';
+
+// ======================================================================
+// Reasoning preamble detection
+// ======================================================================
+
+export const TASK_NARRATION = /^(we need to|i need to|let me|i'll |i should|i will |the task is|the instructions|according to the rules|so we need to|okay[,.]\s*(i'll|let me|so|we need|the task|i should|i will)|sure[,.]\s*(i'll|let me|so|we need|the task|i should|i will|here)|first[, ]+(i|we|let)|to summarize (the headlines|the task|this)|my task (is|was|:)|step \d)/i;
+export const PROMPT_ECHO = /^(summarize the top story|summarize the key|rules:|here are the rules|the top story is likely)/i;
+
+export function hasReasoningPreamble(text: string): boolean {
+  const trimmed = text.trim();
+  return TASK_NARRATION.test(trimmed) || PROMPT_ECHO.test(trimmed);
+}
 
 // ======================================================================
 // SummarizeArticle: Multi-provider LLM summarization with Redis caching
@@ -47,13 +59,12 @@ export async function summarizeArticle(
       summary: '',
       model: '',
       provider: provider,
-      cached: false,
       tokens: 0,
       fallback: true,
-      skipped: true,
-      reason: skipReasons[provider] || `Unknown provider: ${provider}`,
       error: '',
       errorType: '',
+      status: 'SUMMARIZE_STATUS_SKIPPED',
+      statusDetail: skipReasons[provider] || `Unknown provider: ${provider}`,
     };
   }
 
@@ -65,145 +76,116 @@ export async function summarizeArticle(
       summary: '',
       model: '',
       provider: provider,
-      cached: false,
       tokens: 0,
       fallback: false,
-      skipped: false,
-      reason: '',
       error: 'Headlines array required',
       errorType: 'ValidationError',
+      status: 'SUMMARIZE_STATUS_ERROR',
+      statusDetail: 'Headlines array required',
     };
   }
 
   try {
-    // Check cache first (shared across all providers)
     const cacheKey = getCacheKey(headlines, mode, sanitizedGeoContext, variant, lang);
-    const cached = await getCachedJson(cacheKey);
-    if (cached && typeof cached === 'object' && (cached as any).summary) {
-      const c = cached as { summary: string; model?: string };
-      console.log(`[SummarizeArticle:${provider}] Cache hit:`, cacheKey);
+
+    // Single atomic call — source tracking happens inside cachedFetchJsonWithMeta,
+    // eliminating the TOCTOU race between a separate getCachedJson and cachedFetchJson.
+    const { data: result, source } = await cachedFetchJsonWithMeta<{ summary: string; model: string; tokens: number }>(
+      cacheKey,
+      CACHE_TTL_SECONDS,
+      async () => {
+        const uniqueHeadlines = deduplicateHeadlines(headlines.slice(0, 5));
+        const { systemPrompt, userPrompt } = buildArticlePrompts(headlines, uniqueHeadlines, {
+          mode,
+          geoContext: sanitizedGeoContext,
+          variant,
+          lang,
+        });
+
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { ...providerHeaders, 'User-Agent': CHROME_UA },
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt },
+            ],
+            temperature: 0.3,
+            max_tokens: 100,
+            top_p: 0.9,
+            ...extraBody,
+          }),
+          signal: AbortSignal.timeout(30_000),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`[SummarizeArticle:${provider}] API error:`, response.status, errorText);
+          throw new Error(response.status === 429 ? 'Rate limited' : `${provider} API error`);
+        }
+
+        const data = await response.json() as any;
+        const tokens = (data.usage?.total_tokens as number) || 0;
+        const message = data.choices?.[0]?.message;
+        let rawContent = typeof message?.content === 'string' ? message.content.trim() : '';
+
+        rawContent = rawContent
+          .replace(/<think>[\s\S]*?<\/think>/gi, '')
+          .replace(/<\|thinking\|>[\s\S]*?<\|\/thinking\|>/gi, '')
+          .replace(/<reasoning>[\s\S]*?<\/reasoning>/gi, '')
+          .replace(/<reflection>[\s\S]*?<\/reflection>/gi, '')
+          .replace(/<\|begin_of_thought\|>[\s\S]*?<\|end_of_thought\|>/gi, '')
+          .trim();
+
+        // Strip unterminated thinking blocks (no closing tag)
+        rawContent = rawContent
+          .replace(/<think>[\s\S]*/gi, '')
+          .replace(/<\|thinking\|>[\s\S]*/gi, '')
+          .replace(/<reasoning>[\s\S]*/gi, '')
+          .replace(/<reflection>[\s\S]*/gi, '')
+          .replace(/<\|begin_of_thought\|>[\s\S]*/gi, '')
+          .trim();
+
+        if (['brief', 'analysis'].includes(mode) && rawContent.length < 20) {
+          console.warn(`[SummarizeArticle:${provider}] Output too short after stripping (${rawContent.length} chars), rejecting`);
+          return null;
+        }
+
+        if (['brief', 'analysis'].includes(mode) && hasReasoningPreamble(rawContent)) {
+          console.warn(`[SummarizeArticle:${provider}] Reasoning preamble detected, rejecting`);
+          return null;
+        }
+
+        return rawContent ? { summary: rawContent, model, tokens } : null;
+      },
+    );
+
+    if (result?.summary) {
+      const isCached = source === 'cache';
       return {
-        summary: c.summary,
-        model: c.model || model,
-        provider: 'cache',
-        cached: true,
-        tokens: 0,
+        summary: result.summary,
+        model: result.model || model,
+        provider: isCached ? 'cache' : provider,
+        tokens: isCached ? 0 : (result.tokens || 0),
         fallback: false,
-        skipped: false,
-        reason: '',
         error: '',
         errorType: '',
+        status: isCached ? 'SUMMARIZE_STATUS_CACHED' : 'SUMMARIZE_STATUS_SUCCESS',
+        statusDetail: '',
       };
     }
-
-    // Deduplicate similar headlines
-    const uniqueHeadlines = deduplicateHeadlines(headlines.slice(0, 8));
-    const { systemPrompt, userPrompt } = buildArticlePrompts(headlines, uniqueHeadlines, {
-      mode,
-      geoContext: sanitizedGeoContext,
-      variant,
-      lang,
-    });
-
-    // LLM call
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: { ...providerHeaders, 'User-Agent': CHROME_UA },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        temperature: 0.3,
-        max_tokens: 150,
-        top_p: 0.9,
-        ...extraBody,
-      }),
-      signal: AbortSignal.timeout(30_000),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`[SummarizeArticle:${provider}] API error:`, response.status, errorText);
-
-      if (response.status === 429) {
-        return {
-          summary: '',
-          model: '',
-          provider: provider,
-          cached: false,
-          tokens: 0,
-          fallback: true,
-          skipped: false,
-          reason: '',
-          error: 'Rate limited',
-          errorType: '',
-        };
-      }
-
-      return {
-        summary: '',
-        model: '',
-        provider: provider,
-        cached: false,
-        tokens: 0,
-        fallback: true,
-        skipped: false,
-        reason: '',
-        error: `${provider} API error`,
-        errorType: '',
-      };
-    }
-
-    const data = await response.json() as any;
-    const message = data.choices?.[0]?.message;
-    let rawContent = (typeof message?.content === 'string' ? message.content.trim() : '')
-      || (typeof message?.reasoning === 'string' ? message.reasoning.trim() : '');
-
-    // Strip <think>...</think> reasoning tokens (common in DeepSeek-R1, QwQ, etc.)
-    rawContent = rawContent.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
-
-    // Some models output unterminated <think> blocks -- strip from <think> to end if no closing tag
-    if (rawContent.includes('<think>') && !rawContent.includes('</think>')) {
-      rawContent = rawContent.replace(/<think>[\s\S]*/gi, '').trim();
-    }
-
-    const summary = rawContent;
-
-    if (!summary) {
-      return {
-        summary: '',
-        model: '',
-        provider: provider,
-        cached: false,
-        tokens: 0,
-        fallback: true,
-        skipped: false,
-        reason: '',
-        error: 'Empty response',
-        errorType: '',
-      };
-    }
-
-    // Store in cache (shared across all providers)
-    await setCachedJson(cacheKey, {
-      summary,
-      model,
-      timestamp: Date.now(),
-    }, CACHE_TTL_SECONDS);
 
     return {
-      summary,
-      model,
+      summary: '',
+      model: '',
       provider: provider,
-      cached: false,
-      tokens: data.usage?.total_tokens || 0,
-      fallback: false,
-      skipped: false,
-      reason: '',
-      error: '',
+      tokens: 0,
+      fallback: true,
+      error: 'Empty response',
       errorType: '',
+      status: 'SUMMARIZE_STATUS_ERROR',
+      statusDetail: 'Empty response',
     };
 
   } catch (err: unknown) {
@@ -213,13 +195,12 @@ export async function summarizeArticle(
       summary: '',
       model: '',
       provider: provider,
-      cached: false,
       tokens: 0,
       fallback: true,
-      skipped: false,
-      reason: '',
       error: error.message,
       errorType: error.name,
+      status: 'SUMMARIZE_STATUS_ERROR',
+      statusDetail: `${error.name}: ${error.message}`,
     };
   }
 }

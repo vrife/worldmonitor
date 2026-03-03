@@ -9,11 +9,13 @@ import type {
   ListCommodityQuotesResponse,
   CommodityQuote,
 } from '../../../../src/generated/server/worldmonitor/market/v1/service_server';
-import { fetchYahooQuote } from './_shared';
-import { getCachedJson, setCachedJson } from '../../../_shared/redis';
+import { fetchYahooQuotesBatch, parseStringArray } from './_shared';
+import { cachedFetchJson } from '../../../_shared/redis';
 
 const REDIS_CACHE_KEY = 'market:commodities:v1';
-const REDIS_CACHE_TTL = 180; // 3 min — commodities move slower than indices
+const REDIS_CACHE_TTL = 600; // 10 min — commodities move slower than indices
+
+const fallbackCommodityCache = new Map<string, { data: ListCommodityQuotesResponse; ts: number }>();
 
 function redisCacheKey(symbols: string[]): string {
   return `${REDIS_CACHE_KEY}:${[...symbols].sort().join(',')}`;
@@ -23,36 +25,30 @@ export async function listCommodityQuotes(
   _ctx: ServerContext,
   req: ListCommodityQuotesRequest,
 ): Promise<ListCommodityQuotesResponse> {
+  const symbols = parseStringArray(req.symbols);
+  if (!symbols.length) return { quotes: [] };
+
+  const redisKey = redisCacheKey(symbols);
+
   try {
-    const symbols = req.symbols;
-    if (!symbols.length) return { quotes: [] };
-
-    // Redis shared cache
-    const redisKey = redisCacheKey(symbols);
-    const cached = (await getCachedJson(redisKey)) as ListCommodityQuotesResponse | null;
-    if (cached?.quotes?.length) return cached;
-
-    const results = await Promise.all(
-      symbols.map(async (s) => {
-        const yahoo = await fetchYahooQuote(s);
-        if (!yahoo) return null;
-        return {
-          symbol: s,
-          name: s,
-          display: s,
-          price: yahoo.price,
-          change: yahoo.change,
-          sparkline: yahoo.sparkline,
-        } satisfies CommodityQuote;
-      }),
-    );
-
-    const response: ListCommodityQuotesResponse = { quotes: results.filter((r): r is CommodityQuote => r !== null) };
-    if (response.quotes.length > 0) {
-      setCachedJson(redisKey, response, REDIS_CACHE_TTL).catch(() => {});
+  const result = await cachedFetchJson<ListCommodityQuotesResponse>(redisKey, REDIS_CACHE_TTL, async () => {
+    const batch = await fetchYahooQuotesBatch(symbols);
+    const quotes: CommodityQuote[] = [];
+    for (const s of symbols) {
+      const yahoo = batch.results.get(s);
+      if (yahoo) {
+        quotes.push({ symbol: s, name: s, display: s, price: yahoo.price, change: yahoo.change, sparkline: yahoo.sparkline });
+      }
     }
-    return response;
+    return quotes.length > 0 ? { quotes } : null;
+  });
+
+  if (result) {
+    if (fallbackCommodityCache.size > 50) fallbackCommodityCache.clear();
+    fallbackCommodityCache.set(redisKey, { data: result, ts: Date.now() });
+  }
+  return result || fallbackCommodityCache.get(redisKey)?.data || { quotes: [] };
   } catch {
-    return { quotes: [] };
+    return fallbackCommodityCache.get(redisKey)?.data || { quotes: [] };
   }
 }

@@ -41,6 +41,7 @@ export class NewsPanel extends Panel {
   private summaryBtn: HTMLButtonElement | null = null;
   private summaryContainer: HTMLElement | null = null;
   private currentHeadlines: string[] = [];
+  private lastHeadlineSignature = '';
   private isSummarizing = false;
 
   constructor(id: string, title: string) {
@@ -153,8 +154,15 @@ export class NewsPanel extends Panel {
     this.summaryContainer.style.display = 'block';
     this.summaryContainer.innerHTML = `<div class="panel-summary-loading">${t('components.newsPanel.generatingSummary')}</div>`;
 
+    const sigAtStart = this.lastHeadlineSignature;
+
     try {
-      const result = await generateSummary(this.currentHeadlines.slice(0, 8), undefined, undefined, currentLang);
+      const result = await generateSummary(this.currentHeadlines.slice(0, 8), undefined, this.panelId, currentLang);
+      if (!this.element?.isConnected) return;
+      if (this.lastHeadlineSignature !== sigAtStart) {
+        this.hideSummary();
+        return;
+      }
       if (result?.summary) {
         this.setCachedSummary(cacheKey, result.summary);
         this.showSummary(result.summary);
@@ -163,12 +171,15 @@ export class NewsPanel extends Panel {
         setTimeout(() => this.hideSummary(), 3000);
       }
     } catch {
+      if (!this.element?.isConnected) return;
       this.summaryContainer.innerHTML = '<div class="panel-summary-error">Summary failed</div>';
       setTimeout(() => this.hideSummary(), 3000);
     } finally {
       this.isSummarizing = false;
-      this.summaryBtn.innerHTML = '✨';
-      this.summaryBtn.disabled = false;
+      if (this.summaryBtn) {
+        this.summaryBtn.innerHTML = '✨';
+        this.summaryBtn.disabled = false;
+      }
     }
   }
 
@@ -187,6 +198,7 @@ export class NewsPanel extends Panel {
 
     try {
       const translated = await translateText(text, currentLang);
+      if (!this.element?.isConnected) return;
       if (translated) {
         titleEl.textContent = translated;
         titleEl.dataset.original = originalText;
@@ -198,15 +210,18 @@ export class NewsPanel extends Panel {
         // Shake animation or error state could be added here
       }
     } catch (e) {
+      if (!this.element?.isConnected) return;
       console.error('Translation failed', e);
       element.innerHTML = '文';
     } finally {
-      element.style.pointerEvents = 'auto';
+      if (element.isConnected) {
+        element.style.pointerEvents = 'auto';
+      }
     }
   }
 
   private showSummary(summary: string): void {
-    if (!this.summaryContainer) return;
+    if (!this.summaryContainer || !this.element?.isConnected) return;
     this.summaryContainer.style.display = 'block';
     this.summaryContainer.innerHTML = `
       <div class="panel-summary-content">
@@ -223,16 +238,29 @@ export class NewsPanel extends Panel {
     this.summaryContainer.innerHTML = '';
   }
 
+  private getHeadlineSignature(): string {
+    return JSON.stringify(this.currentHeadlines.slice(0, 5).sort());
+  }
+
+  private updateHeadlineSignature(): void {
+    const newSig = this.getHeadlineSignature();
+    if (newSig !== this.lastHeadlineSignature) {
+      this.lastHeadlineSignature = newSig;
+      if (this.summaryContainer?.style.display === 'block') {
+        this.hideSummary();
+      }
+    }
+  }
+
   private getCachedSummary(key: string): string | null {
     try {
       const cached = localStorage.getItem(key);
       if (!cached) return null;
-      const { summary, timestamp } = JSON.parse(cached);
-      if (Date.now() - timestamp > SUMMARY_CACHE_TTL) {
-        localStorage.removeItem(key);
-        return null;
-      }
-      return summary;
+      const parsed = JSON.parse(cached);
+      if (!parsed.headlineSignature) { localStorage.removeItem(key); return null; }
+      if (parsed.headlineSignature !== this.lastHeadlineSignature) return null;
+      if (Date.now() - parsed.timestamp > SUMMARY_CACHE_TTL) { localStorage.removeItem(key); return null; }
+      return parsed.summary;
     } catch {
       return null;
     }
@@ -240,10 +268,12 @@ export class NewsPanel extends Panel {
 
   private setCachedSummary(key: string, summary: string): void {
     try {
-      localStorage.setItem(key, JSON.stringify({ summary, timestamp: Date.now() }));
-    } catch {
-      // Storage full, ignore
-    }
+      localStorage.setItem(key, JSON.stringify({
+        headlineSignature: this.lastHeadlineSignature,
+        summary,
+        timestamp: Date.now(),
+      }));
+    } catch { /* storage full */ }
   }
 
   public setDeviation(zScore: number, percentChange: number, level: DeviationLevel): void {
@@ -287,6 +317,7 @@ export class NewsPanel extends Panel {
     this.setCount(0);
     this.relatedAssetContext.clear();
     this.currentHeadlines = [];
+    this.updateHeadlineSignature();
     this.setContent(`<div class="panel-empty">${escapeHtml(message)}</div>`);
   }
 
@@ -300,13 +331,19 @@ export class NewsPanel extends Panel {
       this.renderClusters(enriched);
     } catch (error) {
       if (requestId !== this.renderRequestId) return;
-      console.error('[NewsPanel] Failed to cluster news:', error);
-      this.showError(t('common.failedClusterNews'));
+      // Keep already-rendered flat list visible when clustering fails.
+      console.warn('[NewsPanel] Failed to cluster news, keeping flat list:', error);
     }
   }
 
   private renderFlat(items: NewsItem[]): void {
     this.setCount(items.length);
+    this.currentHeadlines = items
+      .slice(0, 5)
+      .map(item => item.title)
+      .filter((title): title is string => typeof title === 'string' && title.trim().length > 0);
+
+    this.updateHeadlineSignature();
 
     const html = items
       .map(
@@ -343,8 +380,10 @@ export class NewsPanel extends Panel {
     this.setCount(totalItems);
     this.relatedAssetContext.clear();
 
-    // Store headlines for summarization
-    this.currentHeadlines = sorted.slice(0, 10).map(c => c.primaryTitle);
+    // Store headlines for summarization (cap at 5 to reduce entity conflation in small models)
+    this.currentHeadlines = sorted.slice(0, 5).map(c => c.primaryTitle);
+
+    this.updateHeadlineSignature();
 
     const clusterIds = sorted.map(c => c.id);
     let newItemIds: Set<string>;
@@ -493,9 +532,7 @@ export class NewsPanel extends Panel {
     const cat = cluster.threat?.category;
     const catLabel = cat && cat !== 'general' ? cat.charAt(0).toUpperCase() + cat.slice(1) : '';
     const threatVarMap: Record<string, string> = { critical: '--threat-critical', high: '--threat-high', medium: '--threat-medium', low: '--threat-low', info: '--threat-info' };
-    const catColor = cat === 'diplomatic' || cat === 'economic'
-      ? getCSSColor('--lighter-blue')
-      : cluster.threat ? getCSSColor(threatVarMap[cluster.threat.level] || '--text-dim') : '';
+    const catColor = cluster.threat ? getCSSColor(threatVarMap[cluster.threat.level] || '--text-dim') : '';
     const categoryBadge = catLabel
       ? `<span class="category-tag" style="color:${catColor};border-color:${catColor}40;background:${catColor}20">${catLabel}</span>`
       : '';

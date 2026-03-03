@@ -17,81 +17,157 @@ import {
   toProtoSource,
   determineSeverity,
   generateSimulatedDelay,
+  fetchNotamClosures,
+  buildNotamAlert,
 } from './_shared';
 import { CHROME_UA } from '../../../_shared/constants';
-import { getCachedJson, setCachedJson } from '../../../_shared/redis';
+import { cachedFetchJson, getCachedJson } from '../../../_shared/redis';
 
-const REDIS_CACHE_KEY = 'aviation:delays:v1';
-const REDIS_CACHE_TTL = 1800; // 30 min — FAA updates infrequently
+const FAA_CACHE_KEY = 'aviation:delays:faa:v1';
+const INTL_CACHE_KEY = 'aviation:delays:intl:v3';
+const NOTAM_CACHE_KEY = 'aviation:notam:closures:v1';
+const CACHE_TTL = 7200;      // 2h for FAA, intl (real), and NOTAM
 
 export async function listAirportDelays(
   _ctx: ServerContext,
   _req: ListAirportDelaysRequest,
 ): Promise<ListAirportDelaysResponse> {
+  const t0 = Date.now();
+  // 1. FAA (US) — independent try-catch
+  let faaAlerts: AirportDelayAlert[] = [];
   try {
-    // Redis shared cache
-    const cached = (await getCachedJson(REDIS_CACHE_KEY)) as ListAirportDelaysResponse | null;
-    if (cached?.alerts?.length) return cached;
-
-    const alerts: AirportDelayAlert[] = [];
-
-    // 1. Fetch and parse FAA XML
-    const faaResponse = await fetch(FAA_URL, {
-      headers: { Accept: 'application/xml', 'User-Agent': CHROME_UA },
-      signal: AbortSignal.timeout(15_000),
-    });
-
-    let faaDelays = new Map<string, { airport: string; reason: string; avgDelay: number; type: string }>();
-    if (faaResponse.ok) {
-      const xml = await faaResponse.text();
-      faaDelays = parseFaaXml(xml);
-    }
-
-    // 2. Enrich US airports with FAA delay data
-    for (const iata of FAA_AIRPORTS) {
-      const airport = MONITORED_AIRPORTS.find((a) => a.iata === iata);
-      if (!airport) continue;
-
-      const faaDelay = faaDelays.get(iata);
-      if (faaDelay) {
-        alerts.push({
-          id: `faa-${iata}`,
-          iata,
-          icao: airport.icao,
-          name: airport.name,
-          city: airport.city,
-          country: airport.country,
-          location: { latitude: airport.lat, longitude: airport.lon },
-          region: toProtoRegion(airport.region),
-          delayType: toProtoDelayType(faaDelay.type),
-          severity: toProtoSeverity(determineSeverity(faaDelay.avgDelay)),
-          avgDelayMinutes: faaDelay.avgDelay,
-          delayedFlightsPct: 0,
-          cancelledFlights: 0,
-          totalFlights: 0,
-          reason: faaDelay.reason,
-          source: toProtoSource('faa'),
-          updatedAt: Date.now(),
+    const result = await cachedFetchJson<{ alerts: AirportDelayAlert[] }>(
+      FAA_CACHE_KEY, CACHE_TTL, async () => {
+        const alerts: AirportDelayAlert[] = [];
+        const faaResponse = await fetch(FAA_URL, {
+          headers: { Accept: 'application/xml', 'User-Agent': CHROME_UA },
+          signal: AbortSignal.timeout(15_000),
         });
-      }
-    }
 
-    // 3. Generate simulated delays for non-US airports
-    const nonUsAirports = MONITORED_AIRPORTS.filter((a) => a.country !== 'USA');
-    for (const airport of nonUsAirports) {
-      const simulated = generateSimulatedDelay(airport);
-      if (simulated) {
-        alerts.push(simulated);
-      }
-    }
+        let faaDelays = new Map<string, { airport: string; reason: string; avgDelay: number; type: string }>();
+        if (faaResponse.ok) {
+          const xml = await faaResponse.text();
+          faaDelays = parseFaaXml(xml);
+        }
 
-    const result: ListAirportDelaysResponse = { alerts };
-    if (alerts.length > 0) {
-      setCachedJson(REDIS_CACHE_KEY, result, REDIS_CACHE_TTL).catch(() => {});
-    }
-    return result;
-  } catch {
-    // Graceful empty response on ANY failure (established pattern from 2F-01)
-    return { alerts: [] };
+        for (const iata of FAA_AIRPORTS) {
+          const airport = MONITORED_AIRPORTS.find((a) => a.iata === iata);
+          if (!airport) continue;
+          const faaDelay = faaDelays.get(iata);
+          if (faaDelay) {
+            alerts.push({
+              id: `faa-${iata}`,
+              iata,
+              icao: airport.icao,
+              name: airport.name,
+              city: airport.city,
+              country: airport.country,
+              location: { latitude: airport.lat, longitude: airport.lon },
+              region: toProtoRegion(airport.region),
+              delayType: toProtoDelayType(faaDelay.type),
+              severity: toProtoSeverity(determineSeverity(faaDelay.avgDelay)),
+              avgDelayMinutes: faaDelay.avgDelay,
+              delayedFlightsPct: 0,
+              cancelledFlights: 0,
+              totalFlights: 0,
+              reason: faaDelay.reason,
+              source: toProtoSource('faa'),
+              updatedAt: Date.now(),
+            });
+          }
+        }
+
+        return { alerts };
+      }
+    );
+    faaAlerts = result?.alerts ?? [];
+    console.log(`[Aviation] FAA: ${faaAlerts.length} alerts`);
+  } catch (err) {
+    console.warn(`[Aviation] FAA fetch failed: ${err instanceof Error ? err.message : 'unknown'}`);
   }
+
+  // 2. International — read-only from Redis (Railway relay seeds the cache)
+  let intlAlerts: AirportDelayAlert[] = [];
+  try {
+    const cached = await getCachedJson(INTL_CACHE_KEY) as { alerts: AirportDelayAlert[] } | null;
+    if (cached?.alerts) {
+      intlAlerts = cached.alerts;
+      console.log(`[Aviation] Intl: ${intlAlerts.length} alerts (from cache)`);
+    } else {
+      const nonUs = MONITORED_AIRPORTS.filter(a => a.country !== 'USA');
+      intlAlerts = nonUs.map(a => generateSimulatedDelay(a)).filter(Boolean) as AirportDelayAlert[];
+      console.log(`[Aviation] Intl: cache miss — ${intlAlerts.length} simulated alerts`);
+    }
+  } catch (err) {
+    console.warn(`[Aviation] Intl fetch failed: ${err instanceof Error ? err.message : 'unknown'}`);
+  }
+
+  // 3. NOTAM closures (ICAO API) — overlay on existing alerts
+  let allAlerts = [...faaAlerts, ...intlAlerts];
+  if (process.env.ICAO_API_KEY) {
+    try {
+      const notamResult = await cachedFetchJson<{ closedIcaos: string[]; reasons: Record<string, string> }>(
+        NOTAM_CACHE_KEY, CACHE_TTL, async () => {
+          const mena = MONITORED_AIRPORTS.filter(a => a.region === 'mena');
+          const result = await fetchNotamClosures(mena);
+          const closedIcaos = [...result.closedIcaoCodes];
+          const reasons: Record<string, string> = {};
+          for (const [icao, reason] of result.notamsByIcao) reasons[icao] = reason;
+          return { closedIcaos, reasons };
+        }
+      );
+      if (notamResult && notamResult.closedIcaos.length > 0) {
+        const existingIatas = new Set(allAlerts.map(a => a.iata));
+        for (const icao of notamResult.closedIcaos) {
+          const airport = MONITORED_AIRPORTS.find(a => a.icao === icao);
+          if (!airport) continue;
+          const reason = notamResult.reasons[icao] || 'Airport closure (NOTAM)';
+          if (existingIatas.has(airport.iata)) {
+            const idx = allAlerts.findIndex(a => a.iata === airport.iata);
+            if (idx >= 0) {
+              allAlerts[idx] = buildNotamAlert(airport, reason);
+            }
+          } else {
+            allAlerts.push(buildNotamAlert(airport, reason));
+          }
+        }
+        console.log(`[Aviation] NOTAM: ${notamResult.closedIcaos.length} closures applied`);
+      }
+    } catch (err) {
+      console.warn(`[Aviation] NOTAM fetch failed: ${err instanceof Error ? err.message : 'unknown'}`);
+    }
+  }
+
+  // 4. Fill in ALL monitored airports with no alerts as "normal operations"
+  //    so they always appear on the map (gray dots)
+  const alertedIatas = new Set(allAlerts.map(a => a.iata));
+  let normalCount = 0;
+  for (const airport of MONITORED_AIRPORTS) {
+    if (!alertedIatas.has(airport.iata)) {
+      normalCount++;
+      allAlerts.push({
+        id: `status-${airport.iata}`,
+        iata: airport.iata,
+        icao: airport.icao,
+        name: airport.name,
+        city: airport.city,
+        country: airport.country,
+        location: { latitude: airport.lat, longitude: airport.lon },
+        region: toProtoRegion(airport.region),
+        delayType: toProtoDelayType('general'),
+        severity: toProtoSeverity('normal'),
+        avgDelayMinutes: 0,
+        delayedFlightsPct: 0,
+        cancelledFlights: 0,
+        totalFlights: 0,
+        reason: 'Normal operations',
+        source: toProtoSource('computed'),
+        updatedAt: Date.now(),
+      });
+    }
+  }
+
+  console.log(`[Aviation] Total: ${allAlerts.length} alerts (${normalCount} normal) in ${Date.now() - t0}ms`);
+  return { alerts: allAlerts };
 }
+

@@ -21,6 +21,7 @@ const SIGNAL_TYPE_LABELS: Record<SignalType, string> = {
   ais_disruption: 'shipping disruption',
   satellite_fire: 'satellite fires',
   temporal_anomaly: 'anomaly detection',
+  active_strike: 'active strikes',
 };
 
 const SIGNAL_TYPE_ICONS: Record<SignalType, string> = {
@@ -31,6 +32,7 @@ const SIGNAL_TYPE_ICONS: Record<SignalType, string> = {
   ais_disruption: '🚢',
   satellite_fire: '🔥',
   temporal_anomaly: '📊',
+  active_strike: '💥',
 };
 
 class FocalPointDetector {
@@ -202,7 +204,8 @@ class FocalPointDetector {
     const newsScore = this.calculateNewsScore(mention);
     const signalScore = signals ? this.calculateSignalScore(signals) : 0;
     const correlationBonus = this.calculateCorrelationBonus(mention, signals);
-    const rawScore = newsScore + signalScore + correlationBonus;
+    const conflictScore = signals ? this.calculateConflictScore(signals) : 0;
+    const rawScore = newsScore + signalScore + correlationBonus + conflictScore;
 
     const signalTypes = signals ? Array.from(signals.signalTypes) : [];
     const urgency = this.determineUrgency(rawScore, signalTypes.length);
@@ -246,10 +249,28 @@ class FocalPointDetector {
   }
 
   private calculateSignalScore(signals: CountrySignalCluster): number {
-    const typeBonus = signals.signalTypes.size * 10;
-    const countBonus = Math.min(15, signals.totalCount * 3);
-    const severityBonus = signals.highSeverityCount * 5;
+    const nonStrike = signals.signals.filter(s => s.type !== 'active_strike');
+    const types = new Set(nonStrike.map(s => s.type));
+    const typeBonus = types.size * 10;
+    const countBonus = Math.min(15, nonStrike.length * 3);
+    const severityBonus = nonStrike.filter(s => s.severity === 'high').length * 5;
     return typeBonus + countBonus + severityBonus;
+  }
+
+  private calculateConflictScore(signals: CountrySignalCluster): number {
+    const strikeSignals = signals.signals.filter(s => s.type === 'active_strike');
+    if (strikeSignals.length === 0) return 0;
+
+    let totalCount = 0;
+    let highSevCount = 0;
+    for (const s of strikeSignals) {
+      totalCount += s.strikeCount ?? 0;
+      highSevCount += s.highSeverityStrikeCount ?? 0;
+    }
+
+    const base = Math.min(30, totalCount * 1.5);
+    const severityBonus = Math.min(30, highSevCount * 3);
+    return base + severityBonus;
   }
 
   private calculateCorrelationBonus(
@@ -267,7 +288,8 @@ class FocalPointDetector {
       return (signals.signalTypes.has('military_flight') && /military|troops|forces|army|air force/.test(lower)) ||
              (signals.signalTypes.has('military_vessel') && /navy|naval|ships|fleet|carrier/.test(lower)) ||
              (signals.signalTypes.has('protest') && /protest|demonstrat|unrest|riot/.test(lower)) ||
-             (signals.signalTypes.has('internet_outage') && /internet|blackout|outage|connectivity/.test(lower));
+             (signals.signalTypes.has('internet_outage') && /internet|blackout|outage|connectivity/.test(lower)) ||
+             (signals.signalTypes.has('active_strike') && /strike|attack|bomb|missile|target|hit/.test(lower));
     })) {
       bonus += 5;
     }
@@ -455,37 +477,6 @@ class FocalPointDetector {
     return lines.length > 0 ? lines.join('\n') : null;
   }
 
-  /**
-   * Log focal point summary to console for debugging
-   */
-  logSummary(): void {
-    if (!this.lastSummary) {
-      console.log('[FocalPointDetector] No summary available');
-      return;
-    }
-
-    console.group('%c[FocalPointDetector]', 'color: #8b5cf6; font-weight: bold');
-    console.log(`Total focal points: ${this.lastSummary.focalPoints.length}`);
-
-    const critical = this.lastSummary.focalPoints.filter(fp => fp.urgency === 'critical');
-    const elevated = this.lastSummary.focalPoints.filter(fp => fp.urgency === 'elevated');
-
-    if (critical.length > 0) {
-      console.log('%cCritical:', 'color: #ef4444; font-weight: bold');
-      for (const fp of critical) {
-        console.log(`  ${fp.displayName}: score ${fp.focalScore.toFixed(0)}, ${fp.newsMentions} news, ${fp.signalCount} signals`);
-      }
-    }
-
-    if (elevated.length > 0) {
-      console.log('%cElevated:', 'color: #f59e0b; font-weight: bold');
-      for (const fp of elevated.slice(0, 5)) {
-        console.log(`  ${fp.displayName}: score ${fp.focalScore.toFixed(0)}`);
-      }
-    }
-
-    console.groupEnd();
-  }
 }
 
 export const focalPointDetector = new FocalPointDetector();

@@ -3,6 +3,7 @@ import { t } from '@/services/i18n';
 import { escapeHtml } from '@/utils/sanitize';
 import { MarketServiceClient } from '@/generated/client/worldmonitor/market/v1/service_client';
 import type { ListEtfFlowsResponse } from '@/generated/client/worldmonitor/market/v1/service_client';
+import { getHydratedData } from '@/services/bootstrap';
 
 type ETFFlowsResult = ListEtfFlowsResponse;
 
@@ -29,41 +30,44 @@ export class ETFFlowsPanel extends Panel {
   private data: ETFFlowsResult | null = null;
   private loading = true;
   private error: string | null = null;
-  private refreshInterval: ReturnType<typeof setInterval> | null = null;
-
   constructor() {
     super({ id: 'etf-flows', title: t('panels.etfFlows'), showCount: false });
     // Delay initial fetch by 8s to avoid competing with stock/commodity Yahoo calls
     // during cold start — all share a global yahooGate() rate limiter on the sidecar
     setTimeout(() => void this.fetchData(), 8_000);
-    this.refreshInterval = setInterval(() => this.fetchData(), 3 * 60000);
   }
 
-  public destroy(): void {
-    if (this.refreshInterval) {
-      clearInterval(this.refreshInterval);
-      this.refreshInterval = null;
+  public async fetchData(): Promise<void> {
+    const hydrated = getHydratedData('etfFlows') as ETFFlowsResult | undefined;
+    if (hydrated) {
+      this.data = hydrated;
+      this.error = null;
+      this.loading = false;
+      this.renderPanel();
+      return;
     }
-  }
 
-  private async fetchData(): Promise<void> {
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         const client = new MarketServiceClient('', { fetch: (...args) => globalThis.fetch(...args) });
         this.data = await client.listEtfFlows({});
+        if (!this.element?.isConnected) return;
         this.error = null;
 
-        if (this.data && this.data.etfs.length === 0 && attempt < 2) {
+        if (this.data && this.data.etfs.length === 0 && !this.data.rateLimited && attempt < 2) {
           this.showRetrying();
           await new Promise(r => setTimeout(r, 20_000));
+          if (!this.element?.isConnected) return;
           continue;
         }
         break;
       } catch (err) {
         if (this.isAbortError(err)) return;
+        if (!this.element?.isConnected) return;
         if (attempt < 2) {
           this.showRetrying();
           await new Promise(r => setTimeout(r, 20_000));
+          if (!this.element?.isConnected) return;
           continue;
         }
         this.error = err instanceof Error ? err.message : 'Failed to fetch';
@@ -86,7 +90,8 @@ export class ETFFlowsPanel extends Panel {
 
     const d = this.data;
     if (!d.etfs.length) {
-      this.setContent(`<div class="panel-loading-text">${t('components.etfFlows.unavailable')}</div>`);
+      const msg = d.rateLimited ? t('components.etfFlows.rateLimited') : t('components.etfFlows.unavailable');
+      this.setContent(`<div class="panel-loading-text">${msg}</div>`);
       return;
     }
 

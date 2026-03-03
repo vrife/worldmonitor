@@ -13,9 +13,6 @@
  * No caching in handler (client-side polling manages refresh intervals).
  * GeoIP hydration uses in-memory cache for resolved IPs within a process lifetime.
  */
-
-declare const process: { env: Record<string, string | undefined> };
-
 import type {
   CyberThreat,
   CyberThreatType,
@@ -45,17 +42,14 @@ const UPSTREAM_TIMEOUT_MS = 8000;
 const GEO_MAX_UNRESOLVED = 250;
 const GEO_CONCURRENCY = 16;
 const GEO_OVERALL_TIMEOUT_MS = 15_000;
-const GEO_PER_IP_TIMEOUT_MS = 3000;
+const GEO_PER_IP_TIMEOUT_MS = 1500;
 const GEO_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 // ========================================================================
 // Helper utilities
 // ========================================================================
 
-export function clampInt(value: number | undefined, fallback: number, min: number, max: number): number {
-  if (!Number.isFinite(value)) return fallback;
-  return Math.max(min, Math.min(max, Math.floor(value as number)));
-}
+export { clampInt } from '../../../_shared/constants';
 
 function cleanString(value: unknown, maxLen = 120): string {
   if (typeof value !== 'string') return '';
@@ -193,12 +187,20 @@ const COUNTRY_CENTROIDS: Record<string, [number, number]> = {
   SN:[14.5,-14.5],CM:[7.4,12.4],CI:[7.5,-5.5],TZ:[-6.4,34.9],UG:[1.4,32.3],
 };
 
-function getCountryCentroid(countryCode: string): { lat: number; lon: number } | null {
+function djb2(seed: string): number {
+  let h = 5381;
+  for (let i = 0; i < seed.length; i++) h = ((h << 5) + h + seed.charCodeAt(i)) & 0xffffffff;
+  return h;
+}
+
+function getCountryCentroid(countryCode: string, seed?: string): { lat: number; lon: number } | null {
   if (!countryCode) return null;
   const coords = COUNTRY_CENTROIDS[countryCode.toUpperCase()];
   if (!coords) return null;
-  const jitter = () => (Math.random() - 0.5) * 2;
-  return { lat: coords[0] + jitter(), lon: coords[1] + jitter() };
+  const key = seed || countryCode;
+  const latOffset = (((djb2(key) & 0xffff) / 0xffff) - 0.5) * 2;
+  const lonOffset = (((djb2(key + ':lon') & 0xffff) / 0xffff) - 0.5) * 2;
+  return { lat: coords[0] + latOffset, lon: coords[1] + lonOffset };
 }
 
 // ========================================================================
@@ -370,7 +372,7 @@ export async function hydrateThreatCoordinates(threats: RawThreat[]): Promise<Ra
       return { ...threat, lat: lookup.lat, lon: lookup.lon, country: threat.country || lookup.country };
     }
 
-    const centroid = getCountryCentroid(threat.country);
+    const centroid = getCountryCentroid(threat.country, threat.indicator);
     if (centroid) {
       return { ...threat, lat: centroid.lat, lon: centroid.lon };
     }
@@ -769,4 +771,3 @@ export function toProtoCyberThreat(raw: RawThreat): CyberThreat {
     lastSeenAt: raw.lastSeen,
   };
 }
-

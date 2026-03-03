@@ -1,5 +1,3 @@
-declare const process: { env: Record<string, string | undefined> };
-
 import type {
   ServerContext,
   ListInternetOutagesRequest,
@@ -10,10 +8,12 @@ import type {
 
 import { UPSTREAM_TIMEOUT_MS } from './_shared';
 import { CHROME_UA } from '../../../_shared/constants';
-import { getCachedJson, setCachedJson } from '../../../_shared/redis';
+import { cachedFetchJson } from '../../../_shared/redis';
 
 const REDIS_CACHE_KEY = 'infra:outages:v1';
-const REDIS_CACHE_TTL = 300; // 5 min — Cloudflare Radar rate-limited
+const REDIS_CACHE_TTL = 1800; // 30 min — Cloudflare Radar rate-limited
+
+let fallbackOutagesCache: { data: ListInternetOutagesResponse; ts: number } | null = null;
 
 // ========================================================================
 // Constants
@@ -110,6 +110,25 @@ function toEpochMs(value: string | null | undefined): number {
 }
 
 // ========================================================================
+// Filtering
+// ========================================================================
+
+function filterOutages(outages: InternetOutage[], req: ListInternetOutagesRequest): InternetOutage[] {
+  let filtered = outages;
+  if (req.country) {
+    const target = req.country.toLowerCase();
+    filtered = filtered.filter((o) => o.country.toLowerCase().includes(target));
+  }
+  if (req.start) {
+    filtered = filtered.filter((o) => o.detectedAt >= req.start);
+  }
+  if (req.end) {
+    filtered = filtered.filter((o) => o.detectedAt <= req.end);
+  }
+  return filtered;
+}
+
+// ========================================================================
 // RPC implementation
 // ========================================================================
 
@@ -118,17 +137,9 @@ export async function listInternetOutages(
   req: ListInternetOutagesRequest,
 ): Promise<ListInternetOutagesResponse> {
   try {
-    // Redis shared cache (stores UNFILTERED outages — filters applied after)
-    const cached = (await getCachedJson(REDIS_CACHE_KEY)) as ListInternetOutagesResponse | null;
-    let outages: InternetOutage[];
-
-    if (cached?.outages?.length) {
-      outages = cached.outages;
-    } else {
+    const result = await cachedFetchJson<ListInternetOutagesResponse>(REDIS_CACHE_KEY, REDIS_CACHE_TTL, async () => {
       const token = process.env.CLOUDFLARE_API_TOKEN;
-      if (!token) {
-        return { outages: [], pagination: undefined };
-      }
+      if (!token) return null;
 
       const response = await fetch(
         `${CLOUDFLARE_RADAR_URL}?dateRange=7d&limit=50`,
@@ -137,16 +148,12 @@ export async function listInternetOutages(
           signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
         },
       );
-      if (!response.ok) {
-        return { outages: [], pagination: undefined };
-      }
+      if (!response.ok) return null;
 
       const data: CloudflareResponse = await response.json();
-      if (data.configured === false || !data.success || data.errors?.length) {
-        return { outages: [], pagination: undefined };
-      }
+      if (data.configured === false || !data.success || data.errors?.length) return null;
 
-      outages = [];
+      const outages: InternetOutage[] = [];
 
       for (const raw of data.result?.annotations || []) {
         if (!raw.locations?.length) continue;
@@ -182,26 +189,14 @@ export async function listInternetOutages(
         });
       }
 
-      if (outages.length > 0) {
-        setCachedJson(REDIS_CACHE_KEY, { outages, pagination: undefined }, REDIS_CACHE_TTL).catch(() => {});
-      }
-    }
+      return outages.length > 0 ? { outages, pagination: undefined } : null;
+    });
 
-    // Always apply filters (to both cached and fresh data)
-    let filtered = outages;
-    if (req.country) {
-      const target = req.country.toLowerCase();
-      filtered = outages.filter((o) => o.country.toLowerCase().includes(target));
-    }
-    if (req.timeRange?.start) {
-      filtered = filtered.filter((o) => o.detectedAt >= req.timeRange!.start);
-    }
-    if (req.timeRange?.end) {
-      filtered = filtered.filter((o) => o.detectedAt <= req.timeRange!.end);
-    }
-
-    return { outages: filtered, pagination: undefined };
+    if (result) fallbackOutagesCache = { data: result, ts: Date.now() };
+    const effective = result || fallbackOutagesCache?.data;
+    return { outages: filterOutages(effective?.outages || [], req), pagination: undefined };
   } catch {
-    return { outages: [], pagination: undefined };
+    const stale = fallbackOutagesCache?.data?.outages || [];
+    return { outages: filterOutages(stale, req), pagination: undefined };
   }
 }

@@ -71,6 +71,7 @@ export class PlaybackControl {
 
   private async loadTimestamps(): Promise<void> {
     this.timestamps = await getSnapshotTimestamps();
+    if (!this.element?.isConnected) return;
     this.timestamps.sort((a, b) => a - b);
 
     const slider = this.element.querySelector('.playback-slider') as HTMLInputElement;
@@ -97,6 +98,7 @@ export class PlaybackControl {
     this.updateTimeDisplay();
 
     const snapshot = await getSnapshotAt(timestamp);
+    if (!this.element?.isConnected) return;
     this.onSnapshotChange?.(snapshot);
 
     document.body.classList.add('playback-mode');

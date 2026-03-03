@@ -8,9 +8,13 @@ import {
   saveChannelsToStorage,
   BUILTIN_IDS,
   getDefaultLiveChannels,
+  getFilteredOptionalChannels,
+  getFilteredChannelRegions,
 } from '@/components/LiveNewsPanel';
 import { t } from '@/services/i18n';
 import { escapeHtml } from '@/utils/sanitize';
+import { isDesktopRuntime, getRemoteApiBaseUrl } from '@/services/runtime';
+import { resolveUserCountryCode } from '@/utils/user-location';
 
 /** Builds a stable custom channel id from a YouTube handle (e.g. @Foo -> custom-foo). */
 function customChannelIdFromHandle(handle: string): string {
@@ -23,77 +27,58 @@ function customChannelIdFromHandle(handle: string): string {
   return 'custom-' + normalized;
 }
 
-function showConfirmModal(options: {
-  title: string;
-  message: string;
-  confirmLabel: string;
-  cancelLabel: string;
-  onConfirm: () => void;
-  onCancel: () => void;
-}): void {
-  const { title, message, confirmLabel, cancelLabel, onConfirm, onCancel } = options;
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay';
-  overlay.setAttribute('aria-modal', 'true');
-  overlay.innerHTML = `
-    <div class="modal">
-      <div class="modal-header">
-        <span class="modal-title"></span>
-        <button type="button" class="modal-close">×</button>
-      </div>
-      <p class="confirm-modal-message"></p>
-      <div class="confirm-modal-actions">
-        <button type="button" class="live-news-manage-cancel confirm-modal-cancel"></button>
-        <button type="button" class="live-news-manage-remove confirm-modal-confirm"></button>
-      </div>
-    </div>
-  `;
-  const titleEl = overlay.querySelector('.modal-title');
-  const messageEl = overlay.querySelector('.confirm-modal-message');
-  const cancelBtn = overlay.querySelector('.confirm-modal-cancel') as HTMLButtonElement | null;
-  const confirmBtn = overlay.querySelector('.confirm-modal-confirm') as HTMLButtonElement | null;
-  const closeBtn = overlay.querySelector('.modal-close') as HTMLButtonElement | null;
-  if (titleEl) titleEl.textContent = title;
-  if (messageEl) messageEl.textContent = message;
-  if (cancelBtn) cancelBtn.textContent = cancelLabel;
-  if (confirmBtn) confirmBtn.textContent = confirmLabel;
-  if (closeBtn) closeBtn.setAttribute('aria-label', t('common.close') ?? 'Close');
+/** Parse YouTube URL into a handle or video ID. Returns null if not a YouTube URL. */
+function parseYouTubeInput(raw: string): { handle: string } | { videoId: string } | null {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (!url.hostname.match(/^(www\.)?(youtube\.com|youtu\.be)$/)) return null;
 
-  const close = () => {
-    overlay.remove();
-  };
-  const doConfirm = () => {
-    close();
-    onConfirm();
-  };
-  overlay.addEventListener('click', (e) => {
-    if ((e.target as HTMLElement).classList.contains('modal-overlay')) {
-      close();
-      onCancel();
-    }
-  });
-  closeBtn?.addEventListener('click', () => {
-    close();
-    onCancel();
-  });
-  cancelBtn?.addEventListener('click', () => {
-    close();
-    onCancel();
-  });
-  confirmBtn?.addEventListener('click', () => {
-    doConfirm();
-  });
-  document.body.appendChild(overlay);
-  overlay.classList.add('active');
+  // youtu.be/VIDEO_ID
+  if (url.hostname.includes('youtu.be')) {
+    const vid = url.pathname.slice(1);
+    if (/^[A-Za-z0-9_-]{11}$/.test(vid)) return { videoId: vid };
+    return null;
+  }
+  // youtube.com/watch?v=VIDEO_ID
+  const v = url.searchParams.get('v');
+  if (v && /^[A-Za-z0-9_-]{11}$/.test(v)) return { videoId: v };
+  // youtube.com/@Handle
+  const handleMatch = url.pathname.match(/^\/@([\w.-]{3,30})$/);
+  if (handleMatch) return { handle: `@${handleMatch[1]}` };
+  // youtube.com/c/ChannelName or /channel/ID
+  const channelMatch = url.pathname.match(/^\/(c|channel)\/([\w.-]+)$/);
+  if (channelMatch) return { handle: `@${channelMatch[2]}` };
+
+  return null;
 }
 
-export function initLiveChannelsWindow(): void {
-  const appEl = document.getElementById('app');
+// Persist active region tab across re-renders
+let activeRegionTab = 'all';
+
+function channelInitials(name: string): string {
+  return name.split(/[\s-]+/).map((w) => w[0] ?? '').join('').slice(0, 2).toUpperCase();
+}
+
+export async function initLiveChannelsWindow(containerEl?: HTMLElement): Promise<void> {
+  const appEl = containerEl ?? document.getElementById('app');
   if (!appEl) return;
 
-  document.title = `${t('components.liveNews.manage') ?? 'Channel management'} - World Monitor`;
+  const userCountry = await resolveUserCountryCode();
+  const filteredChannels = getFilteredOptionalChannels(userCountry);
+  const filteredRegions = getFilteredChannelRegions(userCountry);
+  const optionalChannelMap = new Map<string, LiveChannel>();
+  for (const c of filteredChannels) optionalChannelMap.set(c.id, c);
+
+  if (!containerEl) {
+    document.title = `${t('components.liveNews.manage') ?? 'Channel management'} - World Monitor`;
+  }
 
   let channels = loadChannelsFromStorage();
+  let suppressRowClick = false;
 
   /** Reads current row order from DOM and persists to storage. */
   function applyOrderFromDom(listEl: HTMLElement): void {
@@ -105,14 +90,34 @@ export function initLiveChannelsWindow(): void {
   }
 
   function setupListDnD(listEl: HTMLElement): void {
-    listEl.addEventListener('dragover', (e) => {
+    let dragging: HTMLElement | null = null;
+    let dragStarted = false;
+    let startY = 0;
+    const THRESHOLD = 6;
+
+    listEl.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      const target = e.target as HTMLElement;
+      if (target.closest('input, button, textarea, select')) return;
+      const row = target.closest('.live-news-manage-row') as HTMLElement | null;
+      if (!row || row.classList.contains('live-news-manage-row-editing')) return;
+      dragging = row;
+      dragStarted = false;
+      startY = e.clientY;
       e.preventDefault();
-      const dragging = listEl.querySelector('.live-news-manage-row-dragging');
+    });
+
+    document.addEventListener('mousemove', (e) => {
       if (!dragging) return;
-      const target = (e.target as HTMLElement).closest?.('.live-news-manage-row');
+      if (!dragStarted) {
+        if (Math.abs(e.clientY - startY) < THRESHOLD) return;
+        dragStarted = true;
+        dragging.classList.add('live-news-manage-row-dragging');
+      }
+      const target = document.elementFromPoint(e.clientX, e.clientY)?.closest('.live-news-manage-row') as HTMLElement | null;
       if (!target || target === dragging) return;
       const all = Array.from(listEl.querySelectorAll('.live-news-manage-row'));
-      const idx = all.indexOf(dragging as HTMLElement);
+      const idx = all.indexOf(dragging);
       const targetIdx = all.indexOf(target);
       if (idx === -1 || targetIdx === -1) return;
       if (idx < targetIdx) {
@@ -121,48 +126,59 @@ export function initLiveChannelsWindow(): void {
         target.parentElement?.insertBefore(dragging, target);
       }
     });
+
+    document.addEventListener('mouseup', () => {
+      if (!dragging) return;
+      if (dragStarted) {
+        dragging.classList.remove('live-news-manage-row-dragging');
+        applyOrderFromDom(listEl);
+        suppressRowClick = true;
+        setTimeout(() => {
+          suppressRowClick = false;
+        }, 0);
+      }
+      dragging = null;
+      dragStarted = false;
+    });
   }
 
   function renderList(listEl: HTMLElement): void {
     listEl.innerHTML = '';
     for (const ch of channels) {
+      const isCustom = !BUILTIN_IDS.has(ch.id);
       const row = document.createElement('div');
       row.className = 'live-news-manage-row';
       row.dataset.channelId = ch.id;
-      row.draggable = true;
-      const didDrag = { value: false };
 
       const nameSpan = document.createElement('span');
       nameSpan.className = 'live-news-manage-row-name';
       nameSpan.textContent = ch.name ?? '';
       row.appendChild(nameSpan);
 
-      row.addEventListener('click', (e) => {
-        if (didDrag.value) return;
-        // Do not open edit when clicking inside form controls (input, button, etc.)
-        if ((e.target as HTMLElement).closest('input, button, textarea, select')) return;
-        e.preventDefault();
-        showEditForm(row, ch, listEl);
+      const removeX = document.createElement('span');
+      removeX.className = 'live-news-manage-row-remove-x';
+      removeX.textContent = '✕';
+      removeX.addEventListener('click', (e) => {
+        e.stopPropagation();
+        channels = channels.filter((c) => c.id !== ch.id);
+        saveChannelsToStorage(channels);
+        renderList(listEl);
       });
-      row.addEventListener('dragstart', (e) => {
-        didDrag.value = true;
-        row.classList.add('live-news-manage-row-dragging');
-        if (e.dataTransfer) {
-          e.dataTransfer.setData('text/plain', ch.id);
-          e.dataTransfer.effectAllowed = 'move';
-        }
-      });
-      row.addEventListener('dragend', () => {
-        row.classList.remove('live-news-manage-row-dragging');
-        applyOrderFromDom(listEl);
-        setTimeout(() => {
-          didDrag.value = false;
-        }, 0);
-      });
+      row.appendChild(removeX);
+
+      if (isCustom) {
+        row.addEventListener('click', (e) => {
+          if (suppressRowClick || row.classList.contains('live-news-manage-row-dragging')) return;
+          if ((e.target as HTMLElement).closest('input, button, textarea, select, .live-news-manage-row-remove-x')) return;
+          e.preventDefault();
+          showEditForm(row, ch, listEl);
+        });
+      }
 
       listEl.appendChild(row);
     }
     updateRestoreButton();
+    renderAvailableChannels(listEl);
   }
 
   /** Returns default (built-in) channels that are not in the current list. */
@@ -210,7 +226,6 @@ export function initLiveChannelsWindow(): void {
 
   function showEditForm(row: HTMLElement, ch: LiveChannel, listEl: HTMLElement): void {
     const isCustom = !BUILTIN_IDS.has(ch.id);
-    row.draggable = false;
     row.innerHTML = '';
     row.className = 'live-news-manage-row live-news-manage-row-editing';
 
@@ -235,18 +250,9 @@ export function initLiveChannelsWindow(): void {
     removeBtn.className = 'live-news-manage-remove live-news-manage-remove-in-form';
     removeBtn.textContent = t('components.liveNews.remove') ?? 'Remove';
     removeBtn.addEventListener('click', () => {
-      showConfirmModal({
-        title: t('components.liveNews.confirmTitle') ?? 'Confirm',
-        message: t('components.liveNews.confirmDelete') ?? 'Delete this channel?',
-        cancelLabel: t('components.liveNews.cancel') ?? 'Cancel',
-        confirmLabel: t('components.liveNews.remove') ?? 'Remove',
-        onCancel: () => {},
-        onConfirm: () => {
-          channels = channels.filter((c) => c.id !== ch.id);
-          saveChannelsToStorage(channels);
-          renderList(listEl);
-        },
-      });
+      channels = channels.filter((c) => c.id !== ch.id);
+      saveChannelsToStorage(channels);
+      renderList(listEl);
     });
     row.appendChild(removeBtn);
 
@@ -275,6 +281,101 @@ export function initLiveChannelsWindow(): void {
     row.appendChild(cancelBtn);
   }
 
+  // ── Available Channels: Tab-based region cards ──
+
+  function renderAvailableChannels(listEl: HTMLElement): void {
+    const tabBar = document.getElementById('liveChannelsTabBar');
+    const tabContents = document.getElementById('liveChannelsTabContents');
+    if (!tabBar || !tabContents) return;
+
+    const currentIds = new Set(channels.map((c) => c.id));
+
+    // Render tab buttons
+    tabBar.innerHTML = '';
+    for (const region of filteredRegions) {
+      const addedCount = region.channelIds.filter((id) => currentIds.has(id)).length;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'live-news-manage-tab-btn' + (region.key === activeRegionTab ? ' active' : '');
+      const label = t(region.labelKey) ?? region.key.toUpperCase();
+      btn.textContent = addedCount > 0 ? `${label} (${addedCount})` : label;
+      btn.addEventListener('click', () => {
+        activeRegionTab = region.key;
+        renderAvailableChannels(listEl);
+      });
+      tabBar.appendChild(btn);
+    }
+
+    // Render tab content panels
+    tabContents.innerHTML = '';
+    for (const region of filteredRegions) {
+      const panel = document.createElement('div');
+      panel.className = 'live-news-manage-tab-content' + (region.key === activeRegionTab ? ' active' : '');
+
+      const grid = document.createElement('div');
+      grid.className = 'live-news-manage-card-grid';
+
+      for (const chId of region.channelIds) {
+        const ch = optionalChannelMap.get(chId);
+        if (!ch) continue;
+        const isAdded = currentIds.has(chId);
+        grid.appendChild(createCard(ch, isAdded, listEl));
+      }
+
+      panel.appendChild(grid);
+      tabContents.appendChild(panel);
+    }
+  }
+
+  function createCard(ch: LiveChannel, isAdded: boolean, listEl: HTMLElement): HTMLElement {
+    const card = document.createElement('div');
+    card.className = 'live-news-manage-card' + (isAdded ? ' added' : '');
+
+    const icon = document.createElement('div');
+    icon.className = 'live-news-manage-card-icon';
+    icon.textContent = channelInitials(ch.name);
+
+    const info = document.createElement('div');
+    info.className = 'live-news-manage-card-info';
+    const nameEl = document.createElement('span');
+    nameEl.className = 'live-news-manage-card-name';
+    nameEl.textContent = ch.name;
+    const handleEl = document.createElement('span');
+    handleEl.className = 'live-news-manage-card-handle';
+    handleEl.textContent = ch.handle;
+    info.appendChild(nameEl);
+    info.appendChild(handleEl);
+
+    const action = document.createElement('span');
+    action.className = 'live-news-manage-card-action';
+    action.textContent = isAdded ? '✓' : '+';
+
+    card.appendChild(icon);
+    card.appendChild(info);
+    card.appendChild(action);
+
+    card.addEventListener('mouseenter', () => {
+      if (card.classList.contains('added')) action.textContent = '✕';
+    });
+    card.addEventListener('mouseleave', () => {
+      if (card.classList.contains('added')) action.textContent = '✓';
+    });
+
+    card.addEventListener('click', () => {
+      if (isAdded) {
+        channels = channels.filter((c) => c.id !== ch.id);
+      } else {
+        if (channels.some((c) => c.id === ch.id)) return;
+        channels.push({ ...ch });
+      }
+      saveChannelsToStorage(channels);
+      renderList(listEl);
+    });
+    return card;
+  }
+
+  // ── Render shell ──
+
   appEl.innerHTML = `
     <div class="live-channels-window-shell">
       <div class="live-channels-window-header">
@@ -285,12 +386,17 @@ export function initLiveChannelsWindow(): void {
           <button type="button" class="live-news-manage-restore-defaults" id="liveChannelsRestoreBtn" style="display: none;">${escapeHtml(t('components.liveNews.restoreDefaults') ?? 'Restore default channels')}</button>
         </div>
         <div class="live-news-manage-list" id="liveChannelsList"></div>
+        <div class="live-news-manage-available-section">
+          <span class="live-news-manage-add-title">${escapeHtml(t('components.liveNews.availableChannels') ?? 'Available channels')}</span>
+          <div class="live-news-manage-tab-bar" id="liveChannelsTabBar"></div>
+          <div class="live-news-manage-tab-contents" id="liveChannelsTabContents"></div>
+        </div>
         <div class="live-news-manage-add-section">
-          <span class="live-news-manage-add-title">${escapeHtml(t('components.liveNews.addChannel') ?? 'Add channel')}</span>
+          <span class="live-news-manage-add-title">${escapeHtml(t('components.liveNews.customChannel') ?? 'Custom channel')}</span>
           <div class="live-news-manage-add">
             <div class="live-news-manage-add-field">
-              <label class="live-news-manage-add-label" for="liveChannelsHandle">${escapeHtml(t('components.liveNews.youtubeHandle') ?? 'YouTube handle (e.g. @Channel)')}</label>
-              <input type="text" class="live-news-manage-handle" id="liveChannelsHandle" placeholder="@Channel" />
+              <label class="live-news-manage-add-label" for="liveChannelsHandle">${escapeHtml(t('components.liveNews.youtubeHandleOrUrl') ?? 'YouTube handle or URL')}</label>
+              <input type="text" class="live-news-manage-handle" id="liveChannelsHandle" placeholder="@Channel or youtube.com/watch?v=..." />
             </div>
             <div class="live-news-manage-add-field">
               <label class="live-news-manage-add-label" for="liveChannelsName">${escapeHtml(t('components.liveNews.displayName') ?? 'Display name (optional)')}</label>
@@ -308,6 +414,11 @@ export function initLiveChannelsWindow(): void {
   setupListDnD(listEl);
   renderList(listEl);
 
+  // Clear validation state on input
+  document.getElementById('liveChannelsHandle')?.addEventListener('input', (e) => {
+    (e.target as HTMLInputElement).classList.remove('invalid');
+  });
+
   document.getElementById('liveChannelsRestoreBtn')?.addEventListener('click', () => {
     const missing = getMissingDefaultChannels();
     if (missing.length === 0) return;
@@ -316,15 +427,105 @@ export function initLiveChannelsWindow(): void {
     renderList(listEl);
   });
 
-  document.getElementById('liveChannelsAddBtn')?.addEventListener('click', () => {
+  const addBtn = document.getElementById('liveChannelsAddBtn') as HTMLButtonElement | null;
+  addBtn?.addEventListener('click', async () => {
     const handleInput = document.getElementById('liveChannelsHandle') as HTMLInputElement | null;
     const nameInput = document.getElementById('liveChannelsName') as HTMLInputElement | null;
     const raw = handleInput?.value?.trim();
     if (!raw) return;
-    const handle = raw.startsWith('@') ? raw : `@${raw}`;
-    const name = nameInput?.value?.trim() || handle;
+    if (handleInput) handleInput.classList.remove('invalid');
+
+    // Try parsing as a YouTube URL first
+    const parsed = parseYouTubeInput(raw);
+
+    // Direct video URL (watch?v= or youtu.be/)
+    if (parsed && 'videoId' in parsed) {
+      const videoId = parsed.videoId;
+      const id = `custom-vid-${videoId}`;
+      if (channels.some((c) => c.id === id)) return;
+
+      if (addBtn) {
+        addBtn.disabled = true;
+        addBtn.textContent = t('components.liveNews.verifying') ?? 'Verifying…';
+      }
+
+      // Try to resolve video/channel title via our proxy (YouTube oembed has no CORS)
+      let resolvedName = nameInput?.value?.trim() || '';
+      if (!resolvedName) {
+        try {
+          const baseUrl = isDesktopRuntime() ? getRemoteApiBaseUrl() : '';
+          const res = await fetch(`${baseUrl}/api/youtube/live?videoId=${encodeURIComponent(videoId)}`);
+          if (res.ok) {
+            const data = await res.json();
+            resolvedName = data.channelName || data.title || '';
+          }
+        } catch { /* use fallback */ }
+      }
+      if (!resolvedName) resolvedName = `Video ${videoId}`;
+
+      if (addBtn) {
+        addBtn.disabled = false;
+        addBtn.textContent = t('components.liveNews.addChannel') ?? 'Add channel';
+      }
+
+      channels.push({ id, name: resolvedName, handle: `@video`, fallbackVideoId: videoId, useFallbackOnly: true });
+      saveChannelsToStorage(channels);
+      renderList(listEl);
+      if (handleInput) handleInput.value = '';
+      if (nameInput) nameInput.value = '';
+      return;
+    }
+
+    // Extract handle from URL, or treat raw input as handle
+    const handle = parsed && 'handle' in parsed
+      ? parsed.handle
+      : raw.startsWith('@') ? raw : `@${raw}`;
+
+    // Validate YouTube handle format: @<3-30 alphanumeric/dot/hyphen/underscore chars>
+    if (!/^@[\w.-]{3,30}$/i.test(handle)) {
+      if (handleInput) {
+        handleInput.classList.add('invalid');
+        handleInput.setAttribute('title', t('components.liveNews.invalidHandle') ?? 'Enter a valid YouTube handle (e.g. @ChannelName)');
+      }
+      return;
+    }
+
     const id = customChannelIdFromHandle(handle);
     if (channels.some((c) => c.id === id)) return;
+
+    // Validate channel exists on YouTube + resolve name
+    if (addBtn) {
+      addBtn.disabled = true;
+      addBtn.textContent = t('components.liveNews.verifying') ?? 'Verifying…';
+    }
+
+    let resolvedName = '';
+    try {
+      const baseUrl = isDesktopRuntime() ? getRemoteApiBaseUrl() : '';
+      const res = await fetch(`${baseUrl}/api/youtube/live?channel=${encodeURIComponent(handle)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.channelExists === false && !data.error) {
+          if (handleInput) {
+            handleInput.classList.add('invalid');
+            handleInput.setAttribute('title', t('components.liveNews.channelNotFound') ?? 'YouTube channel not found');
+          }
+          return;
+        }
+        resolvedName = data.channelName || '';
+      }
+      // Non-OK status (429, 5xx) or ambiguous response — allow adding anyway
+    } catch (e) {
+      // Network/parse error — allow adding anyway (offline tolerance)
+      console.warn('[LiveChannels] YouTube validation failed, allowing add:', e);
+    } finally {
+      if (addBtn) {
+        addBtn.disabled = false;
+        addBtn.textContent = t('components.liveNews.addChannel') ?? 'Add channel';
+      }
+    }
+
+    const name = nameInput?.value?.trim() || resolvedName || handle;
     channels.push({ id, name, handle });
     saveChannelsToStorage(channels);
     renderList(listEl);

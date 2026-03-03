@@ -6,6 +6,7 @@ import {
   type ListClimateAnomaliesResponse,
 } from '@/generated/client/worldmonitor/climate/v1/service_client';
 import { createCircuitBreaker } from '@/utils';
+import { getHydratedData } from '@/services/bootstrap';
 
 // Re-export consumer-friendly type matching legacy shape exactly.
 // Consumers import this type from '@/services/climate' and see the same
@@ -28,13 +29,19 @@ export interface ClimateFetchResult {
 }
 
 const client = new ClimateServiceClient('', { fetch: (...args) => globalThis.fetch(...args) });
-const breaker = createCircuitBreaker<ListClimateAnomaliesResponse>({ name: 'Climate Anomalies' });
+const breaker = createCircuitBreaker<ListClimateAnomaliesResponse>({ name: 'Climate Anomalies', cacheTtlMs: 10 * 60 * 1000, persistCache: true });
 
 const emptyClimateFallback: ListClimateAnomaliesResponse = { anomalies: [] };
 
 export async function fetchClimateAnomalies(): Promise<ClimateFetchResult> {
+  const hydrated = getHydratedData('climateAnomalies') as ListClimateAnomaliesResponse | undefined;
+  if (hydrated) {
+    const anomalies = (hydrated.anomalies ?? []).map(toDisplayAnomaly).filter(a => a.severity !== 'normal');
+    return { ok: true, anomalies };
+  }
+
   const response = await breaker.execute(async () => {
-    return client.listClimateAnomalies({ minSeverity: 'ANOMALY_SEVERITY_UNSPECIFIED' });
+    return client.listClimateAnomalies({ minSeverity: 'ANOMALY_SEVERITY_UNSPECIFIED', pageSize: 0, cursor: '' });
   }, emptyClimateFallback);
   const anomalies = (response.anomalies ?? [])
     .map(toDisplayAnomaly)

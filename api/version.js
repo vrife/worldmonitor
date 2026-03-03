@@ -1,7 +1,7 @@
 // Non-sebuf: returns XML/HTML, stays as standalone Vercel function
 export const config = { runtime: 'edge' };
 
-const RELEASES_URL = 'https://api.github.com/repos/vrife/worldmonitor/releases/latest';
+const RELEASES_URL = 'https://api.github.com/repos/koala73/worldmonitor/releases/latest';
 
 export default async function handler() {
   try {
@@ -32,7 +32,7 @@ export default async function handler() {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=60',
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=60, stale-if-error=3600',
         'Access-Control-Allow-Origin': '*',
       },
     });

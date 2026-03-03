@@ -11,6 +11,8 @@
     "map": "Interactive Map",
     "techMap": "Mondiale technologie",
     "politics": "Wereldnieuws",
+    "us": "Verenigde Staten",
+    "europe": "Europa",
     "tech": "Technologie",
     "finance": "Financieel",
     "gov": "Regering",
@@ -39,12 +41,14 @@
     "energy": "Energie en hulpbronnen",
     "etfFlows": "BTC ETF-tracker",
     "economic": "Economische indicatoren",
+    "tradePolicy": "Handelsbeleid",
     "macroSignals": "Marktradar",
     "commodities": "Grondstoffen",
     "monitors": "Mijn monitoren",
     "regulation": "Dashboard voor AI-regulering",
     "serviceStatus": "Servicestatus",
     "stablecoins": "Stabiele munten",
+    "deduction": "Situatie afleiden",
     "events": "Technische evenementen",
     "techHubs": "Hottech-hubs",
     "techReadiness": "Tech Readiness-index",
@@ -59,14 +63,56 @@
     "geoHubs": "Geopolitical Hotspots",
     "polymarket": "Voorspellingen",
     "climate": "Klimaatafwijkingen",
-    "liveWebcams": "Live Webcams"
+    "liveWebcams": "Live Webcams",
+    "securityAdvisories": "Veiligheidsadviezen",
+    "orefSirens": "Israel Sirens",
+    "telegramIntel": "Telegram Inlichtingen",
+    "giving": "Mondiale donaties",
+    "supplyChain": "Toeleveringsketen",
+    "gulfEconomies": "Golfeconomieën",
+    "gulfIndices": "Golfindices",
+    "gulfCurrencies": "Golfvaluta",
+    "gulfOil": "Golfolie"
+  },
+  "commands": {
+    "prefixes": {
+      "map": "Kaart",
+      "panel": "Paneel",
+      "brief": "Samenvatting"
+    },
+    "categories": {
+      "navigate": "Navigeren",
+      "layers": "Lagen",
+      "panels": "Panelen",
+      "view": "Weergave",
+      "actions": "Acties",
+      "country": "Land"
+    },
+    "regions": {
+      "global": "Globaal overzicht",
+      "mena": "Midden-Oosten & Noord-Afrika",
+      "eu": "Europa",
+      "asia": "Azië-Pacific",
+      "america": "Amerika",
+      "africa": "Afrika",
+      "latam": "Latijns-Amerika",
+      "oceania": "Oceanië"
+    },
+    "tips": {
+      "map": "Typ een landnaam om ernaartoe te vliegen op de kaart",
+      "panel": "Typ een paneelnaam om ernaartoe te scrollen",
+      "brief": "Typ een landnaam voor een inlichtingenbriefing",
+      "layers": "Typ \"military\" of \"finance\" voor laagpresets",
+      "time": "Typ \"1h\", \"24h\" of \"7d\" om te filteren op tijd",
+      "settings": "Typ \"dark mode\", \"settings\" of \"fullscreen\""
+    }
   },
   "modals": {
     "search": {
-      "placeholder": "Zoek naar nieuws, pijpleidingen, bases, markten...",
-      "hint": "Nieuws • Pijpleidingen • Basissen • Kabels • Datacentra • Markten",
+      "placeholder": "Zoeken of commando typen...",
+      "hint": "Zoeken • Landen • Lagen • Panelen • Navigatie • Instellingen",
       "recent": "Recente zoekopdrachten",
-      "empty": "Zoek in alle gegevensbronnen",
+      "empty": "Zoek gegevens of voer opdrachten uit",
       "noResults": "No results found",
       "navigate": "navigeren",
       "select": "selecteren",
@@ -93,10 +139,10 @@
         "techhq": "Tech-hoofdkantoor",
         "accelerator": "Gaspedaal"
       },
-      "placeholderTech": "Zoek bedrijven, AI-labs, startups, evenementen...",
-      "hintTech": "Hoofdkantoren • Bedrijven • AI Labs • Startups • Accelerators • Evenementen",
-      "placeholderFinance": "Zoek beurzen, markten, centrale banken...",
-      "hintFinance": "Beurzen • Financiële centra • Centrale banken • Grondstoffen"
+      "placeholderTech": "Zoeken of commando typen...",
+      "hintTech": "Zoeken • Bedrijven • AI Labs • Lagen • Navigatie • Instellingen",
+      "placeholderFinance": "Zoeken of commando typen...",
+      "hintFinance": "Zoeken • Beurzen • Markten • Lagen • Navigatie • Instellingen"
     },
     "signal": {
       "source": "Source",
@@ -189,7 +235,8 @@
         "NASA_FIRMS_API_KEY": "Brandinformatiesysteem voor Resourcebeheer.",
         "OLLAMA_API_URL": "e.g. http://127.0.0.1:11434 (Ollama) or http://127.0.0.1:1234/v1 (LM Studio) — OpenAI-compatible endpoint.",
         "OLLAMA_MODEL": "e.g. llama3.1:8b — model tag to use for summarization."
-      }
+      },
+      "skipSetup": "Sla de configuratie over — een enkele World Monitor-licentie ontgrendelt alles. Meld u aan voor de wachtlijst voor vroege toegang."
     },
     "countryIntel": {
       "identifying": "Land identificeren...",
@@ -224,7 +271,10 @@
         "earthquakes": "aardbevingen",
         "displaced": "ontheemd",
         "climate": "Klimaatstress",
-        "conflictEvents": "conflictgebeurtenissen"
+        "conflictEvents": "conflictgebeurtenissen",
+        "gpsJammingZones": "GPS Jamming Zones",
+        "activeStrikes": "actieve stakingen",
+        "aviationDisruptions": "luchthavenstoringen"
       },
       "loadingIndex": "Index laden...",
       "identifying": "Land identificeren...",
@@ -278,7 +328,8 @@
         "internetOutages": "{{count}} internetstoringen",
         "recentEarthquakes": "{{count}} recente aardbevingen",
         "stockIndex": "Beursindex: {{value}}",
-        "recentHeadlines": "**Recente koppen:**"
+        "recentHeadlines": "**Recente koppen:**",
+        "activeStrikes": "{{count}} actieve stakingen gedetecteerd"
       }
     },
     "story": {
@@ -315,7 +366,33 @@
         "duration": "Duur"
       },
       "sidecarUnreachable": "Zijspan niet bereikbaar.",
-      "logCleared": "Logboek gewist."
+      "logCleared": "Logboek gewist.",
+      "worldMonitor": {
+        "tabLabel": "World Monitor",
+        "heroTitle": "Eén sleutel. Alles inbegrepen.",
+        "heroDescription": "Een enkele World Monitor-licentie vervangt elke API-sleutel en LLM-provider die u anders zelf zou moeten configureren. AI-samenvattingen, realtime inlichtingen, marktgegevens, conflictmonitoring, branddetectie, satellietbeelden — alles wordt gevoed, alles wordt beheerd, geen configuratie nodig.",
+        "apiKey": {
+          "title": "Licentiesleutel",
+          "placeholder": "wm_xxxxxxxxxxxxxxxxxxxxxxxx",
+          "description": "Plak uw licentie om direct elke gegevensbron en AI-functie te ontgrendelen.",
+          "statusValid": "GELICENTIEERD",
+          "statusMissing": "GEEN LICENTIE"
+        },
+        "dividerOr": "OF",
+        "register": {
+          "title": "Reserveer uw plek",
+          "description": "We bereiden de lancering van World Monitor-licenties voor. Meld u nu aan en wees de eerste — vroege leden krijgen voorrang en een oprichterstarief.",
+          "emailPlaceholder": "uw@email.com",
+          "submitBtn": "Aanmelden voor wachtlijst",
+          "submitting": "Verzenden...",
+          "success": "U staat op de lijst! We laten het u als eerste weten.",
+          "alreadyRegistered": "U staat al op de wachtlijst.",
+          "error": "Registratie mislukt. Probeer het opnieuw.",
+          "invalidEmail": "Voer een geldig e-mailadres in."
+        },
+        "byokTitle": "Of breng uw eigen sleutels mee",
+        "byokDescription": "Liever volledige controle? Ga naar de tabbladen API-sleutels en LLM's om elke gegevensbron en AI-provider afzonderlijk te configureren."
+      }
     }
   },
   "components": {
@@ -330,12 +407,14 @@
     },
     "webcams": {
       "regions": {
+        "iran": "IRAN ATTACKS",
         "all": "ALLE",
         "mideast": "MIDDEN-OOSTEN",
         "europe": "EUROPA",
         "americas": "AMERIKA",
         "asia": "AZIË"
-      }
+      },
+      "expand": "Uitvouwen"
     },
     "playback": {
       "live": "Live",
@@ -409,7 +488,11 @@
         "financialCenters": "Financiële centra",
         "centralBanks": "Centrale banken",
         "commodityHubs": "Grondstoffenhubs",
-        "gulfInvestments": "GCC-investeringen"
+        "gulfInvestments": "GCC-investeringen",
+        "tradeRoutes": "Handelsroutes",
+        "gpsJamming": "GPS JAMMING",
+        "dayNight": "Dag/Nacht",
+        "iranAttacks": "Iraanse aanvallen"
       },
       "layersTitle": "Lagen",
       "layerGuide": "Lagengids",
@@ -460,7 +543,8 @@
           "geopolitical": "Geopolitiek",
           "militaryStrategic": "Militair en strategisch",
           "transport": "Vervoer",
-          "labels": "Etiketten"
+          "labels": "Etiketten",
+          "overlays": "Overlays & etiketten"
         },
         "descriptions": {
           "techStartupHubs": "Grote startup-ecosystemen (SF, NYC, Londen, etc.)",
@@ -501,7 +585,20 @@
           "transportShipping": "Schepen, knelpunten, 61 strategische havens",
           "transportDelays": "Luchthavenvertragingen en grondstops (FAA)",
           "naturalEventsFull": "Aardbevingen (USGS) + stormen, branden, vulkanen, overstromingen (NASA EONET)",
-          "waterwaysLabels": "Strategische chokepoint-labels"
+          "waterwaysLabels": "Strategische chokepoint-labels",
+          "tradeRoutes": "Belangrijke wereldwijde scheepvaartroutes die havens verbinden via strategische knelpunten",
+          "dayNight": "Realtime zonneterminator met dag- en nachtzones",
+          "climateAnomalies": "Temperatuur- en neerslagafwijkingen",
+          "financeGulfInvestments": "Investeringen van GCC-staatsfondsen en directe buitenlandse investeringen",
+          "firesFull": "Actieve bosbranden en brandperimeters (NASA FIRMS)",
+          "geoDisplacement": "Vluchtelingen- en ontheemdingspatronen",
+          "geoUcdpEvents": "Gewapende conflictgebeurtenissen van het UCDP-programma van Uppsala",
+          "infraCyberThreats": "Cyberaanvallen en beveiligingsincidenten",
+          "militarySpaceports": "Raketlanceerlocaties en ruimtevaartfaciliteiten",
+          "mineralsFull": "Strategische minerale afzettingen en mijnbouwlocaties",
+          "techCyberThreats": "Cyberaanvallen en beveiligingsincidenten",
+          "techEvents": "Grote techconferenties en evenementen",
+          "techFires": "Actieve bosbranden nabij technische infrastructuur"
         },
         "notes": {
           "timeAffects": "Beïnvloedt: aardbevingen, weer, protesten, stroomstoringen"
@@ -751,7 +848,9 @@
         "hoursAgo": "{{count}}u geleden",
         "daysAgo": "{{count}}d geleden"
       },
-      "hideFindings": "Hide Intelligence Findings"
+      "breakingAlerts": "Urgente meldingen",
+      "popupAlerts": "Nieuwe meldingen weergeven",
+      "hideFindings": "Bevindingen verbergen"
     },
     "economic": {
       "noIndicatorData": "Nog geen indicatorgegevens - FRED wordt mogelijk geladen",
@@ -765,7 +864,38 @@
       "noSpending": "Geen recente overheidsprijzen",
       "awards": "onderscheidingen",
       "noData": "Geen economische gegevens beschikbaar",
-      "noOilData": "Oliegegevens niet beschikbaar"
+      "noOilData": "Oliegegevens niet beschikbaar",
+      "centralBanks": "Central Banks",
+      "noBisData": "BIS data temporarily unavailable - will retry",
+      "policyRate": "Policy Rate",
+      "exchangeRate": "Exchange Rate",
+      "creditToGdp": "Credit / GDP",
+      "realEer": "Real EER",
+      "change": "Change",
+      "cut": "cut",
+      "hike": "hike",
+      "hold": "hold",
+      "fredKeyMissing": "FRED API-sleutel vereist — voeg deze toe in Instellingen om economische indicatoren in te schakelen"
+    },
+    "tradePolicy": {
+      "restrictions": "Beperkingen",
+      "tariffs": "Tarieven",
+      "flows": "Handelsstromen",
+      "barriers": "Handelsbarrières",
+      "noRestrictions": "Geen actieve handelsbeperkingen",
+      "noTariffData": "Geen tariefgegevens beschikbaar",
+      "noFlowData": "Geen handelsstroomgegevens beschikbaar",
+      "noBarriers": "Geen handelsbarrières gemeld",
+      "apiKeyMissing": "WTO API-sleutel vereist — voeg deze toe in Instellingen",
+      "upstreamUnavailable": "WTO-gegevens tijdelijk niet beschikbaar — gecachete gegevens worden weergegeven",
+      "appliedRate": "Toegepast Tarief",
+      "boundRate": "Gebonden Tarief",
+      "exports": "Export",
+      "imports": "Import",
+      "yoyChange": "Verandering op Jaarbasis",
+      "highTariff": "Hoog",
+      "moderateTariff": "Gemiddeld",
+      "lowTariff": "Laag"
     },
     "satelliteFires": {
       "region": "Regio",
@@ -817,6 +947,19 @@
     },
     "gdeltIntel": {
       "infoTooltip": "<strong>GDELT Intelligence</strong> Realtime monitoring van mondiaal nieuws:<ul><li>Samengestelde onderwerpcategorieën (conflicten, cyber, etc.)</li><li>Artikelen uit meer dan 100 talen vertaald</li><li>Updates elke 15 minuten</li></ul>Bron: GDELT Project (gdeltproject.org)"
+    },
+    "telegramIntel": {
+      "infoTooltip": "Realtime signalen van gemonitorde Telegram OSINT-kanalen",
+      "loading": "Verbinding maken met Telegram-relay...",
+      "empty": "Geen berichten beschikbaar",
+      "disabled": "Telegram-relay niet actief",
+      "filterAll": "Alles",
+      "filterBreaking": "Belangrijk",
+      "filterConflict": "Conflicten",
+      "filterAlerts": "Waarschuwingen",
+      "filterOsint": "OSINT",
+      "filterPolitics": "Politiek",
+      "filterMiddleeast": "Midden-Oosten"
     },
     "investments": {
       "infoTooltip": "Database van directe buitenlandse investeringen van Saoedi-Arabië en de VAE in mondiale kritieke infrastructuur. Klik op een rij om naar de investering op de kaart te vliegen.",
@@ -917,7 +1060,36 @@
       "waitingForData": "Waiting for news data...",
       "rankingStories": "Ranking important stories...",
       "analyzingSentiment": "Analyzing sentiment...",
-      "generatingBrief": "Generating world brief..."
+      "generatingBrief": "Generating world brief...",
+      "settingsTitle": "Settings",
+      "sectionMap": "Map",
+      "sectionAi": "AI Analysis",
+      "mapFlashLabel": "Live Event Pulse",
+      "mapFlashDesc": "Flash locations on the map when breaking news arrives",
+      "aiFlowTitle": "Settings",
+      "aiFlowCloudLabel": "Cloud AI (Groq & OpenRouter)",
+      "aiFlowCloudDesc": "Koppen naar de cloud sturen voor AI-samenvatting (aanbevolen)",
+      "aiFlowBrowserLabel": "Lokaal browsermodel",
+      "aiFlowBrowserDesc": "AI lokaal in uw browser uitvoeren",
+      "aiFlowBrowserWarn": "Er wordt ongeveer 250 MB aan gegevens naar uw computer gedownload",
+      "aiFlowOllamaCta": "Wilt u volledig lokale AI?",
+      "aiFlowOllamaCtaDesc": "Download de desktop-app voor Ollama-ondersteuning",
+      "aiFlowDownloadDesktop": "Desktop-app downloaden →",
+      "aiFlowStatusActive": "Cloud AI actief",
+      "aiFlowStatusCloudAndBrowser": "Cloud AI + Browsermodel actief",
+      "aiFlowStatusBrowserOnly": "Alleen browsermodel",
+      "aiFlowStatusDisabled": "Geen AI-aanbieders ingeschakeld",
+      "insightsDisabledTitle": "AI-analyse is uitgeschakeld",
+      "insightsDisabledHint": "Enable providers via the settings gear in the map header",
+      "sectionStreaming": "Streaming",
+      "streamQualityDesc": "Kwaliteit instellen voor alle livestreams (lager bespaart bandbreedte)",
+      "streamQualityLabel": "Videokwaliteit",
+      "sectionPanels": "Panelen",
+      "badgeAnimLabel": "Badge-animaties",
+      "badgeAnimDesc": "Update-badges in paneelkoppen animeren",
+      "sectionIntelligence": "Inlichtingen",
+      "headlineMemoryLabel": "Koptekstgeheugen",
+      "headlineMemoryDesc": "Gezien koppen onthouden om nieuwe te markeren"
     },
     "techHubs": {
       "infoTooltip": "<strong>Tech Hub-activiteit</strong><br>Toont tech-hubs met de meeste nieuwsactiviteit.<br><br><em>Activiteitsniveaus:</em><br>• <span style=\"color: {{highColor}}\">Hoog</span> — Breaking news of 50+ score<br>• <span style=\"color: {{elevatedColor}}\">Verhoogd</span> — Score 20-49<br>• <span style=\"color: {{lowColor}}\">Laag</span> — Score lager dan 20<br><br>Klik op een hub om naar de locatie ervan te zoomen.",
@@ -933,6 +1105,7 @@
     },
     "predictions": {
       "vol": "Vol",
+      "closes": "Sluit",
       "yes": "Ja",
       "no": "Nee",
       "tooltip": "<strong>Voorspellingsmarkten</strong><br>Markten met echt geld:<br><ul><li>Prijzen weerspiegelen waarschijnlijkheidsschattingen</li><li>Hoger volume = betrouwbaarder signaal</li><li>Geopolitieke en actuele evenementen</li></ul>Bron: Polymarket (polymarket.com)",
@@ -987,7 +1160,8 @@
         "estFlow": "Gesch. stroom",
         "volume": "Volume",
         "change": "Wijziging"
-      }
+      },
+      "rateLimited": "ETF-gegevens tijdelijk niet beschikbaar (limiet bereikt) — wordt binnenkort opnieuw geprobeerd"
     },
     "macroSignals": {
       "overall": "Totaal",
@@ -1002,8 +1176,8 @@
         "regime": "Regime",
         "btcTrend": "BTC Trend",
         "hashRate": "Hash Rate",
-        "mining": "Mining",
-        "fearGreed": "Fear &amp; Greed"
+        "fearGreed": "Fear &amp; Greed",
+        "momentum": "Momentum"
       }
     },
     "export": {
@@ -1067,12 +1241,13 @@
     "liveNews": {
       "retry": "Retry",
       "notLive": "{{name}} is not currently live",
-      "cannotEmbed": "{{name}} cannot be embedded in this app (YouTube {{code}})",
+      "cannotEmbed": "{{name}} kan hier niet worden afgespeeld — mogelijk beperkt in uw regio (fout {{code}})",
       "openOnYouTube": "Open on YouTube",
       "manage": "Kanalen beheren",
       "addChannel": "Kanaal toevoegen",
       "remove": "Verwijderen",
       "youtubeHandle": "YouTube-handle (bijv. @Channel)",
+      "youtubeHandleOrUrl": "YouTube-handle of URL",
       "displayName": "Weergavenaam (optioneel)",
       "openPanelSettings": "Paneelweergave-instellingen",
       "channelSettings": "Kanaalinstellingen",
@@ -1080,7 +1255,107 @@
       "cancel": "Annuleren",
       "confirmDelete": "Dit kanaal verwijderen?",
       "confirmTitle": "Bevestigen",
-      "restoreDefaults": "Standaardkanalen herstellen"
+      "restoreDefaults": "Standaardkanalen herstellen",
+      "availableChannels": "Beschikbare kanalen",
+      "customChannel": "Aangepast kanaal",
+      "regionAll": "Alle",
+      "regionNorthAmerica": "Noord-Amerika",
+      "regionEurope": "Europa",
+      "regionLatinAmerica": "Latijns-Amerika",
+      "regionAsia": "Azië",
+      "regionMiddleEast": "Midden-Oosten",
+      "regionAfrica": "Afrika",
+      "regionOceania": "Oceanië",
+      "botCheck": "YouTube vraagt om in te loggen om {{name}} af te spelen",
+      "channelNotFound": "YouTube-kanaal niet gevonden",
+      "invalidHandle": "Voer een geldig YouTube-handle in (bijv. @Kanaalnaam)",
+      "signInToYouTube": "Inloggen bij YouTube",
+      "verifying": "Verifiëren…"
+    },
+    "securityAdvisories": {
+      "loading": "Reisadviezen laden...",
+      "noMatching": "Geen adviezen voor dit filter",
+      "critical": "Kritiek",
+      "health": "Gezondheid",
+      "sources": "US State Dept, AU DFAT, UK FCDO, NZ MFAT, CDC, ECDC, WHO, US Embassies",
+      "refresh": "Vernieuwen",
+      "levels": {
+        "doNotTravel": "Niet reizen",
+        "reconsider": "Reis heroverwegen",
+        "caution": "Voorzichtigheid",
+        "normal": "Normaal",
+        "info": "Info"
+      },
+      "time": {
+        "justNow": "zojuist",
+        "minutesAgo": "{{count}} min geleden",
+        "hoursAgo": "{{count}} uur geleden",
+        "daysAgo": "{{count}} dagen geleden"
+      },
+      "infoTooltip": "<strong>Veiligheidsadviezen</strong><br>Reisadviezen en veiligheidswaarschuwingen van overheidsinstanties."
+    },
+    "orefSirens": {
+      "checking": "Checking siren alerts...",
+      "noAlerts": "No active sirens — all clear",
+      "notConfigured": "Sirens service not configured",
+      "activeSirens": "{{count}} active siren(s)",
+      "area": "Area",
+      "time": "Time",
+      "justNow": "just now",
+      "historyCount": "{{count}} alerts in last 24h",
+      "infoTooltip": "<strong>Israel Sirens</strong><br>Real-time rocket and missile siren alerts from Israel Home Front Command.<br><br>Data is polled every 10 seconds. A pulsing red indicator means active sirens are sounding.",
+      "historySummary": "{{count}} meldingen in 24u — {{waves}} golven",
+      "loadingHistory": "Geschiedenis laden..."
+    },
+    "breakingNews": {
+      "critical": "KRITIEK",
+      "dismiss": "Sluiten",
+      "enableNotifications": "Bureaubladmeldingen inschakelen",
+      "high": "HOOG"
+    },
+    "giving": {
+      "activityIndex": "Activiteitsindex",
+      "cafIndex": "CAF-index",
+      "candidGrants": "Candid-subsidies",
+      "category": "Categorie",
+      "cryptoDaily": "Crypto dagelijks",
+      "dailyInflow": "24u instroom",
+      "dailyVol": "Dagelijks vol.",
+      "dataLag": "Gegevensvertraging",
+      "estDailyFlow": "Gesch. dagelijkse stroom",
+      "freshness": "Gegevens",
+      "infoTooltip": "<strong>Mondiale donatieactiviteitsindex</strong> Samengestelde index die persoonlijke donaties volgt via crowdfundingplatforms en crypto-wallets.<ul><li><strong>Platforms</strong>: steekproef van GoFundMe-, GlobalGiving-, JustGiving-campagnes</li><li><strong>Crypto</strong>: on-chain instroom naar liefdadigheidwallets (Endaoment, Giving Block)</li><li><strong>Institutioneel</strong>: OESO-ODA, CAF World Giving Index, Candid-subsidies</li></ul>Index is richtinggevend (geen exacte bedragen). Combineert live steekproeven met gepubliceerde jaarverslagen.",
+      "oecdOda": "OESO-ODA",
+      "ofTotal": "% van totaal",
+      "platform": "Platform",
+      "share": "Aandeel",
+      "tabs": {
+        "categories": "Categorieën",
+        "crypto": "Crypto",
+        "institutional": "Institutioneel",
+        "platforms": "Platforms"
+      },
+      "topReceivers": "Topontvangers",
+      "trend": "Trend",
+      "trending": "TREND",
+      "velocity": "Snelheid",
+      "wallets": "Wallets"
+    },
+    "supplyChain": {
+      "chokepoints": "Knelpunten",
+      "fredKeyMissing": "FRED API-sleutel vereist voor verzendtarieven — voeg deze toe in Instellingen. Knelpunten en mineralen beschikbaar zonder sleutel.",
+      "mineral": "Mineraal",
+      "minerals": "Mineralen",
+      "noChokepoints": "Knelpuntgegevens worden geladen...",
+      "noMinerals": "Mineraalgegevens worden geladen...",
+      "noShipping": "Verzendtariefgegevens niet beschikbaar",
+      "risk": "Risico",
+      "shipping": "Scheepvaart",
+      "sources": "FRED / NGA / USGS",
+      "spikeAlert": "Piek gedetecteerd — tarief aanzienlijk boven 52-weeks gemiddelde (wekelijks)",
+      "topProducers": "Topproducenten",
+      "upstreamUnavailable": "Toeleveringsketengegevens tijdelijk niet beschikbaar — gecachete gegevens worden weergegeven",
+      "warnings": "waarschuwing(en)"
     }
   },
   "popups": {
@@ -1133,12 +1408,20 @@
       "riots": "Rellen",
       "highSeverity": "Hoge ernst"
     },
+    "gpsJamming": {
+      "title": "GPS/GNSS-storing",
+      "interference": "Storing",
+      "aircraftAffected": "Getroffen vliegtuigen",
+      "aircraftNormal": "Normale vliegtuigen",
+      "h3Hex": "H3 Hex"
+    },
     "flight": {
       "groundStop": "GRONDSTOP",
       "groundDelay": "GRONDVERTRAGING",
       "departureDelay": "VERTREKVERTRAGINGEN",
       "arrivalDelay": "AANKOMSTVERTRAGINGEN",
       "delaysReported": "VERTRAGINGEN GEMELD",
+      "closure": "LUCHTHAVEN GESLOTEN",
       "delays": "VERTRAGINGEN",
       "avgDelay": "GEM. VERTRAGING",
       "cancelled": "GEANNULEERD",
@@ -1540,6 +1823,9 @@
       "uae_ecsr": "VAE/ECSR",
       "venezuela_crisis": "Venezuela-crisis",
       "yemen_houthis": "Jemen/Houthi's"
+    },
+    "iranEvent": {
+      "relatedEvents": "Gerelateerde gebeurtenissen"
     }
   },
   "signals": {
@@ -1701,6 +1987,7 @@
     "exportJson": "JSON exporteren",
     "exportData": "Gegevens exporteren",
     "exportImage": "Afbeelding exporteren",
+    "exportPdf": "PDF exporteren",
     "unrest": "Onrust",
     "conflict": "Conflict",
     "security": "Veiligheid",
@@ -1717,7 +2004,10 @@
     "close": "Sluiten",
     "currentVariant": "(huidig)",
     "retry": "Retry",
-    "refresh": "Refresh"
+    "refresh": "Refresh",
+    "all": "Alle",
+    "loadingGiving": "Donatiegegevens laden...",
+    "rateLimitedMarket": "Marktgegevens tijdelijk beperkt — automatisch opnieuw proberen"
   },
   "header": {
     "world": "WERELD",
@@ -1727,13 +2017,63 @@
     "search": "Zoekopdracht",
     "copyLink": "Kopieer link",
     "fullscreen": "Volledig scherm",
-    "settings": "PANELEN",
+    "settings": "INSTELLINGEN",
     "sources": "BRONNEN",
     "pinMap": "Kaart bovenaan vastzetten",
     "filterSources": "Bronnen filteren...",
     "sourcesEnabled": "{{enabled}}/{{total}} ingeschakeld",
     "finance": "FINANCE",
-    "toggleTheme": "Schakel tussen de donkere/lichte modus"
+    "toggleTheme": "Schakel tussen de donkere/lichte modus",
+    "panelDisplayCaption": "Kies welke panelen op het dashboard worden weergegeven",
+    "tabGeneral": "Algemeen",
+    "tabPanels": "Panelen",
+    "tabSources": "Bronnen",
+    "languageLabel": "Taal",
+    "sourceRegionAll": "Alles",
+    "sourceRegionWorldwide": "Wereldwijd",
+    "sourceRegionUS": "Verenigde Staten",
+    "sourceRegionMiddleEast": "Midden-Oosten",
+    "sourceRegionAfrica": "Afrika",
+    "sourceRegionLatAm": "Latijns-Amerika",
+    "sourceRegionAsiaPacific": "Azië-Pacific",
+    "sourceRegionEurope": "Europa",
+    "sourceRegionTopical": "Thematisch",
+    "sourceRegionIntel": "Inlichtingen",
+    "sourceRegionTechNews": "Tech News",
+    "sourceRegionAiMl": "AI & ML",
+    "sourceRegionStartupsVc": "Startups & VC",
+    "sourceRegionRegionalTech": "Regional Ecosystems",
+    "sourceRegionDeveloper": "Developer",
+    "sourceRegionCybersecurity": "Cybersecurity",
+    "sourceRegionTechPolicy": "Policy & Research",
+    "sourceRegionTechMedia": "Media & Podcasts",
+    "sourceRegionMarkets": "Markets & Analysis",
+    "sourceRegionFixedIncomeFx": "Fixed Income & FX",
+    "sourceRegionCommodities": "Commodities",
+    "sourceRegionCryptoDigital": "Crypto & Digital",
+    "sourceRegionCentralBanks": "Central Banks & Economy",
+    "sourceRegionDeals": "Deals & Corporate",
+    "sourceRegionFinRegulation": "Financial Regulation",
+    "sourceRegionGulfMena": "Golf & MENA",
+    "filterPanels": "Panels filteren...",
+    "resetLayout": "Layout resetten",
+    "panelCatCore": "Kern",
+    "panelCatIntelligence": "Inlichtingen",
+    "panelCatRegionalNews": "Regionaal Nieuws",
+    "panelCatMarketsFinance": "Markten & Financiën",
+    "panelCatTopical": "Actueel",
+    "panelCatDataTracking": "Data & Tracking",
+    "panelCatTechAi": "Tech & AI",
+    "panelCatStartupsVc": "Startups & VC",
+    "panelCatSecurityPolicy": "Veiligheid & Beleid",
+    "panelCatMarkets": "Markten",
+    "panelCatFixedIncomeFx": "Vastrentend & Valuta",
+    "panelCatCommodities": "Grondstoffen",
+    "panelCatCryptoDigital": "Crypto & Digitaal",
+    "panelCatCentralBanks": "Centrale Banken & Economie",
+    "panelCatDeals": "Deals & Institutioneel",
+    "panelCatGulfMena": "Golf & MENA",
+    "panelCatTradePolicy": "Handelsbeleid"
   },
   "app": {
     "title": "World Monitor",
@@ -1772,7 +2112,10 @@
       "earthquakes": "aardbevingen",
       "displaced": "ontheemden",
       "climate": "Klimaatstress",
-      "conflictEvents": "conflictgebeurtenissen"
+      "conflictEvents": "conflictgebeurtenissen",
+      "gpsJammingZones": "GPS Jamming Zones",
+      "activeStrikes": "actieve stakingen",
+      "aviationDisruptions": "luchthavenstoringen"
     },
     "timeAgo": {
       "m": "{{count}}m geleden",
@@ -1808,7 +2151,8 @@
       "internetOutages": "{{count}} internetstoringen",
       "recentEarthquakes": "{{count}} recente aardbevingen",
       "stockIndex": "Beursindex: {{value}}",
-      "recentHeadlines": "**Recente koppen:**"
+      "recentHeadlines": "**Recente koppen:**",
+      "activeStrikes": "{{count}} actieve stakingen gedetecteerd"
     }
   }
 }

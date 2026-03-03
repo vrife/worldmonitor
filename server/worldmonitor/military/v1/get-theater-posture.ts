@@ -1,5 +1,3 @@
-declare const process: { env: Record<string, string | undefined> };
-
 import type {
   ServerContext,
   GetTheaterPostureRequest,
@@ -7,7 +5,7 @@ import type {
   TheaterPosture,
 } from '../../../../src/generated/server/worldmonitor/military/v1/service_server';
 
-import { getCachedJson, setCachedJson } from '../../../_shared/redis';
+import { getCachedJson, setCachedJson, cachedFetchJson } from '../../../_shared/redis';
 import {
   isMilitaryCallsign,
   isMilitaryHex,
@@ -21,7 +19,7 @@ import { CHROME_UA } from '../../../_shared/constants';
 const CACHE_KEY = 'theater-posture:sebuf:v1';
 const STALE_CACHE_KEY = 'theater-posture:sebuf:stale:v1';
 const BACKUP_CACHE_KEY = 'theater-posture:sebuf:backup:v1';
-const CACHE_TTL = 300;
+const CACHE_TTL = 900; // 15 minutes
 const STALE_TTL = 86400;
 const BACKUP_TTL = 604800;
 
@@ -29,23 +27,36 @@ const BACKUP_TTL = 604800;
 // Flight fetching (OpenSky + Wingbits fallback)
 // ========================================================================
 
-async function fetchMilitaryFlightsFromOpenSky(): Promise<RawFlight[]> {
-  const isSidecar = (process.env.LOCAL_API_MODE || '').includes('sidecar');
-  const baseUrl = isSidecar
-    ? 'https://opensky-network.org/api/states/all'
-    : process.env.WS_RELAY_URL ? process.env.WS_RELAY_URL + '/opensky' : null;
+// Backoff tracker: skip Wingbits calls for WINGBITS_BACKOFF_MS after a failure
+// to avoid hammering the API with repeated 429s when OpenSky is down.
+const WINGBITS_BACKOFF_MS = 5 * 60 * 1000; // 5 minutes
+let wingbitsBackoffUntil = 0;
 
-  if (!baseUrl) return [];
+function getRelayRequestHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    'User-Agent': CHROME_UA,
+  };
+  const relaySecret = process.env.RELAY_SHARED_SECRET;
+  if (relaySecret) {
+    const relayHeader = (process.env.RELAY_AUTH_HEADER || 'x-relay-key').toLowerCase();
+    headers[relayHeader] = relaySecret;
+    headers.Authorization = `Bearer ${relaySecret}`;
+  }
+  return headers;
+}
 
-  const resp = await fetch(baseUrl, {
-    headers: { Accept: 'application/json', 'User-Agent': CHROME_UA },
-    signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-  });
-  if (!resp.ok) throw new Error(`OpenSky API error: ${resp.status}`);
+// Two bounding boxes covering all 9 POSTURE_THEATERS instead of fetching every
+// aircraft globally.  Returns ~hundreds of relevant states instead of ~10,000+.
+const THEATER_QUERY_REGIONS = [
+  { name: 'WESTERN', lamin: 10, lamax: 66, lomin: 9, lomax: 66 },   // Baltic→Yemen, Baltic→Iran
+  { name: 'PACIFIC', lamin: 4, lamax: 44, lomin: 104, lomax: 133 }, // SCS→Korea
+];
 
-  const data = (await resp.json()) as { states?: Array<[string, string, ...unknown[]]> };
+function parseOpenSkyStates(
+  data: { states?: Array<[string, string, ...unknown[]]> },
+): RawFlight[] {
   if (!data.states) return [];
-
   const flights: RawFlight[] = [];
   for (const state of data.states) {
     const [icao24, callsign, , , , lon, lat, altitude, onGround, velocity, heading] = state as [
@@ -53,7 +64,6 @@ async function fetchMilitaryFlightsFromOpenSky(): Promise<RawFlight[]> {
     ];
     if (lat == null || lon == null || onGround) continue;
     if (!isMilitaryCallsign(callsign) && !isMilitaryHex(icao24)) continue;
-
     flights.push({
       id: icao24,
       callsign: callsign?.trim() || '',
@@ -67,9 +77,44 @@ async function fetchMilitaryFlightsFromOpenSky(): Promise<RawFlight[]> {
   return flights;
 }
 
+async function fetchMilitaryFlightsFromOpenSky(): Promise<RawFlight[]> {
+  const isSidecar = (process.env.LOCAL_API_MODE || '').includes('sidecar');
+  const baseUrl = isSidecar
+    ? 'https://opensky-network.org/api/states/all'
+    : process.env.WS_RELAY_URL ? process.env.WS_RELAY_URL + '/opensky' : null;
+
+  if (!baseUrl) return [];
+
+  const seenIds = new Set<string>();
+  const allFlights: RawFlight[] = [];
+
+  for (const region of THEATER_QUERY_REGIONS) {
+    const params = `lamin=${region.lamin}&lamax=${region.lamax}&lomin=${region.lomin}&lomax=${region.lomax}`;
+    const resp = await fetch(`${baseUrl}?${params}`, {
+      headers: getRelayRequestHeaders(),
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+    });
+    if (!resp.ok) throw new Error(`OpenSky API error: ${resp.status} for ${region.name}`);
+
+    const data = (await resp.json()) as { states?: Array<[string, string, ...unknown[]]> };
+    for (const flight of parseOpenSkyStates(data)) {
+      if (!seenIds.has(flight.id)) {
+        seenIds.add(flight.id);
+        allFlights.push(flight);
+      }
+    }
+  }
+
+  return allFlights;
+}
+
 async function fetchMilitaryFlightsFromWingbits(): Promise<RawFlight[] | null> {
   const apiKey = process.env.WINGBITS_API_KEY;
   if (!apiKey) return null;
+
+  if (Date.now() < wingbitsBackoffUntil) {
+    return null;
+  }
 
   const areas = POSTURE_THEATERS.map((t) => ({
     alias: t.id,
@@ -88,7 +133,13 @@ async function fetchMilitaryFlightsFromWingbits(): Promise<RawFlight[] | null> {
       body: JSON.stringify(areas),
       signal: AbortSignal.timeout(15_000),
     });
-    if (!resp.ok) return null;
+    if (!resp.ok) {
+      console.warn(`[TheaterPosture] Wingbits ${resp.status} — backing off 5 min`);
+      wingbitsBackoffUntil = Date.now() + WINGBITS_BACKOFF_MS;
+      return null;
+    }
+
+    wingbitsBackoffUntil = 0;
 
     const data = (await resp.json()) as Array<{ flights?: Array<Record<string, unknown>> }>;
     const flights: RawFlight[] = [];
@@ -116,6 +167,7 @@ async function fetchMilitaryFlightsFromWingbits(): Promise<RawFlight[] | null> {
     }
     return flights;
   } catch {
+    wingbitsBackoffUntil = Date.now() + WINGBITS_BACKOFF_MS;
     return null;
   }
 }
@@ -169,43 +221,52 @@ function calculatePostures(flights: RawFlight[]): TheaterPosture[] {
 // RPC handler
 // ========================================================================
 
+async function fetchTheaterPostureFresh(): Promise<GetTheaterPostureResponse> {
+  let flights: RawFlight[] = [];
+
+  try {
+    flights = await fetchMilitaryFlightsFromOpenSky();
+  } catch {
+    flights = [];
+  }
+
+  // Wingbits is a fallback only when OpenSky is unavailable/empty.
+  if (flights.length === 0) {
+    const wingbitsFlights = await fetchMilitaryFlightsFromWingbits();
+    if (wingbitsFlights && wingbitsFlights.length > 0) {
+      flights = wingbitsFlights;
+    } else {
+      throw new Error('Both OpenSky and Wingbits unavailable');
+    }
+  }
+
+  const theaters = calculatePostures(flights);
+  const result: GetTheaterPostureResponse = { theaters };
+
+  await Promise.all([
+    setCachedJson(STALE_CACHE_KEY, result, STALE_TTL),
+    setCachedJson(BACKUP_CACHE_KEY, result, BACKUP_TTL),
+  ]);
+
+  return result;
+}
+
 export async function getTheaterPosture(
   _ctx: ServerContext,
   _req: GetTheaterPostureRequest,
 ): Promise<GetTheaterPostureResponse> {
-  const cached = (await getCachedJson(CACHE_KEY)) as GetTheaterPostureResponse | null;
-  if (cached) return cached;
-
   try {
-    // Race both sources in parallel instead of sequential fallback (H-6 fix)
-    let flights: RawFlight[];
-    const [openskyResult, wingbitsResult] = await Promise.allSettled([
-      fetchMilitaryFlightsFromOpenSky(),
-      fetchMilitaryFlightsFromWingbits(),
-    ]);
+    const result = await cachedFetchJson<GetTheaterPostureResponse>(
+      CACHE_KEY,
+      CACHE_TTL,
+      fetchTheaterPostureFresh,
+    );
+    if (result) return result;
+  } catch { /* upstream failed — fall through to stale/backup */ }
 
-    if (openskyResult.status === 'fulfilled' && openskyResult.value.length > 0) {
-      flights = openskyResult.value;
-    } else if (wingbitsResult.status === 'fulfilled' && wingbitsResult.value && wingbitsResult.value.length > 0) {
-      flights = wingbitsResult.value;
-    } else {
-      throw new Error('Both OpenSky and Wingbits unavailable');
-    }
-
-    const theaters = calculatePostures(flights);
-    const result: GetTheaterPostureResponse = { theaters };
-
-    await Promise.all([
-      setCachedJson(CACHE_KEY, result, CACHE_TTL),
-      setCachedJson(STALE_CACHE_KEY, result, STALE_TTL),
-      setCachedJson(BACKUP_CACHE_KEY, result, BACKUP_TTL),
-    ]);
-    return result;
-  } catch {
-    const stale = (await getCachedJson(STALE_CACHE_KEY)) as GetTheaterPostureResponse | null;
-    if (stale) return stale;
-    const backup = (await getCachedJson(BACKUP_CACHE_KEY)) as GetTheaterPostureResponse | null;
-    if (backup) return backup;
-    return { theaters: [] };
-  }
+  const stale = (await getCachedJson(STALE_CACHE_KEY)) as GetTheaterPostureResponse | null;
+  if (stale) return stale;
+  const backup = (await getCachedJson(BACKUP_CACHE_KEY)) as GetTheaterPostureResponse | null;
+  if (backup) return backup;
+  return { theaters: [] };
 }

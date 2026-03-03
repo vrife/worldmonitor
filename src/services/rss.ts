@@ -4,25 +4,20 @@ import { chunkArray, fetchWithProxy } from '@/utils';
 import { classifyByKeyword, classifyWithAI } from './threat-classifier';
 import { inferGeoHubsFromTitle } from './geo-hub-index';
 import { getPersistentCache, setPersistentCache } from './persistent-cache';
+import { dataFreshness } from './data-freshness';
 import { ingestHeadlines } from './trending-keywords';
 import { getCurrentLanguage } from './i18n';
+import { canQueueAiClassification, AI_CLASSIFY_MAX_PER_FEED } from './ai-classify-queue';
+import { mlWorker } from './ml-worker';
+import { isHeadlineMemoryEnabled } from './ai-flow-settings';
 
-// Per-feed circuit breaker: track failures and cooldowns
-const FEED_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes after failure
-const MAX_FAILURES = 2; // failures before cooldown
-const MAX_CACHE_ENTRIES = 100; // Prevent unbounded growth
+const FEED_COOLDOWN_MS = 5 * 60 * 1000;
+const MAX_FAILURES = 2;
+const MAX_CACHE_ENTRIES = 100;
 const FEED_SCOPE_SEPARATOR = '::';
 const feedFailures = new Map<string, { count: number; cooldownUntil: number }>();
 const feedCache = new Map<string, { items: NewsItem[]; timestamp: number }>();
-const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
-const AI_CLASSIFY_DEDUP_MS = 30 * 60 * 1000;
-const AI_CLASSIFY_WINDOW_MS = 60 * 1000;
-const AI_CLASSIFY_MAX_PER_WINDOW =
-  SITE_VARIANT === 'finance' ? 40 : SITE_VARIANT === 'tech' ? 60 : 80;
-const AI_CLASSIFY_MAX_PER_FEED =
-  SITE_VARIANT === 'finance' ? 2 : SITE_VARIANT === 'tech' ? 2 : 3;
-const aiRecentlyQueued = new Map<string, number>();
-const aiDispatches: number[] = [];
+const CACHE_TTL = 30 * 60 * 1000;
 
 function toSerializable(items: NewsItem[]): Array<Omit<NewsItem, 'pubDate'> & { pubDate: string }> {
   return items.map(item => ({ ...item, pubDate: item.pubDate.toISOString() }));
@@ -130,33 +125,75 @@ export function getFeedFailures(): Map<string, { count: number; cooldownUntil: n
   return currentLangFailures;
 }
 
-function toAiKey(title: string): string {
-  return title.trim().toLowerCase().replace(/\s+/g, ' ');
-}
 
-function canQueueAiClassification(title: string): boolean {
-  const now = Date.now();
-  while (aiDispatches.length > 0 && now - aiDispatches[0]! > AI_CLASSIFY_WINDOW_MS) {
-    aiDispatches.shift();
-  }
-  for (const [key, queuedAt] of aiRecentlyQueued) {
-    if (now - queuedAt > AI_CLASSIFY_DEDUP_MS) {
-      aiRecentlyQueued.delete(key);
+/**
+ * Extract the best image URL from an RSS item element.
+ * Tries multiple RSS image sources in priority order:
+ * 1. media:content (Yahoo MRSS namespace)
+ * 2. media:thumbnail (Yahoo MRSS namespace)
+ * 3. <enclosure> with image type
+ * 4. First <img> in description/content:encoded
+ * Returns undefined if no image found. Never throws.
+ */
+function extractImageUrl(item: Element): string | undefined {
+  const MRSS_NS = 'http://search.yahoo.com/mrss/';
+  const IMG_EXTENSIONS = /\.(jpg|jpeg|png|gif|webp|avif|svg)(\?|$)/i;
+
+  try {
+    // 1. media:content with MRSS namespace
+    const mediaContents = item.getElementsByTagNameNS(MRSS_NS, 'content');
+    for (let i = 0; i < mediaContents.length; i++) {
+      const el = mediaContents[i]!;
+      const url = el.getAttribute('url');
+      if (!url) continue;
+      const medium = el.getAttribute('medium');
+      const type = el.getAttribute('type');
+      // Accept if medium is image, type contains image, URL looks like image, or no type specified
+      if (medium === 'image' || type?.startsWith('image/') || IMG_EXTENSIONS.test(url) || (!type && !medium)) {
+        return url;
+      }
     }
-  }
-  if (aiDispatches.length >= AI_CLASSIFY_MAX_PER_WINDOW) {
-    return false;
-  }
-
-  const key = toAiKey(title);
-  const lastQueued = aiRecentlyQueued.get(key);
-  if (lastQueued && now - lastQueued < AI_CLASSIFY_DEDUP_MS) {
-    return false;
+  } catch {
+    // Namespace not supported or other XML issue, fall through
   }
 
-  aiDispatches.push(now);
-  aiRecentlyQueued.set(key, now);
-  return true;
+  try {
+    // 2. media:thumbnail with MRSS namespace
+    const thumbnails = item.getElementsByTagNameNS(MRSS_NS, 'thumbnail');
+    for (let i = 0; i < thumbnails.length; i++) {
+      const url = thumbnails[i]!.getAttribute('url');
+      if (url) return url;
+    }
+  } catch {
+    // Fall through
+  }
+
+  try {
+    // 3. <enclosure> with image type
+    const enclosures = item.getElementsByTagName('enclosure');
+    for (let i = 0; i < enclosures.length; i++) {
+      const el = enclosures[i]!;
+      const type = el.getAttribute('type');
+      const url = el.getAttribute('url');
+      if (url && type?.startsWith('image/')) return url;
+    }
+  } catch {
+    // Fall through
+  }
+
+  try {
+    // 4. Fallback: parse first <img src="..."> from description or content:encoded
+    const description = item.querySelector('description')?.textContent || '';
+    const contentEncoded = item.getElementsByTagNameNS('http://purl.org/rss/1.0/modules/content/', 'encoded');
+    const contentText = contentEncoded.length > 0 ? (contentEncoded[0]!.textContent || '') : '';
+    const htmlContent = contentText || description;
+    const imgMatch = htmlContent.match(/<img[^>]+src=["']([^"']+)["']/);
+    if (imgMatch?.[1]) return imgMatch[1];
+  } catch {
+    // Fall through
+  }
+
+  return undefined;
 }
 
 export async function fetchFeed(feed: Feed): Promise<NewsItem[]> {
@@ -232,6 +269,7 @@ export async function fetchFeed(feed: Feed): Promise<NewsItem[]> {
           threat,
           ...(topGeo && { lat: topGeo.hub.lat, lon: topGeo.hub.lon, locationName: topGeo.hub.name }),
           lang: feed.lang,
+          ...(SITE_VARIANT === 'happy' && { imageUrl: extractImageUrl(item) }),
         };
       });
 
@@ -244,6 +282,16 @@ export async function fetchFeed(feed: Feed): Promise<NewsItem[]> {
       source: item.source,
       link: item.link,
     })));
+
+    if (isHeadlineMemoryEnabled() && mlWorker.isAvailable && mlWorker.isModelLoaded('embeddings') && parsed.length > 0) {
+      mlWorker.vectorStoreIngest(parsed.map(item => ({
+        text: item.title,
+        pubDate: item.pubDate.getTime(),
+        source: item.source,
+        url: item.link,
+        tags: item.locationName ? [item.locationName] : undefined,
+      }))).catch(() => {});
+    }
 
     const aiCandidates = parsed
       .filter(item => item.threat.source === 'keyword')
@@ -316,9 +364,7 @@ export async function fetchCategoryFeeds(
   }
 
   if (totalItems > 0) {
-    import('./data-freshness').then(({ dataFreshness }) => {
-      dataFreshness.recordUpdate('rss', totalItems);
-    });
+    dataFreshness.recordUpdate('rss', totalItems);
   }
 
   return ensureSortedDescending();

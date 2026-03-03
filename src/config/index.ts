@@ -1,8 +1,8 @@
 // Configuration exports
 // For variant-specific builds, set VITE_VARIANT environment variable
-// VITE_VARIANT=tech → tech.worldmonitor.io (tech-focused)
-// VITE_VARIANT=full → worldmonitor.io (geopolitical)
-// VITE_VARIANT=finance → finance.worldmonitor.io (markets/trading)
+// VITE_VARIANT=tech → tech.worldmonitor.app (tech-focused)
+// VITE_VARIANT=full → worldmonitor.app (geopolitical)
+// VITE_VARIANT=finance → finance.worldmonitor.app (markets/trading)
 
 export { SITE_VARIANT } from './variant';
 

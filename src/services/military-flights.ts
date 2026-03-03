@@ -6,7 +6,9 @@ import {
   isKnownMilitaryHex,
   getNearbyHotspot,
   MILITARY_HOTSPOTS,
+  MILITARY_QUERY_REGIONS,
 } from '@/config/military';
+import type { QueryRegion } from '@/config/military';
 import {
   getAircraftDetailsBatch,
   analyzeAircraftDetails,
@@ -14,14 +16,16 @@ import {
 } from './wingbits';
 import { isFeatureAvailable } from './runtime-config';
 
-// OpenSky Network API - use Railway relay (Vercel is blocked by OpenSky)
+// OpenSky API path — route through Vercel so Railway secret never reaches the browser.
+const OPENSKY_PROXY_URL = '/api/opensky';
 const wsRelayUrl = import.meta.env.VITE_WS_RELAY_URL || '';
-const OPENSKY_BASE_URL = wsRelayUrl
+const DIRECT_OPENSKY_BASE_URL = wsRelayUrl
   ? wsRelayUrl.replace('wss://', 'https://').replace('ws://', 'http://').replace(/\/$/, '') + '/opensky'
   : '';
+const isLocalhostRuntime = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
 
 // Cache configuration
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes - match refresh interval
+const CACHE_TTL = 15 * 60 * 1000; // 15 minutes - reduce upstream API pressure
 let flightCache: { data: MilitaryFlight[]; timestamp: number } | null = null;
 
 // Track flight history for trails
@@ -34,7 +38,7 @@ const breaker = createCircuitBreaker<{ flights: MilitaryFlight[]; clusters: Mili
   name: 'Military Flight Tracking',
   maxFailures: 3,
   cooldownMs: 5 * 60 * 1000, // 5 minute cooldown
-  cacheTtlMs: 5 * 60 * 1000, // 5 minute cache
+  cacheTtlMs: 10 * 60 * 1000,
 });
 
 // OpenSky API returns arrays in this order:
@@ -254,70 +258,79 @@ function parseOpenSkyResponse(data: OpenSkyResponse): MilitaryFlight[] {
   return flights;
 }
 
-/**
- * Fetch flights for a single hotspot region
- */
-async function fetchHotspotRegion(hotspot: typeof MILITARY_HOTSPOTS[number]): Promise<MilitaryFlight[]> {
+interface RegionResult {
+  name: string;
+  flights: MilitaryFlight[];
+  ok: boolean;
+}
+
+async function fetchQueryRegion(region: QueryRegion): Promise<RegionResult> {
+  const query = `lamin=${region.lamin}&lamax=${region.lamax}&lomin=${region.lomin}&lomax=${region.lomax}`;
+  const urls = [`${OPENSKY_PROXY_URL}?${query}`];
+  if (isLocalhostRuntime && DIRECT_OPENSKY_BASE_URL) {
+    urls.push(`${DIRECT_OPENSKY_BASE_URL}?${query}`);
+  }
+
   try {
-    if (!OPENSKY_BASE_URL) return [];
-
-    const lamin = hotspot.lat - hotspot.radius;
-    const lamax = hotspot.lat + hotspot.radius;
-    const lomin = hotspot.lon - hotspot.radius;
-    const lomax = hotspot.lon + hotspot.radius;
-
-    const response = await fetch(
-      `${OPENSKY_BASE_URL}?lamin=${lamin}&lamax=${lamax}&lomin=${lomin}&lomax=${lomax}`,
-      { headers: { 'Accept': 'application/json' } }
-    );
-
-    if (!response.ok) {
-      if (response.status === 429) {
-        console.warn(`[Military Flights] Rate limited for ${hotspot.name}`);
+    for (const url of urls) {
+      const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
+      if (!response.ok) {
+        if (response.status === 429) {
+          console.warn(`[Military Flights] Rate limited for ${region.name}`);
+        }
+        continue;
       }
-      return [];
+      const data: OpenSkyResponse = await response.json();
+      return { name: region.name, flights: parseOpenSkyResponse(data), ok: true };
     }
-
-    const data: OpenSkyResponse = await response.json();
-    return parseOpenSkyResponse(data);
+    return { name: region.name, flights: [], ok: false };
   } catch {
-    return [];
+    return { name: region.name, flights: [], ok: false };
   }
 }
 
-/**
- * Fetch military flights from OpenSky Network
- * Uses regional queries to reduce API usage and bandwidth
- */
+const STALE_MAX_AGE_MS = 10 * 60 * 1000;
+const regionCache = new Map<string, { flights: MilitaryFlight[]; timestamp: number }>();
+
 async function fetchFromOpenSky(): Promise<MilitaryFlight[]> {
   const allFlights: MilitaryFlight[] = [];
   const seenHexCodes = new Set<string>();
+  let allFailed = true;
 
-  // Execute in batches to avoid rate limiting
-  // Note: Requests are started when the batch executes, not when defined
-  const batchSize = 3;
-  for (let i = 0; i < MILITARY_HOTSPOTS.length; i += batchSize) {
-    const batch = MILITARY_HOTSPOTS.slice(i, i + batchSize);
+  const results = await Promise.all(
+    MILITARY_QUERY_REGIONS.map(region => fetchQueryRegion(region))
+  );
 
-    // Start requests for this batch only
-    const results = await Promise.all(batch.map(hotspot => fetchHotspotRegion(hotspot)));
+  for (const result of results) {
+    let flights: MilitaryFlight[];
 
-    for (const flights of results) {
-      for (const flight of flights) {
-        if (!seenHexCodes.has(flight.hexCode)) {
-          seenHexCodes.add(flight.hexCode);
-          allFlights.push(flight);
-        }
+    if (result.ok) {
+      allFailed = false;
+      regionCache.set(result.name, { flights: result.flights, timestamp: Date.now() });
+      flights = result.flights;
+    } else {
+      const stale = regionCache.get(result.name);
+      if (stale && (Date.now() - stale.timestamp < STALE_MAX_AGE_MS)) {
+        console.warn(`[Military Flights] ${result.name} failed, using stale data (${Math.round((Date.now() - stale.timestamp) / 1000)}s old)`);
+        flights = stale.flights;
+      } else {
+        console.warn(`[Military Flights] ${result.name} failed, no usable stale data`);
+        flights = [];
       }
     }
 
-    // Small delay between batches to be respectful of rate limits
-    if (i + batchSize < MILITARY_HOTSPOTS.length) {
-      await new Promise((r) => setTimeout(r, 200));
+    for (const flight of flights) {
+      if (!seenHexCodes.has(flight.hexCode)) {
+        seenHexCodes.add(flight.hexCode);
+        allFlights.push(flight);
+      }
     }
   }
 
-  console.log(`[Military Flights] Found ${allFlights.length} military aircraft from ${MILITARY_HOTSPOTS.length} regions`);
+  if (allFailed && allFlights.length === 0) {
+    throw new Error('All regions failed — upstream may be down');
+  }
+
   return allFlights;
 }
 
@@ -330,12 +343,11 @@ async function enrichFlightsWithWingbits(flights: MilitaryFlight[]): Promise<Mil
   // Check if Wingbits is configured
   const isConfigured = await checkWingbitsStatus();
   if (!isConfigured) {
-    console.log('[Military Flights] Wingbits not configured, skipping enrichment');
     return flights;
   }
 
-  // Get hex codes for all flights
-  const hexCodes = flights.map(f => f.hexCode.toLowerCase());
+  // Use deterministic ordering to improve cache locality across refreshes.
+  const hexCodes = Array.from(new Set(flights.map((f) => f.hexCode.toLowerCase()))).sort();
 
   // Batch fetch aircraft details
   const detailsMap = await getAircraftDetailsBatch(hexCodes);
@@ -343,8 +355,6 @@ async function enrichFlightsWithWingbits(flights: MilitaryFlight[]): Promise<Mil
   if (detailsMap.size === 0) {
     return flights;
   }
-
-  console.log(`[Military Flights] Enriching ${detailsMap.size} of ${flights.length} aircraft with Wingbits data`);
 
   // Enrich each flight
   return flights.map(flight => {
@@ -524,7 +534,6 @@ export async function fetchMilitaryFlights(): Promise<{
     // Generate clusters
     const clusters = clusterFlights(flights);
 
-    console.log(`[Military Flights] Total: ${flights.length} flights, ${clusters.length} clusters`);
     return { flights, clusters };
   }, { flights: [], clusters: [] });
 }

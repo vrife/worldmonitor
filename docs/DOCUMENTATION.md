@@ -2,7 +2,7 @@
 
 AI-powered real-time global intelligence dashboard aggregating news, markets, geopolitical data, and infrastructure monitoring into a unified situation awareness interface.
 
-🌐 **[Live Demo: worldmonitor.io](https://worldmonitor.io)** | 💻 **[Tech Variant: tech.worldmonitor.io](https://tech.worldmonitor.io)**
+🌐 **[Live Demo: worldmonitor.app](https://worldmonitor.app)** | 💻 **[Tech Variant: tech.worldmonitor.app](https://tech.worldmonitor.app)**
 
 ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=flat&logo=typescript&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat&logo=vite&logoColor=white)
@@ -17,8 +17,8 @@ World Monitor runs two specialized variants from a single codebase, each optimiz
 
 | Variant | URL | Focus |
 |---------|-----|-------|
-| **🌍 World Monitor** | [worldmonitor.io](https://worldmonitor.io) | Geopolitical intelligence, military tracking, conflict monitoring, infrastructure security |
-| **💻 Tech Monitor** | [tech.worldmonitor.io](https://tech.worldmonitor.io) | Technology sector intelligence, AI/startup ecosystems, cloud infrastructure, tech events |
+| **🌍 World Monitor** | [worldmonitor.app](https://worldmonitor.app) | Geopolitical intelligence, military tracking, conflict monitoring, infrastructure security |
+| **💻 Tech Monitor** | [tech.worldmonitor.app](https://tech.worldmonitor.app) | Technology sector intelligence, AI/startup ecosystems, cloud infrastructure, tech events |
 
 A compact **variant switcher** in the header allows seamless navigation between variants while preserving your map position and panel configuration.
 
@@ -56,7 +56,7 @@ The primary variant focuses on geopolitical intelligence, military tracking, and
 
 ## Tech Monitor
 
-The tech variant ([tech.worldmonitor.io](https://tech.worldmonitor.io)) provides specialized layers for technology sector monitoring.
+The tech variant ([tech.worldmonitor.app](https://tech.worldmonitor.app)) provides specialized layers for technology sector monitoring.
 
 ### Tech Ecosystem Layers
 
@@ -176,9 +176,10 @@ Layers are organized into logical groups for efficient monitoring:
 | **Natural** | USGS earthquakes (M4.5+) + NASA EONET events (storms, wildfires, volcanoes, floods) |
 | **Weather** | NWS severe weather warnings |
 
-**Economic & Labels**
+**Overlays & Labels**
 | Layer | Description |
 |-------|-------------|
+| **Day/Night** | Real-time solar terminator overlay showing day and night zones (updates every 5 minutes) |
 | **Economic** | Tabbed economic panel with FRED indicators, EIA oil analytics, and USASpending.gov government contracts |
 | **Countries** | Country boundary labels |
 | **Waterways** | Strategic waterways and chokepoints |
@@ -3302,7 +3303,7 @@ const header = `World Monitor v${__APP_VERSION__}`;
 
 ```bash
 # Clone the repository
-git clone https://github.com/vrife/worldmonitor.git
+git clone https://github.com/koala73/worldmonitor.git
 cd worldmonitor
 
 # Install everything (buf, sebuf plugins, npm deps, proto deps)
@@ -4037,7 +4038,7 @@ MIT
 
 ## Author
 
-**Vlad Rife** — [GitHub](https://github.com/vrife) · [Twitter](https://x.com/vladrife) · [Djinn AI](https://www.djinnai.co)
+**Elie Habib**
 
 ---
 

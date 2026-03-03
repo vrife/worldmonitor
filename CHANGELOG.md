@@ -2,6 +2,210 @@
 
 All notable changes to World Monitor are documented here.
 
+## [2.5.24] - 2026-03-03
+
+### Highlights
+
+- **UCDP conflict data** — integrated Uppsala Conflict Data Program for historical & ongoing armed conflict tracking (#760)
+- **Country brief sharing** — maximize mode, shareable URLs, native browser share button, expanded sections (#743, #854)
+- **Unified Vercel deployment** — consolidated 4 separate deployments into 1 via runtime variant detection (#756)
+- **CDN performance overhaul** — POST→GET conversion, per-domain edge functions, tiered bootstrap for ~46% egress reduction (#753, #795, #838)
+- **Security hardening** — CSP script hashes replace unsafe-inline, crypto.randomUUID() for IDs, XSS-safe i18n, Finnhub token header (#781, #844, #861, #744)
+- **i18n expansion** — French support with Live TV channels, hardcoded English strings replaced with translation keys (#794, #851, #839)
+
+### Added
+
+- UCDP (Uppsala Conflict Data Program) integration for armed conflict tracking (#760)
+- Iran & Strait of Hormuz conflict zones, upgraded Ukraine polygon (#731)
+- 100 Iran war events seeded with expanded geocoder (#792)
+- Country brief maximize mode, shareable URLs, expanded sections & i18n (#743)
+- Native browser share button for country briefs (#854)
+- French i18n support with French Live TV channels (#851)
+- Geo-restricted live channel support, restored WELT (#765)
+- Manage Channels UX — toggle from grid + show all channels (#745)
+- Command palette: disambiguate Map vs Panel commands, split country into map/brief (#736)
+- Command palette: rotating contextual tips replace static empty state (#737)
+- Download App button for web users with dropdown (#734, #735)
+- Reset layout button to restore default panel sizes and order (#801)
+- System status moved into settings (#735)
+- Vercel cron to pre-warm AviationStack cache (#776)
+- Runtime variant detection — consolidate 4 Vercel deployments into 1 (#756)
+- CJS syntax check in pre-push hook (#769)
+
+### Fixed
+
+- **Security**: XSS — wrap `t()` calls in `escapeHtml()` (#861), use `crypto.randomUUID()` instead of `Math.random()` for ID generation (#844), move Finnhub API key from query string to `X-Finnhub-Token` header (#744)
+- **i18n**: replace hardcoded English strings with translation keys (#839), i18n improvements (#794)
+- **Market**: parse comma-separated query params and align Railway cache keys (#856), Railway market data cron + complete missing tech feed categories (#850), Yahoo relay fallback + RSS digest relay for blocked feeds (#835), tech UNAVAILABLE feeds + Yahoo batch early-exit + sector heatmap gate (#810)
+- **Aviation**: move AviationStack fetching to Railway relay, reduce to 40 airports (#858)
+- **UI**: cancel pending debounced calls on component destroy (#848), guard async operations against stale DOM references (#843)
+- **Sentry**: guard stale DOM refs, audio.play() compat, add 16 noise filters (#855)
+- **Relay**: exponential backoff for failing RSS feeds (#853), deduplicate UCDP constants crashing Railway container (#766)
+- **API**: remove `[domain]` catch-all that intercepted all RPC routes (#753 regression) (#785), pageSize bounds validation on research handlers (#819), return 405 for wrong HTTP method (#757), pagination cursor for cyber threats (#754)
+- **Conflict**: bump Iran events cache-bust to v7 (#724)
+- **OREF**: prevent LLM translation cache from poisoning Hebrew→English pipeline (#733), strip translation labels from World Brief input (#768)
+- **Military**: harden USNI fleet report ship name regex (#805)
+- **Sidecar**: add required params to ACLED API key validation probe (#804)
+- **Macro**: replace hardcoded BTC mining thresholds with Mayer Multiple (#750)
+- **Cyber**: reduce GeoIP per-IP timeout from 3s to 1.5s (#748)
+- **CSP**: restore unsafe-inline for Vercel bot-challenge pages (#788), add missing script hash and finance variant (#798)
+- **Runtime**: route all /api/* calls through CDN edge instead of direct Vercel (#780)
+- **Desktop**: detect Linux node target from host arch (#742), harden Windows installer update path + map resize (#739), close update toast after clicking download (#738), only open valid http(s) links externally (#723)
+- **Webcams**: replace dead Tel Aviv live stream (#732), replace stale Jerusalem feed (#849)
+- Story header uses full domain WORLDMONITOR.APP (#799)
+- Open variant nav links in same window instead of new tab (#721)
+- Suppress map renders during resize drag (#728)
+- Append deduction panel to DOM after async import resolves (#764)
+- Deduplicate stale-while-revalidate background fetches in CircuitBreaker (#793)
+- CORS fallback, rate-limit bump, RSS proxy allowlist (#814)
+- Unavailable stream error messages updated (#759)
+
+### Performance
+
+- Tier slow/fast bootstrap data for ~46% CDN egress reduction (#838)
+- Convert POST RPCs to GET for CDN caching (#795)
+- Split monolithic edge function into per-domain functions (#753)
+- Increase CDN cache TTLs + add stale-if-error across edge functions (#777)
+- Bump CDN cache TTLs for oref-alerts and youtube/live (#791)
+- Skip wasted direct fetch for Vercel-blocked domains in RSS proxy (#815)
+
+### Security
+
+- Replace CSP unsafe-inline with script hashes and add trust signals (#781)
+- Expand Permissions-Policy and tighten CSP connect-src (#779)
+
+### Changed
+
+- Extend support for larger screens (#740)
+- Green download button + retire sliding popup (#747)
+- Extract shared relay helper into `_relay.js` (#782)
+- Consolidate `SummarizeArticleResponse` status fields (#813)
+- Consolidate `declare const process` into shared `env.d.ts` (#752)
+- Deduplicate `clampInt` into `server/_shared/constants`
+- Add error logging for network errors in error mapper (#746)
+- Redis error logging + reduced timeouts for edge functions (#749)
+
+---
+
+## [2.5.21] - 2026-03-01
+
+### Highlights
+
+- **Iran Attacks map layer** — conflict events with severity badges, related event popups, and CII integration (#511, #527, #547, #549)
+- **Telegram Intel panel** — 27 curated OSINT channels via MTProto relay (#550)
+- **OREF Israel Sirens** — real-time alerts with Hebrew→English translation and 24h history bootstrap (#545, #556, #582)
+- **GPS/GNSS jamming layer** — detection overlay with CII integration (#570)
+- **Day/night terminator** — solar terminator overlay on map (#529)
+- **Breaking news alert banner** — audio alerts for critical/high RSS items with cooldown bypass (#508, #516, #533)
+- **AviationStack integration** — global airport delays for 128 airports with NOTAM closure detection (#552, #581, #583)
+- **Strategic risk score** — theater posture + breaking news wired into scoring algorithm (#584)
+
+### Added
+
+- Iran Attacks map layer with conflict event popups, severity badges, and priority rendering (#511, #527, #549)
+- Telegram Intel panel with curated OSINT channel list (#550, #600)
+- OREF Israel Sirens panel with Hebrew-to-English translation (#545, #556)
+- OREF 24h history bootstrap on relay startup (#582)
+- GPS/GNSS jamming detection map layer + CII integration (#570)
+- Day/night solar terminator overlay (#529)
+- Breaking news active alert banner with audio for critical/high items (#508)
+- AviationStack integration for non-US airports + NOTAM closure detection (#552, #581, #583)
+- RT (Russia Today) HLS livestream + RSS feeds (#585, #586)
+- Iran webcams tab with 4 feeds (#569, #572, #601)
+- CBC News optional live channel (#502)
+- Strategic risk score wired to theater posture + breaking news (#584)
+- CII scoring: security advisories, Iran strikes, OREF sirens, GPS jamming (#547, #559, #570, #579)
+- Country brief + CII signal coverage expansion (#611)
+- Server-side military bases with 125K+ entries + rate limiting (#496)
+- AVIATIONSTACK_API key in desktop settings (#553)
+- Iran events seed script and latest data (#575)
+
+### Fixed
+
+- **Aviation**: stale IndexedDB cache invalidation + reduced CDN TTL (#607), broken lock replaced with direct cache + cancellation tiers (#591), query all airports instead of rotating batch (#557), NOTAM routing through Railway relay (#599), always show all monitored airports (#603)
+- **Telegram**: AUTH_KEY_DUPLICATED fixes — latch to stop retry spam (#543), 60s startup delay (#587), graceful shutdown + poll guard (#562), ESM import path fixes (#537, #542), missing relay auth headers (#590)
+- **Relay**: Polymarket OOM prevention — circuit breaker + concurrency limiter (#519), request deduplication (#513), queue backpressure + response slicing (#593), cache stampede fix (#592), kill switch (#523); smart quotes crash (#563); graceful shutdown (#562, #565); curl for OREF (#546, #567, #571); maxBuffer ENOBUFS (#609); rsshub.app blocked (#526); ERR_HTTP_HEADERS_SENT guard (#509); Telegram memory cleanup (#531)
+- **Live news**: 7 stale YouTube fallback IDs replaced (#535, #538), broken Europe channel handles (#541), eNCA handle + VTC NOW removal + CTI News (#604), RT HLS recovery (#610), YouTube proxy auth alignment (#554, #555), residential proxy + gzip for detection (#551)
+- **Breaking news**: critical alerts bypass cooldown (#516), keyword gaps filled (#517, #521), fake pubDate filter (#517), SESSION_START gate removed (#533)
+- **Threat classifier**: military/conflict keyword gaps + news-to-conflict bridge (#514), Groq 429 stagger (#520)
+- **Geo**: tokenization-based matching to prevent false positives (#503), 60+ missing locations in hub index (#528)
+- **Iran**: CDN cache-bust pipeline v4 (#524, #532, #544), read-only handler (#518), Gulf misattribution via bbox disambiguation (#532)
+- **CII**: Gulf country strike misattribution (#564), compound escalation for military action (#548)
+- **Bootstrap**: 401/429 rate limiting fix (#512), hydration cache + polling hardening (#504)
+- **Sentry**: guard YT player methods + GM/InvalidState noise (#602), Android OEM WebView bridge injection (#510), setView invalid preset (#580), beforeSend null-filename leak (#561)
+- Rate limiting raised to 300 req/min sliding window (#515)
+- Vercel preview origin regex generalized + bases cache key (#506)
+- Cross-env for Windows-compatible npm scripts (#499)
+- Download banner repositioned to bottom-right (#536)
+- Stale/expired Polymarket markets filtered (#507)
+- Cyber GeoIP centroid fallback jitter made deterministic (#498)
+- Cache-control headers hardened for polymarket and rss-proxy (#613)
+
+### Performance
+
+- Server-side military base fetches: debounce + static edge cache tier (#497)
+- RSS: refresh interval raised to 10min, cache TTL to 20min (#612)
+- Polymarket cache TTL raised to 10 minutes (#568)
+
+### Changed
+
+- Stripped 61 debug console.log calls from 20 service files (#501)
+- Bumped version to 2.5.21 (#605)
+
+---
+
+## [2.5.20] - 2026-02-27
+
+### Added
+
+- **Edge caching**: Complete Cloudflare edge cache tier coverage with degraded-response policy (#484)
+- **Edge caching**: Cloudflare edge caching for proxy.worldmonitor.app (#478) and api.worldmonitor.app (#471)
+- **Edge caching**: Tiered edge Cache-Control aligned to upstream TTLs (#474)
+- **API migration**: Convert 52 API endpoints from POST to GET for edge caching (#468)
+- **Gateway**: Configurable VITE_WS_API_URL + harden POST-to-GET shim (#480)
+- **Cache**: Negative-result caching for cachedFetchJson (#466)
+- **Security advisories**: New panel with government travel alerts (#460)
+- **Settings**: Redesign settings window with VS Code-style sidebar layout (#461)
+
+### Fixed
+
+- **Commodities panel**: Was showing stocks instead of commodities — circuit breaker SWR returned stale data from a different call when cacheTtlMs=0 (#483)
+- **Analytics**: Use greedy regex in PostHog ingest rewrites (#481)
+- **Sentry**: Add noise filters for 4 unresolved issues (#479)
+- **Gateway**: Convert stale POST requests to GET for backwards compat (#477)
+- **Desktop**: Enable click-to-play YouTube embeds + CISA feed fixes (#476)
+- **Tech variant**: Use rss() for CISA feed, drop build from pre-push hook (#475)
+- **Security advisories**: Route feeds through RSS proxy to avoid CORS blocks (#473)
+- **API routing**: Move 5 path-param endpoints to query params for Vercel routing (#472)
+- **Beta**: Eagerly load T5-small model when beta mode is enabled
+- **Scripts**: Handle escaped apostrophes in feed name regex (#455)
+- **Wingbits**: Add 5-minute backoff on /v1/flights failures (#459)
+- **Ollama**: Strip thinking tokens, raise max_tokens, fix panel summary cache (#456)
+- **RSS/HLS**: RSS feed repairs, HLS native playback, summarization cache fix (#452)
+
+### Performance
+
+- **AIS proxy**: Increase AIS snapshot edge TTL from 2s to 10s (#482)
+
+---
+
+## [2.5.10] - 2026-02-26
+
+### Fixed
+
+- **Yahoo Finance rate-limit UX**: Show "rate limited — retrying shortly" instead of generic "Failed to load" on Markets, ETF, Commodities, and Sector panels when Yahoo returns 429 (#407)
+- **Sequential Yahoo calls**: Replace `Promise.all` with staggered batching in commodity quotes, ETF flows, and macro signals to prevent 429 rate limiting (#406)
+- **Sector heatmap Yahoo fallback**: Sector data now loads via Yahoo Finance when `FINNHUB_API_KEY` is missing (#406)
+- **Finnhub-to-Yahoo fallback**: Market quotes route Finnhub symbols through Yahoo when API key is not configured (#407)
+- **ETF early-exit on rate limit**: Skip retry loop and show rate-limit message immediately instead of waiting 60s (#407)
+- **Sidecar auth resilience**: 401-retry with token refresh for stale sidecar tokens after restart; `diagFetch` auth helper for settings window diagnostics (#407)
+- **Verbose toggle persistence**: Write verbose state to writable data directory instead of read-only app bundle on macOS (#407)
+- **AI summary verbosity**: Tighten prompts to 2 sentences / 60 words max with `max_tokens` reduced from 150 to 100 (#404)
+- **Settings modal title**: Rename from "PANELS" to "SETTINGS" across all 17 locales (#403)
+- **Sentry noise filters**: CSS.escape() for news ID selectors, player.destroy guard, 11 new ignoreErrors patterns, blob: URL extension frame filter (#402)
+
+---
+
 ## [2.5.6] - 2026-02-23
 
 ### Added
@@ -171,7 +375,7 @@ All notable changes to World Monitor are documented here.
 
 ### Added
 
-- **Finance variant**: Added a dedicated market-first variant (`finance.worldmonitor.io`) with finance/trading-focused feeds, panels, and map defaults
+- **Finance variant**: Added a dedicated market-first variant (`finance.worldmonitor.app`) with finance/trading-focused feeds, panels, and map defaults
 - **Finance desktop profile**: Added finance-specific desktop config and build profile for Tauri packaging
 
 ### Changed

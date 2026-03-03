@@ -1,7 +1,7 @@
 
 import { Panel } from './Panel';
 import { t } from '@/services/i18n';
-import { isDesktopRuntime } from '@/services/runtime';
+import { getLocalApiPort, isDesktopRuntime } from '@/services/runtime';
 import {
   getDesktopReadinessChecks,
   getKeyBackedAvailabilitySummary,
@@ -39,37 +39,38 @@ export class ServiceStatusPanel extends Panel {
   private loading = true;
   private error: string | null = null;
   private filter: CategoryFilter = 'all';
-  private refreshInterval: ReturnType<typeof setInterval> | null = null;
   private localBackend: LocalBackendStatus | null = null;
 
   constructor() {
     super({ id: 'service-status', title: t('panels.serviceStatus'), showCount: false });
     void this.fetchStatus();
-    this.refreshInterval = setInterval(() => this.fetchStatus(), 60000);
   }
 
-  public destroy(): void {
-    if (this.refreshInterval) {
-      clearInterval(this.refreshInterval);
-      this.refreshInterval = null;
-    }
-    super.destroy();
-  }
+  private lastServicesJson = '';
 
-  private async fetchStatus(): Promise<void> {
+  public async fetchStatus(): Promise<boolean> {
     try {
       const data = await fetchServiceStatuses();
+      if (!this.element?.isConnected) return false;
       if (!data.success) throw new Error('Failed to load status');
 
+      const fingerprint = data.services.map(s => `${s.name}:${s.status}`).join(',');
+      const changed = fingerprint !== this.lastServicesJson;
+      this.lastServicesJson = fingerprint;
       this.services = data.services;
       this.error = null;
+      return changed;
     } catch (err) {
-      if (this.isAbortError(err)) return;
+      if (this.isAbortError(err)) return false;
+      if (!this.element?.isConnected) return false;
       this.error = err instanceof Error ? err.message : 'Failed to fetch';
       console.error('[ServiceStatus] Fetch error:', err);
+      return true;
     } finally {
       this.loading = false;
-      this.render();
+      if (this.element?.isConnected) {
+        this.render();
+      }
     }
   }
 
@@ -131,8 +132,8 @@ export class ServiceStatusPanel extends Panel {
       );
     }
 
-    const port = this.localBackend.port ?? 46123;
-    const remote = this.localBackend.remoteBase ?? 'https://worldmonitor.io';
+    const port = this.localBackend.port ?? getLocalApiPort();
+    const remote = this.localBackend.remoteBase ?? 'https://worldmonitor.app';
 
     return h('div', { className: 'service-status-backend' },
       'Local backend active on ', h('strong', null, `127.0.0.1:${port}`),

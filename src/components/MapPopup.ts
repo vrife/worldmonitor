@@ -14,7 +14,7 @@ import { getNaturalEventIcon } from '@/services/eonet';
 import { getHotspotEscalation, getEscalationChange24h } from '@/services/hotspot-escalation';
 import { getCableHealthRecord } from '@/services/cable-health';
 
-export type PopupType = 'conflict' | 'hotspot' | 'earthquake' | 'weather' | 'base' | 'waterway' | 'apt' | 'cyberThreat' | 'nuclear' | 'economic' | 'irradiator' | 'pipeline' | 'cable' | 'cable-advisory' | 'repair-ship' | 'outage' | 'datacenter' | 'datacenterCluster' | 'ais' | 'protest' | 'protestCluster' | 'flight' | 'militaryFlight' | 'militaryVessel' | 'militaryFlightCluster' | 'militaryVesselCluster' | 'natEvent' | 'port' | 'spaceport' | 'mineral' | 'startupHub' | 'cloudRegion' | 'techHQ' | 'accelerator' | 'techEvent' | 'techHQCluster' | 'techEventCluster' | 'techActivity' | 'geoActivity' | 'stockExchange' | 'financialCenter' | 'centralBank' | 'commodityHub';
+export type PopupType = 'conflict' | 'hotspot' | 'earthquake' | 'weather' | 'base' | 'waterway' | 'apt' | 'cyberThreat' | 'nuclear' | 'economic' | 'irradiator' | 'pipeline' | 'cable' | 'cable-advisory' | 'repair-ship' | 'outage' | 'datacenter' | 'datacenterCluster' | 'ais' | 'protest' | 'protestCluster' | 'flight' | 'militaryFlight' | 'militaryVessel' | 'militaryFlightCluster' | 'militaryVesselCluster' | 'natEvent' | 'port' | 'spaceport' | 'mineral' | 'startupHub' | 'cloudRegion' | 'techHQ' | 'accelerator' | 'techEvent' | 'techHQCluster' | 'techEventCluster' | 'techActivity' | 'geoActivity' | 'stockExchange' | 'financialCenter' | 'centralBank' | 'commodityHub' | 'iranEvent' | 'gpsJamming';
 
 interface TechEventPopupData {
   id: string;
@@ -47,6 +47,30 @@ interface TechEventClusterData {
   count?: number;
   soonCount?: number;
   sampled?: boolean;
+}
+
+interface GpsJammingPopupData {
+  h3: string;
+  lat: number;
+  lon: number;
+  level: 'medium' | 'high';
+  pct: number;
+  good: number;
+  bad: number;
+  total: number;
+}
+
+interface IranEventPopupData {
+  id: string;
+  title: string;
+  category: string;
+  sourceUrl: string;
+  latitude: number;
+  longitude: number;
+  locationName: string;
+  timestamp: string | number;
+  severity: string;
+  relatedEvents?: IranEventPopupData[];
 }
 
 // Finance popup data types
@@ -120,7 +144,7 @@ interface DatacenterClusterData {
 
 interface PopupData {
   type: PopupType;
-  data: ConflictZone | Hotspot | Earthquake | WeatherAlert | MilitaryBase | StrategicWaterway | APTGroup | CyberThreat | NuclearFacility | EconomicCenter | GammaIrradiator | Pipeline | UnderseaCable | CableAdvisory | RepairShip | InternetOutage | AIDataCenter | AisDisruptionEvent | SocialUnrestEvent | AirportDelayAlert | MilitaryFlight | MilitaryVessel | MilitaryFlightCluster | MilitaryVesselCluster | NaturalEvent | Port | Spaceport | CriticalMineralProject | StartupHub | CloudRegion | TechHQ | Accelerator | TechEventPopupData | TechHQClusterData | TechEventClusterData | ProtestClusterData | DatacenterClusterData | TechHubActivity | GeoHubActivity | StockExchangePopupData | FinancialCenterPopupData | CentralBankPopupData | CommodityHubPopupData;
+  data: ConflictZone | Hotspot | Earthquake | WeatherAlert | MilitaryBase | StrategicWaterway | APTGroup | CyberThreat | NuclearFacility | EconomicCenter | GammaIrradiator | Pipeline | UnderseaCable | CableAdvisory | RepairShip | InternetOutage | AIDataCenter | AisDisruptionEvent | SocialUnrestEvent | AirportDelayAlert | MilitaryFlight | MilitaryVessel | MilitaryFlightCluster | MilitaryVesselCluster | NaturalEvent | Port | Spaceport | CriticalMineralProject | StartupHub | CloudRegion | TechHQ | Accelerator | TechEventPopupData | TechHQClusterData | TechEventClusterData | ProtestClusterData | DatacenterClusterData | TechHubActivity | GeoHubActivity | StockExchangePopupData | FinancialCenterPopupData | CentralBankPopupData | CommodityHubPopupData | IranEventPopupData | GpsJammingPopupData;
   relatedNews?: NewsItem[];
   x: number;
   y: number;
@@ -428,6 +452,10 @@ export class MapPopup {
         return this.renderCentralBankPopup(data.data as CentralBankPopupData);
       case 'commodityHub':
         return this.renderCommodityHubPopup(data.data as CommodityHubPopupData);
+      case 'iranEvent':
+        return this.renderIranEventPopup(data.data as IranEventPopupData);
+      case 'gpsJamming':
+        return this.renderGpsJammingPopup(data.data as GpsJammingPopupData);
       default:
         return '';
     }
@@ -822,6 +850,14 @@ export class MapPopup {
       'russia': 'high',
     };
 
+    const enriched = base as MilitaryBase & { kind?: string; catAirforce?: boolean; catNaval?: boolean; catNuclear?: boolean; catSpace?: boolean; catTraining?: boolean };
+    const categories: string[] = [];
+    if (enriched.catAirforce) categories.push('Air Force');
+    if (enriched.catNaval) categories.push('Naval');
+    if (enriched.catNuclear) categories.push('Nuclear');
+    if (enriched.catSpace) categories.push('Space');
+    if (enriched.catTraining) categories.push('Training');
+
     return `
       <div class="popup-header base">
         <span class="popup-title">${escapeHtml(base.name.toUpperCase())}</span>
@@ -830,11 +866,15 @@ export class MapPopup {
       </div>
       <div class="popup-body">
         ${base.description ? `<p class="popup-description">${escapeHtml(base.description)}</p>` : ''}
+        ${enriched.kind ? `<p class="popup-description" style="opacity:0.7;margin-top:2px">${escapeHtml(enriched.kind.replace(/_/g, ' '))}</p>` : ''}
         <div class="popup-stats">
           <div class="popup-stat">
             <span class="stat-label">${t('popups.type')}</span>
             <span class="stat-value">${escapeHtml(typeLabels[base.type] || base.type)}</span>
           </div>
+          ${base.arm ? `<div class="popup-stat"><span class="stat-label">Branch</span><span class="stat-value">${escapeHtml(base.arm)}</span></div>` : ''}
+          ${base.country ? `<div class="popup-stat"><span class="stat-label">Country</span><span class="stat-value">${escapeHtml(base.country)}</span></div>` : ''}
+          ${categories.length > 0 ? `<div class="popup-stat"><span class="stat-label">Categories</span><span class="stat-value">${escapeHtml(categories.join(', '))}</span></div>` : ''}
           <div class="popup-stat">
             <span class="stat-label">${t('popups.coordinates')}</span>
             <span class="stat-value">${base.lat.toFixed(2)}°, ${base.lon.toFixed(2)}°</span>
@@ -1010,9 +1050,10 @@ export class MapPopup {
       'departure_delay': t('popups.flight.departureDelay'),
       'arrival_delay': t('popups.flight.arrivalDelay'),
       'general': t('popups.flight.delaysReported'),
+      'closure': t('popups.flight.closure'),
     };
     const delayTypeLabel = delayTypeLabels[delay.delayType] || t('popups.flight.delays');
-    const icon = delay.delayType === 'ground_stop' ? '🛑' : delay.severity === 'severe' ? '✈️' : '🛫';
+    const icon = delay.delayType === 'closure' ? '🚫' : delay.delayType === 'ground_stop' ? '🛑' : delay.severity === 'severe' ? '✈️' : '🛫';
     const sourceLabels: Record<string, string> = {
       'faa': t('popups.flight.sources.faa'),
       'eurocontrol': t('popups.flight.sources.eurocontrol'),
@@ -2543,6 +2584,91 @@ export class MapPopup {
           </div>
         ` : ''}
         ${hub.description ? `<p class="popup-description">${escapeHtml(hub.description)}</p>` : ''}
+      </div>
+    `;
+  }
+
+  private normalizeSeverity(s: string): 'high' | 'medium' | 'low' {
+    const v = (s || '').trim().toLowerCase();
+    if (v === 'high') return 'high';
+    if (v === 'medium') return 'medium';
+    return 'low';
+  }
+
+  private renderIranEventPopup(event: IranEventPopupData): string {
+    const severity = this.normalizeSeverity(event.severity);
+    const timeAgo = event.timestamp ? this.getTimeAgo(new Date(event.timestamp)) : '';
+    const safeUrl = sanitizeUrl(event.sourceUrl);
+
+    const relatedHtml = event.relatedEvents && event.relatedEvents.length > 0 ? `
+        <div class="popup-section">
+          <span class="section-label">${t('popups.iranEvent.relatedEvents')}</span>
+          <ul class="cluster-list">
+            ${event.relatedEvents.map(r => {
+              const rSev = this.normalizeSeverity(r.severity);
+              const rTime = r.timestamp ? this.getTimeAgo(new Date(r.timestamp)) : '';
+              const rTitle = r.title.length > 60 ? r.title.slice(0, 60) + '…' : r.title;
+              return `<li class="cluster-item"><span class="popup-badge ${rSev}" style="font-size:9px;padding:1px 4px;">${escapeHtml(rSev.toUpperCase())}</span> ${escapeHtml(rTitle)}${rTime ? ` <span style="color:var(--text-muted);font-size:10px;">${escapeHtml(rTime)}</span>` : ''}</li>`;
+            }).join('')}
+          </ul>
+        </div>` : '';
+
+    return `
+      <div class="popup-header iranEvent ${severity}">
+        <span class="popup-title">${escapeHtml(event.title)}</span>
+        <span class="popup-badge ${severity}">${escapeHtml(severity.toUpperCase())}</span>
+        <button class="popup-close">×</button>
+      </div>
+      <div class="popup-body">
+        <div class="popup-stats">
+          <div class="popup-stat">
+            <span class="stat-label">${t('popups.type')}</span>
+            <span class="stat-value">${escapeHtml(event.category)}</span>
+          </div>
+          ${event.locationName ? `<div class="popup-stat">
+            <span class="stat-label">${t('popups.location')}</span>
+            <span class="stat-value">${escapeHtml(event.locationName)}</span>
+          </div>` : ''}
+          ${timeAgo ? `<div class="popup-stat">
+            <span class="stat-label">${t('popups.time')}</span>
+            <span class="stat-value">${escapeHtml(timeAgo)}</span>
+          </div>` : ''}
+        </div>
+        ${relatedHtml}
+        ${safeUrl ? `<a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer nofollow" class="popup-link">${t('popups.source')} →</a>` : ''}
+      </div>
+    `;
+  }
+
+  private renderGpsJammingPopup(data: GpsJammingPopupData): string {
+    const isHigh = data.level === 'high';
+    const badgeClass = isHigh ? 'critical' : 'medium';
+    const headerColor = isHigh ? '#ff5050' : '#ffb432';
+    return `
+      <div class="popup-header" style="background:${headerColor}">
+        <span class="popup-title">${t('popups.gpsJamming.title')}</span>
+        <span class="popup-badge ${badgeClass}">${escapeHtml(data.level.toUpperCase())}</span>
+        <button class="popup-close">×</button>
+      </div>
+      <div class="popup-body">
+        <div class="popup-stats">
+          <div class="popup-stat">
+            <span class="stat-label">${t('popups.gpsJamming.interference')}</span>
+            <span class="stat-value">${data.pct}%</span>
+          </div>
+          <div class="popup-stat">
+            <span class="stat-label">${t('popups.gpsJamming.aircraftAffected')}</span>
+            <span class="stat-value">${data.bad} / ${data.total}</span>
+          </div>
+          <div class="popup-stat">
+            <span class="stat-label">${t('popups.gpsJamming.aircraftNormal')}</span>
+            <span class="stat-value">${data.good}</span>
+          </div>
+          <div class="popup-stat">
+            <span class="stat-label">${t('popups.gpsJamming.h3Hex')}</span>
+            <span class="stat-value" style="font-size:10px">${escapeHtml(data.h3)}</span>
+          </div>
+        </div>
       </div>
     `;
   }

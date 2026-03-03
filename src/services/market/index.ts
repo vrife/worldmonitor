@@ -21,7 +21,7 @@ const client = new MarketServiceClient('', { fetch: (...args: Parameters<typeof 
 const stockBreaker = createCircuitBreaker<ListMarketQuotesResponse>({ name: 'Market Quotes', cacheTtlMs: 0 });
 const cryptoBreaker = createCircuitBreaker<ListCryptoQuotesResponse>({ name: 'Crypto Quotes' });
 
-const emptyStockFallback: ListMarketQuotesResponse = { quotes: [], finnhubSkipped: false, skipReason: '' };
+const emptyStockFallback: ListMarketQuotesResponse = { quotes: [], finnhubSkipped: false, skipReason: '', rateLimited: false };
 const emptyCryptoFallback: ListCryptoQuotesResponse = { quotes: [] };
 
 // ---- Proto -> legacy adapters ----
@@ -55,6 +55,7 @@ export interface MarketFetchResult {
   data: MarketData[];
   skipped?: boolean;
   reason?: string;
+  rateLimited?: boolean;
 }
 
 // ========================================================================
@@ -99,6 +100,7 @@ export async function fetchMultipleStocks(
     data,
     skipped: resp.finnhubSkipped || undefined,
     reason: resp.skipReason || undefined,
+    rateLimited: resp.rateLimited || undefined,
   };
 }
 

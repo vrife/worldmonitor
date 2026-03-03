@@ -20,16 +20,19 @@ import {
 } from '@/services/data-freshness';
 import { getLearningProgress } from '@/services/country-instability';
 import { fetchCachedRiskScores } from '@/services/cached-risk-scores';
+import { getCachedPosture } from '@/services/cached-theater-posture';
 
 export class StrategicRiskPanel extends Panel {
   private overview: StrategicRiskOverview | null = null;
   private alerts: UnifiedAlert[] = [];
   private convergenceAlerts: GeoConvergenceAlert[] = [];
   private freshnessSummary: DataFreshnessSummary | null = null;
-  private refreshInterval: ReturnType<typeof setInterval> | null = null;
   private unsubscribeFreshness: (() => void) | null = null;
   private onLocationClick?: (lat: number, lon: number) => void;
   private usedCachedScores = false;
+  private breakingAlerts: Map<string, { threatLevel: 'critical' | 'high'; timestamp: number }> = new Map();
+  private boundOnBreaking: ((e: Event) => void) | null = null;
+  private breakingExpiryTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     super({
@@ -54,22 +57,73 @@ export class StrategicRiskPanel extends Panel {
           this.refresh();
         }, 500);
       });
+
+      // Listen for breaking news events (dispatched on document)
+      this.boundOnBreaking = (e: Event) => {
+        const detail = (e as CustomEvent).detail;
+        if (!detail?.id) return;
+        const level = detail.threatLevel;
+        if (level !== 'critical' && level !== 'high') return;
+        this.breakingAlerts.set(detail.id, {
+          threatLevel: level,
+          timestamp: Date.now(),
+        });
+        this.refresh();
+      };
+      document.addEventListener('wm:breaking-news', this.boundOnBreaking);
+
       await this.refresh();
-      this.startAutoRefresh();
     } catch (error) {
       console.error('[StrategicRiskPanel] Init error:', error);
       this.showError(t('common.failedRiskOverview'));
     }
   }
 
-  private startAutoRefresh(): void {
-    this.refreshInterval = setInterval(() => this.refresh(), 5 * 60 * 1000);
-  }
+  private lastRiskFingerprint = '';
 
-  public async refresh(): Promise<void> {
+  public async refresh(): Promise<boolean> {
     this.freshnessSummary = dataFreshness.getSummary();
     this.convergenceAlerts = detectConvergence();
-    this.overview = calculateStrategicRiskOverview(this.convergenceAlerts);
+
+    // Prune stale breaking alerts (>30 min)
+    const BREAKING_TTL = 30 * 60 * 1000;
+    const now = Date.now();
+    const cutoff = now - BREAKING_TTL;
+    const staleIds: string[] = [];
+    for (const [id, entry] of this.breakingAlerts) {
+      if (entry.timestamp < cutoff) staleIds.push(id);
+    }
+    for (const id of staleIds) this.breakingAlerts.delete(id);
+
+    // Schedule next expiry-driven refresh
+    if (this.breakingExpiryTimer) clearTimeout(this.breakingExpiryTimer);
+    if (this.breakingAlerts.size > 0) {
+      let earliest = Infinity;
+      for (const entry of this.breakingAlerts.values()) {
+        if (entry.timestamp < earliest) earliest = entry.timestamp;
+      }
+      const msUntilExpiry = (earliest + BREAKING_TTL) - now + 500;
+      this.breakingExpiryTimer = setTimeout(() => this.refresh(), Math.max(1000, msUntilExpiry));
+    }
+
+    // Severity-weighted score: critical=15, high=8
+    let breakingScore = 0;
+    for (const entry of this.breakingAlerts.values()) {
+      breakingScore += entry.threatLevel === 'critical' ? 15 : 8;
+    }
+    breakingScore = Math.min(15, breakingScore);
+
+    // Gather theater postures from cached service
+    const cached = getCachedPosture();
+    const postures = cached?.postures;
+    const staleFactor = cached?.stale ? 0.5 : 1;
+
+    this.overview = calculateStrategicRiskOverview(
+      this.convergenceAlerts,
+      postures ?? undefined,
+      breakingScore,
+      staleFactor
+    );
     this.alerts = getRecentAlerts(24);
 
     // Try to get cached scores during learning mode
@@ -77,6 +131,7 @@ export class StrategicRiskPanel extends Panel {
     this.usedCachedScores = false;
     if (inLearning) {
       const cached = await fetchCachedRiskScores(this.signal);
+      if (!this.element?.isConnected) return false;
       if (cached && cached.strategicRisk) {
         this.usedCachedScores = true;
         console.log('[StrategicRiskPanel] Using cached scores from backend');
@@ -92,6 +147,12 @@ export class StrategicRiskPanel extends Panel {
     }
 
     this.render();
+
+    const alertIds = this.alerts.map(a => a.id).sort().join(',');
+    const fp = `${this.overview?.compositeScore}|${this.overview?.trend}|${alertIds}`;
+    const changed = fp !== this.lastRiskFingerprint;
+    this.lastRiskFingerprint = fp;
+    return changed;
   }
 
   private getScoreColor(score: number): string {
@@ -473,8 +534,13 @@ export class StrategicRiskPanel extends Panel {
   }
 
   public destroy(): void {
-    if (this.refreshInterval) {
-      clearInterval(this.refreshInterval);
+    if (this.boundOnBreaking) {
+      document.removeEventListener('wm:breaking-news', this.boundOnBreaking);
+      this.boundOnBreaking = null;
+    }
+    if (this.breakingExpiryTimer) {
+      clearTimeout(this.breakingExpiryTimer);
+      this.breakingExpiryTimer = null;
     }
     if (this.unsubscribeFreshness) {
       this.unsubscribeFreshness();

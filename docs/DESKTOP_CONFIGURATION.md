@@ -4,7 +4,7 @@ World Monitor desktop now uses a runtime configuration schema with per-feature t
 
 ## Secret keys
 
-The desktop vault schema (Rust `SUPPORTED_SECRET_KEYS`) supports the following 21 keys:
+The desktop vault schema (Rust `SUPPORTED_SECRET_KEYS`) supports the following 25 keys:
 
 - `GROQ_API_KEY`
 - `OPENROUTER_API_KEY`
@@ -27,8 +27,10 @@ The desktop vault schema (Rust `SUPPORTED_SECRET_KEYS`) supports the following 2
 - `OLLAMA_API_URL`
 - `OLLAMA_MODEL`
 - `WORLDMONITOR_API_KEY` — gates cloud fallback access (min 16 chars)
-
-Note: `UC_DP_KEY` exists in the TypeScript `RuntimeSecretKey` union but is not in the desktop Rust keychain or sidecar.
+- `WTO_API_KEY`
+- `AVIATIONSTACK_API`
+- `ICAO_API_KEY`
+- `UCDP_ACCESS_TOKEN`
 
 ## Feature schema
 

@@ -53,12 +53,55 @@ export function getHeatmapClass(change: number): string {
 export function debounce<T extends (...args: unknown[]) => void>(
   fn: T,
   delay: number
-): (...args: Parameters<T>) => void {
+): ((...args: Parameters<T>) => void) & { cancel(): void } {
   let timeoutId: ReturnType<typeof setTimeout>;
-  return (...args: Parameters<T>) => {
+  const debounced = (...args: Parameters<T>) => {
     clearTimeout(timeoutId);
     timeoutId = setTimeout(() => fn(...args), delay);
   };
+  debounced.cancel = () => { clearTimeout(timeoutId); };
+  return debounced;
+}
+
+export function throttle<T extends (...args: unknown[]) => void>(
+  fn: T,
+  limit: number
+): (...args: Parameters<T>) => void {
+  // Time-based throttling for non-visual work where a fixed minimum interval is desired.
+  let inThrottle = false;
+  return (...args: Parameters<T>) => {
+    if (!inThrottle) {
+      fn(...args);
+      inThrottle = true;
+      setTimeout(() => { inThrottle = false; }, limit);
+    }
+  };
+}
+
+export function rafSchedule<T extends (...args: unknown[]) => void>(fn: T): ((...args: Parameters<T>) => void) & { cancel(): void } {
+  // Frame-synchronized scheduling for visual updates; batches repeated calls into one render frame.
+  let scheduled = false;
+  let rafId = 0;
+  let lastArgs: Parameters<T> | null = null;
+  const wrapped = (...args: Parameters<T>) => {
+    lastArgs = args;
+    if (!scheduled) {
+      scheduled = true;
+      rafId = requestAnimationFrame(() => {
+        scheduled = false;
+        if (lastArgs) {
+          fn(...lastArgs);
+          lastArgs = null;
+        }
+      });
+    }
+  };
+  wrapped.cancel = () => {
+    cancelAnimationFrame(rafId);
+    scheduled = false;
+    lastArgs = null;
+  };
+  return wrapped;
 }
 
 export function throttle<T extends (...args: unknown[]) => void>(
@@ -143,7 +186,15 @@ export function saveToStorage<T>(key: string, value: T): void {
 }
 
 export function generateId(): string {
-  return `id-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  return `id-${crypto.randomUUID()}`;
+}
+
+/** Breakpoint (px): below this width the app uses the simplified mobile layout. Must match CSS @media (max-width: …). */
+export const MOBILE_BREAKPOINT_PX = 768;
+
+/** True when viewport is below mobile breakpoint. Touch-capable notebooks keep desktop layout. */
+export function isMobileDevice(): boolean {
+  return window.innerWidth <= MOBILE_BREAKPOINT_PX;
 }
 
 /** Breakpoint (px): below this width the app uses the simplified mobile layout. Must match CSS @media (max-width: …). */

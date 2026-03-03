@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import http, { createServer } from 'node:http';
 import https from 'node:https';
+import dns from 'node:dns/promises';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { readdir } from 'node:fs/promises';
 import { promisify } from 'node:util';
@@ -103,8 +104,102 @@ const ALLOWED_ENV_KEYS = new Set([
   'OTX_API_KEY', 'ABUSEIPDB_API_KEY', 'WINGBITS_API_KEY', 'WS_RELAY_URL',
   'VITE_OPENSKY_RELAY_URL', 'OPENSKY_CLIENT_ID', 'OPENSKY_CLIENT_SECRET',
   'AISSTREAM_API_KEY', 'VITE_WS_RELAY_URL', 'FINNHUB_API_KEY', 'NASA_FIRMS_API_KEY',
-  'OLLAMA_API_URL', 'OLLAMA_MODEL', 'WORLDMONITOR_API_KEY',
+  'OLLAMA_API_URL', 'OLLAMA_MODEL', 'WORLDMONITOR_API_KEY', 'WTO_API_KEY',
+  'AVIATIONSTACK_API', 'ICAO_API_KEY', 'UCDP_ACCESS_TOKEN',
 ]);
+
+const CHROME_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+
+// ── SSRF protection ──────────────────────────────────────────────────────
+// Block requests to private/reserved IP ranges to prevent the RSS proxy
+// from being used as a localhost pivot or internal network scanner.
+
+function isPrivateIP(ip) {
+  // IPv4-mapped IPv6 — extract the v4 portion
+  const v4Mapped = ip.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/i);
+  const addr = v4Mapped ? v4Mapped[1] : ip;
+
+  // IPv6 loopback
+  if (addr === '::1' || addr === '::') return true;
+
+  // IPv6 link-local / unique-local
+  if (/^f[cd][0-9a-f]{2}:/i.test(addr)) return true; // fc00::/7 (ULA)
+  if (/^fe[89ab][0-9a-f]:/i.test(addr)) return true;  // fe80::/10 (link-local)
+
+  const parts = addr.split('.').map(Number);
+  if (parts.length !== 4 || parts.some(p => isNaN(p))) return false; // not an IPv4
+
+  const [a, b] = parts;
+  if (a === 127) return true;                       // 127.0.0.0/8  loopback
+  if (a === 10) return true;                        // 10.0.0.0/8   private
+  if (a === 172 && b >= 16 && b <= 31) return true; // 172.16.0.0/12 private
+  if (a === 192 && b === 168) return true;           // 192.168.0.0/16 private
+  if (a === 169 && b === 254) return true;           // 169.254.0.0/16 link-local
+  if (a === 0) return true;                          // 0.0.0.0/8
+  if (a >= 224) return true;                         // 224.0.0.0+ multicast/reserved
+  return false;
+}
+
+async function isSafeUrl(urlString) {
+  let parsed;
+  try {
+    parsed = new URL(urlString);
+  } catch {
+    return { safe: false, reason: 'Invalid URL' };
+  }
+
+  // Only allow http(s) protocols
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    return { safe: false, reason: 'Only http and https protocols are allowed' };
+  }
+
+  // Block URLs with credentials
+  if (parsed.username || parsed.password) {
+    return { safe: false, reason: 'URLs with credentials are not allowed' };
+  }
+
+  const hostname = parsed.hostname;
+
+  // Quick-reject obvious private hostnames before DNS resolution
+  if (hostname === 'localhost' || hostname === '[::1]') {
+    return { safe: false, reason: 'Requests to localhost are not allowed' };
+  }
+
+  // Check if the hostname is already an IP literal
+  const ipLiteral = hostname.replace(/^\[|\]$/g, '');
+  if (isPrivateIP(ipLiteral)) {
+    return { safe: false, reason: 'Requests to private/reserved IP addresses are not allowed' };
+  }
+
+  // DNS resolution check — resolve the hostname and verify all resolved IPs
+  // are public. This prevents DNS rebinding attacks where a public domain
+  // resolves to a private IP.
+  let addresses = [];
+  try {
+    try {
+      const v4 = await dns.resolve4(hostname);
+      addresses = addresses.concat(v4);
+    } catch { /* no A records — try AAAA */ }
+    try {
+      const v6 = await dns.resolve6(hostname);
+      addresses = addresses.concat(v6);
+    } catch { /* no AAAA records */ }
+
+    if (addresses.length === 0) {
+      return { safe: false, reason: 'Could not resolve hostname' };
+    }
+
+    for (const addr of addresses) {
+      if (isPrivateIP(addr)) {
+        return { safe: false, reason: 'Hostname resolves to a private/reserved IP address' };
+      }
+    }
+  } catch {
+    return { safe: false, reason: 'DNS resolution failed' };
+  }
+
+  return { safe: true, resolvedAddresses: addresses };
+}
 
 function json(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data), {
@@ -302,8 +397,8 @@ const trafficLog = [];
 let verboseMode = false;
 let _verboseStatePath = null;
 
-function loadVerboseState(resourceDir) {
-  _verboseStatePath = path.join(resourceDir, 'verbose-mode.json');
+function loadVerboseState(dataDir) {
+  _verboseStatePath = path.join(dataDir, 'verbose-mode.json');
   try {
     const data = JSON.parse(readFileSync(_verboseStatePath, 'utf-8'));
     verboseMode = !!data.verboseMode;
@@ -357,7 +452,7 @@ async function importHandler(modulePath) {
 
 function resolveConfig(options = {}) {
   const port = Number(options.port ?? process.env.LOCAL_API_PORT ?? 46123);
-  const remoteBase = String(options.remoteBase ?? process.env.LOCAL_API_REMOTE_BASE ?? 'https://worldmonitor.io').replace(/\/$/, '');
+  const remoteBase = String(options.remoteBase ?? process.env.LOCAL_API_REMOTE_BASE ?? 'https://worldmonitor.app').replace(/\/$/, '');
   const resourceDir = String(options.resourceDir ?? process.env.LOCAL_API_RESOURCE_DIR ?? process.cwd());
   const apiDir = options.apiDir
     ? String(options.apiDir)
@@ -365,6 +460,7 @@ function resolveConfig(options = {}) {
       path.join(resourceDir, 'api'),
       path.join(resourceDir, '_up_', 'api'),
     ].find((candidate) => existsSync(candidate)) ?? path.join(resourceDir, 'api');
+  const dataDir = String(options.dataDir ?? process.env.LOCAL_API_DATA_DIR ?? resourceDir);
   const mode = String(options.mode ?? process.env.LOCAL_API_MODE ?? 'desktop-sidecar');
   const cloudFallback = String(options.cloudFallback ?? process.env.LOCAL_API_CLOUD_FALLBACK ?? '') === 'true';
   const logger = options.logger ?? console;
@@ -373,6 +469,7 @@ function resolveConfig(options = {}) {
     port,
     remoteBase,
     resourceDir,
+    dataDir,
     apiDir,
     mode,
     cloudFallback,
@@ -425,7 +522,10 @@ const SIDECAR_ALLOWED_ORIGINS = [
   /^https?:\/\/localhost(:\d+)?$/,
   /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
   /^https?:\/\/tauri\.localhost(:\d+)?$/,
-  /^https:\/\/(.*\.)?worldmonitor\.app$/,
+  // Only allow exact domain or single-level subdomains (e.g. preview-xyz.worldmonitor.app).
+  // The previous (.*\.)? pattern was overly broad. Anchored to prevent spoofing
+  // via domains like worldmonitorEVIL.vercel.app.
+  /^https:\/\/([a-z0-9-]+\.)?worldmonitor\.app$/,
 ];
 
 function getSidecarCorsOrigin(req) {
@@ -458,6 +558,11 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 12000) {
         headers: options.headers || {},
         family: 4,
       };
+      // Pin to a pre-resolved IP to prevent TOCTOU DNS rebinding.
+      // The hostname is kept for SNI / TLS certificate validation.
+      if (options.resolvedAddress) {
+        reqOpts.lookup = (_hostname, _opts, cb) => cb(null, options.resolvedAddress, 4);
+      }
       const req = https.request(reqOpts, (res) => {
         const chunks = [];
         res.on('data', (c) => chunks.push(c));
@@ -482,10 +587,20 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 12000) {
     });
   }
   // HTTP fallback (localhost sidecar, etc.)
+  // For pinned addresses on plain HTTP, rewrite the URL to connect to the
+  // validated IP and set the Host header so virtual-host routing still works.
+  let fetchUrl = url;
+  const fetchHeaders = { ...(options.headers || {}) };
+  if (options.resolvedAddress && u.protocol === 'http:') {
+    const pinned = new URL(url);
+    fetchHeaders['Host'] = pinned.host;
+    pinned.hostname = options.resolvedAddress;
+    fetchUrl = pinned.toString();
+  }
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await fetch(url, { ...options, signal: controller.signal });
+    return await fetch(fetchUrl, { ...options, headers: fetchHeaders, signal: controller.signal });
   } finally {
     clearTimeout(timer);
   }
@@ -503,8 +618,26 @@ function relayToHttpUrl(rawUrl) {
 }
 
 function isAuthFailure(status, text = '') {
+  // Intentionally broad for provider auth responses.
+  // Callers MUST check isCloudflareChallenge403() first or CF challenge pages
+  // may be misclassified as credential failures.
   if (status === 401 || status === 403) return true;
   return /unauthori[sz]ed|forbidden|invalid api key|invalid token|bad credentials/i.test(text);
+}
+
+function isCloudflareChallenge403(response, text = '') {
+  if (response.status !== 403 || !response.headers.get('cf-ray')) return false;
+  const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+  const body = String(text || '').toLowerCase();
+  const looksLikeHtml = contentType.includes('text/html') || body.includes('<html');
+  if (!looksLikeHtml) return false;
+  const matches = [
+    'attention required',
+    'cf-browser-verification',
+    '__cf_chl',
+    'ray id',
+  ].filter((marker) => body.includes(marker)).length;
+  return matches >= 2;
 }
 
 async function validateSecretAgainstProvider(key, rawValue, context = {}) {
@@ -518,9 +651,10 @@ async function validateSecretAgainstProvider(key, rawValue, context = {}) {
     switch (key) {
     case 'GROQ_API_KEY': {
       const response = await fetchWithTimeout('https://api.groq.com/openai/v1/models', {
-        headers: { Authorization: `Bearer ${value}` },
+        headers: { Authorization: `Bearer ${value}`, 'User-Agent': CHROME_UA },
       });
       const text = await response.text();
+      if (isCloudflareChallenge403(response, text)) return ok('Groq key stored (Cloudflare blocked verification)');
       if (isAuthFailure(response.status, text)) return fail('Groq rejected this key');
       if (!response.ok) return fail(`Groq probe failed (${response.status})`);
       return ok('Groq key verified');
@@ -528,9 +662,10 @@ async function validateSecretAgainstProvider(key, rawValue, context = {}) {
 
     case 'OPENROUTER_API_KEY': {
       const response = await fetchWithTimeout('https://openrouter.ai/api/v1/models', {
-        headers: { Authorization: `Bearer ${value}` },
+        headers: { Authorization: `Bearer ${value}`, 'User-Agent': CHROME_UA },
       });
       const text = await response.text();
+      if (isCloudflareChallenge403(response, text)) return ok('OpenRouter key stored (Cloudflare blocked verification)');
       if (isAuthFailure(response.status, text)) return fail('OpenRouter rejected this key');
       if (!response.ok) return fail(`OpenRouter probe failed (${response.status})`);
       return ok('OpenRouter key verified');
@@ -539,7 +674,7 @@ async function validateSecretAgainstProvider(key, rawValue, context = {}) {
     case 'FRED_API_KEY': {
       const response = await fetchWithTimeout(
         `https://api.stlouisfed.org/fred/series?series_id=GDP&api_key=${encodeURIComponent(value)}&file_type=json`,
-        { headers: { Accept: 'application/json' } }
+        { headers: { Accept: 'application/json', 'User-Agent': CHROME_UA } }
       );
       const text = await response.text();
       if (!response.ok) return fail(`FRED probe failed (${response.status})`);
@@ -553,9 +688,10 @@ async function validateSecretAgainstProvider(key, rawValue, context = {}) {
     case 'EIA_API_KEY': {
       const response = await fetchWithTimeout(
         `https://api.eia.gov/v2/?api_key=${encodeURIComponent(value)}`,
-        { headers: { Accept: 'application/json' } }
+        { headers: { Accept: 'application/json', 'User-Agent': CHROME_UA } }
       );
       const text = await response.text();
+      if (isCloudflareChallenge403(response, text)) return ok('EIA key stored (Cloudflare blocked verification)');
       if (isAuthFailure(response.status, text)) return fail('EIA rejected this key');
       if (!response.ok) return fail(`EIA probe failed (${response.status})`);
       let payload = null;
@@ -567,9 +703,10 @@ async function validateSecretAgainstProvider(key, rawValue, context = {}) {
     case 'CLOUDFLARE_API_TOKEN': {
       const response = await fetchWithTimeout(
         'https://api.cloudflare.com/client/v4/radar/annotations/outages?dateRange=1d&limit=1',
-        { headers: { Authorization: `Bearer ${value}` } }
+        { headers: { Authorization: `Bearer ${value}`, 'User-Agent': CHROME_UA } }
       );
       const text = await response.text();
+      if (isCloudflareChallenge403(response, text)) return ok('Cloudflare token stored (Cloudflare blocked verification)');
       if (isAuthFailure(response.status, text)) return fail('Cloudflare rejected this token');
       if (!response.ok) return fail(`Cloudflare probe failed (${response.status})`);
       let payload = null;
@@ -579,13 +716,19 @@ async function validateSecretAgainstProvider(key, rawValue, context = {}) {
     }
 
     case 'ACLED_ACCESS_TOKEN': {
-      const response = await fetchWithTimeout('https://acleddata.com/api/acled/read?_format=json&limit=1', {
+      const now = new Date();
+      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const fmt = (d) => d.toISOString().split('T')[0];
+      const acledProbeUrl = `https://acleddata.com/api/acled/read?event_type=Protests&event_date=${fmt(weekAgo)}|${fmt(now)}&event_date_where=BETWEEN&limit=1&_format=json`;
+      const response = await fetchWithTimeout(acledProbeUrl, {
         headers: {
           Accept: 'application/json',
           Authorization: `Bearer ${value}`,
+          'User-Agent': CHROME_UA,
         },
       });
       const text = await response.text();
+      if (isCloudflareChallenge403(response, text)) return ok('ACLED token stored (Cloudflare blocked verification)');
       if (isAuthFailure(response.status, text)) return fail('ACLED rejected this token');
       if (!response.ok) return fail(`ACLED probe failed (${response.status})`);
       return ok('ACLED token verified');
@@ -596,9 +739,11 @@ async function validateSecretAgainstProvider(key, rawValue, context = {}) {
         headers: {
           Accept: 'application/json',
           'Auth-Key': value,
+          'User-Agent': CHROME_UA,
         },
       });
       const text = await response.text();
+      if (isCloudflareChallenge403(response, text)) return ok('URLhaus key stored (Cloudflare blocked verification)');
       if (isAuthFailure(response.status, text)) return fail('URLhaus rejected this key');
       if (!response.ok) return fail(`URLhaus probe failed (${response.status})`);
       return ok('URLhaus key verified');
@@ -609,9 +754,11 @@ async function validateSecretAgainstProvider(key, rawValue, context = {}) {
         headers: {
           Accept: 'application/json',
           'X-OTX-API-KEY': value,
+          'User-Agent': CHROME_UA,
         },
       });
       const text = await response.text();
+      if (isCloudflareChallenge403(response, text)) return ok('OTX key stored (Cloudflare blocked verification)');
       if (isAuthFailure(response.status, text)) return fail('OTX rejected this key');
       if (!response.ok) return fail(`OTX probe failed (${response.status})`);
       return ok('OTX key verified');
@@ -622,9 +769,11 @@ async function validateSecretAgainstProvider(key, rawValue, context = {}) {
         headers: {
           Accept: 'application/json',
           Key: value,
+          'User-Agent': CHROME_UA,
         },
       });
       const text = await response.text();
+      if (isCloudflareChallenge403(response, text)) return ok('AbuseIPDB key stored (Cloudflare blocked verification)');
       if (isAuthFailure(response.status, text)) return fail('AbuseIPDB rejected this key');
       if (!response.ok) return fail(`AbuseIPDB probe failed (${response.status})`);
       return ok('AbuseIPDB key verified');
@@ -635,19 +784,22 @@ async function validateSecretAgainstProvider(key, rawValue, context = {}) {
         headers: {
           Accept: 'application/json',
           'x-api-key': value,
+          'User-Agent': CHROME_UA,
         },
       });
       const text = await response.text();
+      if (isCloudflareChallenge403(response, text)) return ok('Wingbits key stored (Cloudflare blocked verification)');
       if (isAuthFailure(response.status, text)) return fail('Wingbits rejected this key');
       if (response.status >= 500) return fail(`Wingbits probe failed (${response.status})`);
       return ok('Wingbits key accepted');
     }
 
     case 'FINNHUB_API_KEY': {
-      const response = await fetchWithTimeout(`https://finnhub.io/api/v1/quote?symbol=AAPL&token=${encodeURIComponent(value)}`, {
-        headers: { Accept: 'application/json' },
+      const response = await fetchWithTimeout(`https://finnhub.io/api/v1/quote?symbol=AAPL`, {
+        headers: { Accept: 'application/json', 'User-Agent': CHROME_UA, 'X-Finnhub-Token': value },
       });
       const text = await response.text();
+      if (isCloudflareChallenge403(response, text)) return ok('Finnhub key stored (Cloudflare blocked verification)');
       if (isAuthFailure(response.status, text)) return fail('Finnhub rejected this key');
       if (response.status === 429) return ok('Finnhub key accepted (rate limited)');
       if (!response.ok) return fail(`Finnhub probe failed (${response.status})`);
@@ -663,13 +815,34 @@ async function validateSecretAgainstProvider(key, rawValue, context = {}) {
     case 'NASA_FIRMS_API_KEY': {
       const response = await fetchWithTimeout(
         `https://firms.modaps.eosdis.nasa.gov/api/area/csv/${encodeURIComponent(value)}/VIIRS_SNPP_NRT/22,44,40,53/1`,
-        { headers: { Accept: 'text/csv' } }
+        { headers: { Accept: 'text/csv', 'User-Agent': CHROME_UA } }
       );
       const text = await response.text();
+      if (isCloudflareChallenge403(response, text)) return ok('NASA FIRMS key stored (Cloudflare blocked verification)');
       if (isAuthFailure(response.status, text)) return fail('NASA FIRMS rejected this key');
       if (!response.ok) return fail(`NASA FIRMS probe failed (${response.status})`);
       if (/invalid api key|not authorized|forbidden/i.test(text)) return fail('NASA FIRMS rejected this key');
       return ok('NASA FIRMS key verified');
+    }
+
+    case 'UCDP_ACCESS_TOKEN': {
+      const year = new Date().getFullYear() - 2000;
+      const candidates = [...new Set([`${year}.1`, `${year - 1}.1`, '25.1', '24.1'])];
+      for (const version of candidates) {
+        try {
+          const response = await fetchWithTimeout(
+            `https://ucdpapi.pcr.uu.se/api/gedevents/${version}?pagesize=1`,
+            { headers: { Accept: 'application/json', 'x-ucdp-access-token': value, 'User-Agent': CHROME_UA } }
+          );
+          if (isAuthFailure(response.status)) return fail('UCDP rejected this token');
+          if (!response.ok) continue;
+          const text = await response.text();
+          let payload = null;
+          try { payload = JSON.parse(text); } catch { /* ignore */ }
+          if (Array.isArray(payload?.Result)) return ok(`UCDP token verified (GED v${version})`);
+        } catch { continue; }
+      }
+      return fail('Could not verify UCDP token (all GED versions failed)');
     }
 
     case 'OLLAMA_API_URL': {
@@ -732,11 +905,12 @@ async function validateSecretAgainstProvider(key, rawValue, context = {}) {
         'https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token',
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': CHROME_UA },
           body,
         }
       );
       const text = await response.text();
+      if (isCloudflareChallenge403(response, text)) return ok('OpenSky credentials stored (Cloudflare blocked verification)');
       if (isAuthFailure(response.status, text)) return fail('OpenSky rejected these credentials');
       if (!response.ok) return fail(`OpenSky auth probe failed (${response.status})`);
       let payload = null;
@@ -747,6 +921,26 @@ async function validateSecretAgainstProvider(key, rawValue, context = {}) {
 
     case 'AISSTREAM_API_KEY':
       return ok('AISSTREAM key stored (live verification not available in sidecar)');
+
+    case 'WTO_API_KEY':
+      return ok('WTO API key stored (live verification not available in sidecar)');
+
+    case 'AVIATIONSTACK_API': {
+      const response = await fetchWithTimeout(
+        `https://api.aviationstack.com/v1/flights?access_key=${encodeURIComponent(value)}&limit=1`,
+        { headers: { Accept: 'application/json', 'User-Agent': CHROME_UA } }
+      );
+      const text = await response.text();
+      if (isCloudflareChallenge403(response, text)) return ok('AviationStack key stored (Cloudflare blocked verification)');
+      let payload = null;
+      try { payload = JSON.parse(text); } catch { /* ignore */ }
+      if (payload?.error?.code === 101 || payload?.error?.code === 105) return fail('AviationStack rejected this key');
+      if (!response.ok && response.status !== 200) return fail(`AviationStack probe failed (${response.status})`);
+      return ok('AviationStack key verified');
+    }
+
+    case 'ICAO_API_KEY':
+      return ok('ICAO API key stored (verification requires NOTAM endpoint access)');
 
       default:
         return ok('Key stored');
@@ -765,11 +959,99 @@ async function dispatch(requestUrl, req, routes, context) {
     return new Response(null, { status: 204, headers: makeCorsHeaders(req) });
   }
 
+  // Health check — exempt from auth to support external monitoring tools
   if (requestUrl.pathname === '/api/service-status') {
     return handleLocalServiceStatus(context);
   }
 
-  // Localhost-only diagnostics — no token required
+  // HLS proxy — exempt from auth because <video src="..."> cannot carry
+  // custom headers.  Proxies HLS manifests and segments from allowlisted CDN
+  // hosts, adding the required Referer header that browsers cannot set.
+  // Desktop-only (sidecar); web uses YouTube fallback.
+  if (requestUrl.pathname === '/api/hls-proxy') {
+    const ALLOWED_HLS_HOSTS = new Set(['cdn-ca2-na.lncnetworks.host']);
+    const upstreamRaw = requestUrl.searchParams.get('url');
+    if (!upstreamRaw) return new Response('Missing url param', { status: 400, headers: { 'content-type': 'text/plain', ...makeCorsHeaders(req) } });
+    let upstream;
+    try { upstream = new URL(upstreamRaw); } catch { return new Response('Invalid url', { status: 400, headers: { 'content-type': 'text/plain', ...makeCorsHeaders(req) } }); }
+    if (upstream.protocol !== 'https:' || !ALLOWED_HLS_HOSTS.has(upstream.hostname)) {
+      return new Response('Host not allowed', { status: 403, headers: { 'content-type': 'text/plain', ...makeCorsHeaders(req) } });
+    }
+    try {
+      const hlsResp = await new Promise((resolve, reject) => {
+        const reqOpts = {
+          hostname: upstream.hostname,
+          port: 443,
+          path: upstream.pathname + upstream.search,
+          method: 'GET',
+          headers: { 'Referer': 'https://livenewschat.eu/', 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36' },
+          family: 4,
+        };
+        const r = https.request(reqOpts, (res) => {
+          const chunks = [];
+          res.on('data', c => chunks.push(c));
+          res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body: Buffer.concat(chunks) }));
+        });
+        r.on('error', reject);
+        r.setTimeout(10000, () => r.destroy(new Error('HLS upstream timeout')));
+        r.end();
+      });
+      if (hlsResp.status < 200 || hlsResp.status >= 300) {
+        return new Response(`Upstream ${hlsResp.status}`, { status: hlsResp.status, headers: { 'content-type': 'text/plain', ...makeCorsHeaders(req) } });
+      }
+      const ct = hlsResp.headers['content-type'] || '';
+      const isManifest = upstreamRaw.endsWith('.m3u8') || ct.includes('mpegurl') || ct.includes('x-mpegurl');
+      if (isManifest) {
+        const basePath = upstream.pathname.substring(0, upstream.pathname.lastIndexOf('/') + 1);
+        const baseOrigin = upstream.origin;
+        let manifest = hlsResp.body.toString('utf-8');
+        manifest = manifest.replace(/^(?!#)(\S+)/gm, (match) => {
+          const full = match.startsWith('http') ? match : `${baseOrigin}${basePath}${match}`;
+          return `/api/hls-proxy?url=${encodeURIComponent(full)}`;
+        });
+        manifest = manifest.replace(/URI="([^"]+)"/g, (_m, uri) => {
+          const full = uri.startsWith('http') ? uri : `${baseOrigin}${basePath}${uri}`;
+          return `URI="/api/hls-proxy?url=${encodeURIComponent(full)}"`;
+        });
+        return new Response(manifest, { status: 200, headers: { 'content-type': 'application/vnd.apple.mpegurl', 'cache-control': 'no-cache', ...makeCorsHeaders(req) } });
+      }
+      return new Response(hlsResp.body, { status: 200, headers: { 'content-type': ct || 'application/octet-stream', 'cache-control': 'no-cache', ...makeCorsHeaders(req) } });
+    } catch (e) {
+      context.logger.warn('[hls-proxy] error:', e.message);
+      return new Response('Proxy error', { status: 502, headers: { 'content-type': 'text/plain', ...makeCorsHeaders(req) } });
+    }
+  }
+
+  // YouTube embed bridge — exempt from auth because iframe src cannot carry
+  // Authorization headers.  Serves a minimal HTML page that loads the YouTube
+  // IFrame Player API from a localhost origin (which YouTube accepts, unlike
+  // tauri://localhost).  No sensitive data is exposed.
+  if (requestUrl.pathname === '/api/youtube-embed') {
+    const videoId = requestUrl.searchParams.get('videoId');
+    if (!videoId || !/^[A-Za-z0-9_-]{11}$/.test(videoId)) {
+      return new Response('Invalid videoId', { status: 400, headers: { 'content-type': 'text/plain' } });
+    }
+    const autoplay = requestUrl.searchParams.get('autoplay') === '0' ? '0' : '1';
+    const mute = requestUrl.searchParams.get('mute') === '0' ? '0' : '1';
+    const vq = ['small','medium','large','hd720','hd1080'].includes(requestUrl.searchParams.get('vq') || '') ? requestUrl.searchParams.get('vq') : '';
+    const origin = `http://localhost:${context.port}`;
+    const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="strict-origin-when-cross-origin"><style>html,body{margin:0;padding:0;width:100%;height:100%;background:#000;overflow:hidden}#player{width:100%;height:100%}#play-overlay{position:absolute;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;pointer-events:none;background:rgba(0,0,0,0.15)}#play-overlay svg{width:72px;height:72px;opacity:0.9;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.5))}#play-overlay.hidden{display:none}</style></head><body><div id="player"></div><div id="play-overlay" class="hidden"><svg viewBox="0 0 68 48"><path d="M66.52 7.74c-.78-2.93-2.49-5.41-5.42-6.19C55.79.13 34 0 34 0S12.21.13 6.9 1.55C3.97 2.33 2.27 4.81 1.48 7.74.06 13.05 0 24 0 24s.06 10.95 1.48 16.26c.78 2.93 2.49 5.41 5.42 6.19C12.21 47.87 34 48 34 48s21.79-.13 27.1-1.55c2.93-.78 4.64-3.26 5.42-6.19C67.94 34.95 68 24 68 24s-.06-10.95-1.48-16.26z" fill="red"/><path d="M45 24L27 14v20" fill="#fff"/></svg></div><script>var tag=document.createElement('script');tag.src='https://www.youtube.com/iframe_api';document.head.appendChild(tag);var player,overlay=document.getElementById('play-overlay'),started=false,muteSyncId,retryTimers=[];var obs=new MutationObserver(function(muts){for(var i=0;i<muts.length;i++){var nodes=muts[i].addedNodes;for(var j=0;j<nodes.length;j++){if(nodes[j].tagName==='IFRAME'){var a=nodes[j].getAttribute('allow')||'';if(a.indexOf('autoplay')===-1){nodes[j].setAttribute('allow','autoplay; encrypted-media; picture-in-picture '+a);console.log('[yt-embed] patched iframe allow=autoplay')}obs.disconnect();return}}}});obs.observe(document.getElementById('player'),{childList:true,subtree:true});function hideOverlay(){overlay.classList.add('hidden')}function readMuted(){if(!player)return null;if(typeof player.isMuted==='function')return player.isMuted();if(typeof player.getVolume==='function')return player.getVolume()===0;return null}function stopMuteSync(){if(muteSyncId){clearInterval(muteSyncId);muteSyncId=null}}function startMuteSync(){if(muteSyncId)return;var last=readMuted();if(last!==null)window.parent.postMessage({type:'yt-mute-state',muted:last},'*');muteSyncId=setInterval(function(){var m=readMuted();if(m!==null&&m!==last){last=m;window.parent.postMessage({type:'yt-mute-state',muted:m},'*')}},500)}function tryAutoplay(){if(!player||!player.playVideo)return;try{player.mute();player.playVideo();console.log('[yt-embed] tryAutoplay: mute+play')}catch(e){}}function onYouTubeIframeAPIReady(){player=new YT.Player('player',{videoId:'${videoId}',host:'https://www.youtube.com',playerVars:{autoplay:${autoplay},mute:${mute},playsinline:1,rel:0,controls:1,modestbranding:1,enablejsapi:1,origin:'${origin}',widget_referrer:'${origin}'},events:{onReady:function(){console.log('[yt-embed] onReady');window.parent.postMessage({type:'yt-ready'},'*');${vq ? `if(player.setPlaybackQuality)player.setPlaybackQuality('${vq}');` : ''}if(${autoplay}===1){tryAutoplay();retryTimers.push(setTimeout(function(){if(!started)tryAutoplay()},500));retryTimers.push(setTimeout(function(){if(!started)tryAutoplay()},1500));retryTimers.push(setTimeout(function(){if(!started){console.log('[yt-embed] autoplay failed after retries');window.parent.postMessage({type:'yt-autoplay-failed'},'*')}},2500))}startMuteSync()},onError:function(e){console.log('[yt-embed] error code='+e.data);stopMuteSync();window.parent.postMessage({type:'yt-error',code:e.data},'*')},onStateChange:function(e){window.parent.postMessage({type:'yt-state',state:e.data},'*');if(e.data===1||e.data===3){hideOverlay();started=true;retryTimers.forEach(clearTimeout);retryTimers=[]}}}})}setTimeout(function(){if(!started)overlay.classList.remove('hidden')},4000);window.addEventListener('message',function(e){if(!player||!player.getPlayerState)return;var m=e.data;if(!m||!m.type)return;switch(m.type){case'play':player.playVideo();break;case'pause':player.pauseVideo();break;case'mute':player.mute();break;case'unmute':player.unMute();break;case'loadVideo':if(m.videoId)player.loadVideoById(m.videoId);break;case'setQuality':if(m.quality&&player.setPlaybackQuality)player.setPlaybackQuality(m.quality);break}});window.addEventListener('beforeunload',function(){stopMuteSync();obs.disconnect();retryTimers.forEach(clearTimeout)})<\/script></body></html>`;
+    return new Response(html, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'permissions-policy': 'autoplay=*, encrypted-media=*', ...makeCorsHeaders(req) } });
+  }
+
+  // ── Global auth gate ────────────────────────────────────────────────────
+  // Every endpoint below requires a valid LOCAL_API_TOKEN.  This prevents
+  // other local processes, malicious browser scripts, and rogue extensions
+  // from accessing the sidecar API without the per-session token.
+  const expectedToken = process.env.LOCAL_API_TOKEN;
+  if (expectedToken) {
+    const authHeader = req.headers.authorization || '';
+    if (authHeader !== `Bearer ${expectedToken}`) {
+      context.logger.warn(`[local-api] unauthorized request to ${requestUrl.pathname}`);
+      return json({ error: 'Unauthorized' }, 401);
+    }
+  }
+
   if (requestUrl.pathname === '/api/local-status') {
     return json({
       success: true,
@@ -786,7 +1068,13 @@ async function dispatch(requestUrl, req, routes, context) {
       trafficLog.length = 0;
       return json({ cleared: true });
     }
-    return json({ entries: [...trafficLog], verboseMode, maxEntries: TRAFFIC_LOG_MAX });
+    // Strip query strings from logged paths to avoid leaking feed URLs and
+    // user research patterns to anyone who can read the traffic log.
+    const sanitized = trafficLog.map(entry => ({
+      ...entry,
+      path: entry.path?.split('?')[0] ?? entry.path,
+    }));
+    return json({ entries: sanitized, verboseMode, maxEntries: TRAFFIC_LOG_MAX });
   }
   if (requestUrl.pathname === '/api/local-debug-toggle') {
     if (req.method === 'POST') {
@@ -796,12 +1084,14 @@ async function dispatch(requestUrl, req, routes, context) {
     }
     return json({ verboseMode });
   }
-  // Registration — call Convex directly (desktop frontend bypasses sidecar for this endpoint;
-  // this handler only runs when CONVEX_URL is available, e.g. self-hosted deployments)
+  // Registration — call Convex directly when CONVEX_URL is available (self-hosted),
+  // otherwise proxy to cloud (desktop sidecar never has CONVEX_URL).
   if (requestUrl.pathname === '/api/register-interest' && req.method === 'POST') {
     const convexUrl = process.env.CONVEX_URL;
     if (!convexUrl) {
-      return json({ error: 'Registration service not configured — use cloud endpoint directly' }, 503);
+      const cloudResponse = await tryCloudFallback(requestUrl, req, context, 'no CONVEX_URL');
+      if (cloudResponse) return cloudResponse;
+      return json({ error: 'Registration service unavailable' }, 503);
     }
     try {
       const body = await new Promise((resolve, reject) => {
@@ -832,23 +1122,36 @@ async function dispatch(requestUrl, req, routes, context) {
       }
       return json(result.value || result);
     } catch (e) {
-      logVerbose(`[register-interest] error: ${e.message}`);
+      context.logger.error(`[register-interest] error: ${e.message}`);
       return json({ error: 'Registration service unreachable' }, 502);
     }
   }
 
-  // RSS proxy — fetch public feeds directly from desktop, no auth needed
+  // RSS proxy — fetch public feeds with SSRF protection
   if (requestUrl.pathname === '/api/rss-proxy') {
     const feedUrl = requestUrl.searchParams.get('url');
     if (!feedUrl) return json({ error: 'Missing url parameter' }, 400);
+
+    // SSRF protection: block private IPs, reserved ranges, and DNS rebinding
+    const safety = await isSafeUrl(feedUrl);
+    if (!safety.safe) {
+      context.logger.warn(`[local-api] rss-proxy SSRF blocked: ${safety.reason} (url=${feedUrl})`);
+      return json({ error: safety.reason }, 403);
+    }
+
     try {
       const parsed = new URL(feedUrl);
+      // Pin to the first IPv4 address validated by isSafeUrl() so the
+      // actual TCP connection goes to the same IP we checked, closing
+      // the TOCTOU DNS-rebinding window.
+      const pinnedV4 = safety.resolvedAddresses?.find(a => a.includes('.'));
       const response = await fetchWithTimeout(feedUrl, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'User-Agent': CHROME_UA,
           'Accept': 'application/rss+xml, application/xml, text/xml, */*',
           'Accept-Language': 'en-US,en;q=0.9',
         },
+        ...(pinnedV4 ? { resolvedAddress: pinnedV4 } : {}),
       }, parsed.hostname.includes('news.google.com') ? 20000 : 12000);
       const contentType = response.headers?.get?.('content-type') || 'application/xml';
       const rssBody = await response.text();
@@ -859,16 +1162,6 @@ async function dispatch(requestUrl, req, routes, context) {
     } catch (e) {
       const isTimeout = e.name === 'AbortError' || e.message?.includes('timeout');
       return json({ error: isTimeout ? 'Feed timeout' : 'Failed to fetch feed', url: feedUrl }, isTimeout ? 504 : 502);
-    }
-  }
-
-  // Token auth — required for env mutations and all API handlers
-  const expectedToken = process.env.LOCAL_API_TOKEN;
-  if (expectedToken) {
-    const authHeader = req.headers.authorization || '';
-    if (authHeader !== `Bearer ${expectedToken}`) {
-      context.logger.warn(`[local-api] unauthorized request to ${requestUrl.pathname}`);
-      return json({ error: 'Unauthorized' }, 401);
     }
   }
 
@@ -945,9 +1238,11 @@ async function dispatch(requestUrl, req, routes, context) {
     }
 
     const body = ['GET', 'HEAD'].includes(req.method) ? undefined : await readBody(req);
+    const hdrs = toHeaders(req.headers, { stripOrigin: true });
+    hdrs.set('Origin', `http://127.0.0.1:${context.port}`);
     const request = new Request(requestUrl.toString(), {
       method: req.method,
-      headers: toHeaders(req.headers, { stripOrigin: true }),
+      headers: hdrs,
       body,
     });
 
@@ -980,7 +1275,7 @@ async function dispatch(requestUrl, req, routes, context) {
 
 export async function createLocalApiServer(options = {}) {
   const context = resolveConfig(options);
-  loadVerboseState(context.resourceDir);
+  loadVerboseState(context.dataDir);
   const routes = await buildRouteTable(context.apiDir);
 
   const server = createServer(async (req, res) => {
@@ -1052,23 +1347,34 @@ export async function createLocalApiServer(options = {}) {
     routes,
     server,
     async start() {
-      await new Promise((resolve, reject) => {
-        const onListening = () => {
-          server.off('error', onError);
-          resolve();
-        };
-        const onError = (error) => {
-          server.off('listening', onListening);
-          reject(error);
-        };
-
+      const tryListen = (port) => new Promise((resolve, reject) => {
+        const onListening = () => { server.off('error', onError); resolve(); };
+        const onError = (error) => { server.off('listening', onListening); reject(error); };
         server.once('listening', onListening);
         server.once('error', onError);
-        server.listen(context.port, '127.0.0.1');
+        server.listen(port, '127.0.0.1');
       });
+
+      try {
+        await tryListen(context.port);
+      } catch (err) {
+        if (err?.code === 'EADDRINUSE') {
+          context.logger.log(`[local-api] port ${context.port} busy, falling back to OS-assigned port`);
+          await tryListen(0);
+        } else {
+          throw err;
+        }
+      }
 
       const address = server.address();
       const boundPort = typeof address === 'object' && address?.port ? address.port : context.port;
+      context.port = boundPort;
+
+      const portFile = process.env.LOCAL_API_PORT_FILE;
+      if (portFile) {
+        try { writeFileSync(portFile, String(boundPort)); } catch {}
+      }
+
       context.logger.log(`[local-api] listening on http://127.0.0.1:${boundPort} (apiDir=${context.apiDir}, routes=${routes.length}, cloudFallback=${context.cloudFallback})`);
       return { port: boundPort };
     },

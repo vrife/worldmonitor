@@ -57,4 +57,6 @@ message ListEtfFlowsResponse {
   EtfFlowsSummary summary = 2;
   // Individual ETF flow data, sorted by volume descending.
   repeated EtfFlow etfs = 3;
+  // True when the upstream API rate-limited the request.
+  bool rate_limited = 4;
 }

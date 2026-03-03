@@ -1,3 +1,9 @@
+export interface DeductContextDetail {
+  query?: string;
+  geoContext: string;
+  autoSubmit?: boolean;
+}
+
 export type PropagandaRisk = 'low' | 'medium' | 'high';
 
 export interface Feed {
@@ -25,6 +31,10 @@ export interface NewsItem {
   lon?: number;
   locationName?: string;
   lang?: string;
+  // Happy variant: positive content category
+  happyCategory?: import('@/services/positive-classifier').HappyContentCategory;
+  // Image URL extracted from RSS media/enclosure tags
+  imageUrl?: string;
 }
 
 export type VelocityLevel = 'normal' | 'elevated' | 'spike';
@@ -300,6 +310,16 @@ export interface MilitaryBase {
   source?: string;            // Reference URL
 }
 
+export interface MilitaryBaseEnriched extends MilitaryBase {
+  kind?: string;
+  tier?: number;
+  catAirforce?: boolean;
+  catNaval?: boolean;
+  catNuclear?: boolean;
+  catSpace?: boolean;
+  catTraining?: boolean;
+}
+
 export interface CableLandingPoint {
   country: string;       // ISO code
   countryName: string;
@@ -519,6 +539,20 @@ export interface MapLayers {
   commodityHubs: boolean;
   // Gulf FDI layers
   gulfInvestments: boolean;
+  // Happy variant layers
+  positiveEvents: boolean;
+  kindness: boolean;
+  happiness: boolean;
+  speciesRecovery: boolean;
+  renewableInstallations: boolean;
+  // Trade route layers
+  tradeRoutes: boolean;
+  // Iran attacks layer
+  iranAttacks: boolean;
+  // GPS/GNSS interference layer
+  gpsJamming: boolean;
+  // Overlay layers
+  dayNight: boolean;
 }
 
 export interface AIDataCenter {
@@ -1215,6 +1249,7 @@ export interface GulfInvestment {
 
 export interface MapProtestCluster {
   id: string;
+  _clusterId?: number;
   lat: number;
   lon: number;
   count: number;
@@ -1232,6 +1267,7 @@ export interface MapProtestCluster {
 
 export interface MapTechHQCluster {
   id: string;
+  _clusterId?: number;
   lat: number;
   lon: number;
   count: number;
@@ -1247,6 +1283,7 @@ export interface MapTechHQCluster {
 
 export interface MapTechEventCluster {
   id: string;
+  _clusterId?: number;
   lat: number;
   lon: number;
   count: number;
@@ -1260,6 +1297,7 @@ export interface MapTechEventCluster {
 
 export interface MapDatacenterCluster {
   id: string;
+  _clusterId?: number;
   lat: number;
   lon: number;
   count: number;

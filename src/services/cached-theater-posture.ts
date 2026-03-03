@@ -114,7 +114,7 @@ const LS_MAX_AGE_MS = 30 * 60 * 1000; // 30 min max staleness for localStorage
 let cachedPosture: CachedTheaterPosture | null = null;
 let fetchPromise: Promise<CachedTheaterPosture | null> | null = null;
 let lastFetchTime = 0;
-const REFETCH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes (matches server TTL)
+const REFETCH_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes - reduce upstream API pressure
 
 function createAbortError(): DOMException {
   return new DOMException('The operation was aborted.', 'AbortError');
@@ -169,7 +169,6 @@ function saveToStorage(data: CachedTheaterPosture): void {
 const stored = loadFromStorage();
 if (stored) {
   cachedPosture = stored;
-  console.log('[CachedTheaterPosture] Restored from localStorage (stale)');
 }
 
 export async function fetchCachedTheaterPosture(signal?: AbortSignal): Promise<CachedTheaterPosture | null> {
@@ -196,10 +195,6 @@ export async function fetchCachedTheaterPosture(signal?: AbortSignal): Promise<C
       cachedPosture = data;
       lastFetchTime = Date.now();
       saveToStorage(data);
-      console.log(
-        '[CachedTheaterPosture] Loaded via sebuf RPC',
-        `${data.postures.length} theaters, ${data.totalFlights} flights`
-      );
       return cachedPosture;
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') throw error;

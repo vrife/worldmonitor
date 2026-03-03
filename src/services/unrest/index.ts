@@ -11,6 +11,8 @@ import { createCircuitBreaker } from '@/utils';
 const client = new UnrestServiceClient('', { fetch: (...args) => globalThis.fetch(...args) });
 const unrestBreaker = createCircuitBreaker<ListUnrestEventsResponse>({
   name: 'Unrest Events',
+  cacheTtlMs: 10 * 60 * 1000,
+  persistCache: true,
 });
 
 // ---- Enum Mapping Functions ----
@@ -100,6 +102,14 @@ export async function fetchProtestEvents(): Promise<ProtestData> {
     return client.listUnrestEvents({
       country: '',
       minSeverity: 'SEVERITY_LEVEL_UNSPECIFIED',
+      start: 0,
+      end: 0,
+      pageSize: 0,
+      cursor: '',
+      neLat: 0,
+      neLon: 0,
+      swLat: 0,
+      swLon: 0,
     });
   }, emptyFallback);
 

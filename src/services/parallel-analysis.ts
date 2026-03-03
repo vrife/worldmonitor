@@ -78,11 +78,8 @@ class ParallelAnalysisService {
   private analysisCount = 0;
 
   async analyzeHeadlines(clusters: ClusteredEvent[]): Promise<AnalysisReport> {
-    const startTime = performance.now();
-    this.analysisCount++;
 
-    console.group(`%c🔬 Parallel Analysis #${this.analysisCount}`, 'color: #6b8afd; font-weight: bold; font-size: 14px');
-    console.log(`%cAnalyzing ${clusters.length} headlines...`, 'color: #888');
+    this.analysisCount++;
 
     const analyzed: AnalyzedHeadline[] = [];
     const titles = clusters.map(c => c.primaryTitle);
@@ -100,12 +97,6 @@ class ParallelAnalysisService {
       sentiments = s;
       entities = e;
       embeddings = emb;
-
-      console.log(`%c✓ ML models loaded`, 'color: #4ade80');
-      if (entities) console.log(`%c  → NER extracted ${entities.flat().length} entities`, 'color: #888');
-      if (embeddings) console.log(`%c  → Embeddings computed for ${embeddings.length} headlines`, 'color: #888');
-    } else {
-      console.log(`%c⚠ ML not available, using keyword-only analysis`, 'color: #f59e0b');
     }
 
     for (let i = 0; i < clusters.length; i++) {
@@ -191,9 +182,6 @@ class ParallelAnalysisService {
     };
 
     this.lastReport = report;
-    this.logReport(report, performance.now() - startTime);
-    console.groupEnd();
-
     return report;
   }
 
@@ -506,48 +494,6 @@ class ParallelAnalysisService {
 
   private async getEmbeddings(titles: string[]): Promise<number[][]> {
     return mlWorker.embedTexts(titles);
-  }
-
-  private logReport(report: AnalysisReport, durationMs: number): void {
-    console.log(`%c⏱ Analysis completed in ${durationMs.toFixed(0)}ms`, 'color: #888');
-
-    console.log('\n%c📊 TOP BY CONSENSUS (high confidence)', 'color: #4ade80; font-weight: bold');
-    console.table(report.topByConsensus.slice(0, 5).map(h => ({
-      score: h.finalScore.toFixed(2),
-      conf: h.confidence.toFixed(2),
-      title: h.title.slice(0, 60) + (h.title.length > 60 ? '...' : ''),
-      topPerspective: h.perspectives.sort((a, b) => b.score - a.score)[0]?.name,
-    })));
-
-    if (report.topByDisagreement.length > 0) {
-      console.log('\n%c⚠️ HIGH DISAGREEMENT (perspectives conflict)', 'color: #f59e0b; font-weight: bold');
-      console.table(report.topByDisagreement.map(h => ({
-        disagreement: h.disagreement.toFixed(2),
-        title: h.title.slice(0, 50) + '...',
-        perspectives: h.perspectives.map(p => `${p.name}:${p.score.toFixed(1)}`).join(' | '),
-      })));
-    }
-
-    if (report.missedByKeywords.length > 0) {
-      console.log('\n%c🎯 POTENTIALLY MISSED (ML says important, keywords say no)', 'color: #ef4444; font-weight: bold');
-      report.missedByKeywords.forEach(h => {
-        const keywordScore = h.perspectives.find(p => p.name === 'keywords')?.score ?? 0;
-        const mlScores = h.perspectives.filter(p => p.name !== 'keywords');
-        console.log(`  %c"${h.title.slice(0, 70)}..."`, 'color: #fff');
-        console.log(`    keywords: ${(keywordScore * 100).toFixed(0)}% | ML avg: ${(mlScores.reduce((s, p) => s + p.score, 0) / mlScores.length * 100).toFixed(0)}%`);
-        mlScores.forEach(p => {
-          console.log(`      ${p.name}: ${(p.score * 100).toFixed(0)}% - ${p.reasoning}`);
-        });
-      });
-    }
-
-    console.log('\n%c📈 Perspective Correlations', 'color: #6b8afd');
-    const sortedCorr = Object.entries(report.perspectiveCorrelations)
-      .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
-    sortedCorr.slice(0, 5).forEach(([pair, corr]) => {
-      const color = corr > 0.5 ? '#4ade80' : corr < -0.2 ? '#ef4444' : '#888';
-      console.log(`  %c${pair}: ${corr.toFixed(2)}`, `color: ${color}`);
-    });
   }
 
   getLastReport(): AnalysisReport | null {

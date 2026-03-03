@@ -44,7 +44,8 @@ World Monitor is a client-side intelligence dashboard that aggregates publicly a
 
 ### API Keys & Secrets
 
-- All API keys are stored server-side in Vercel Edge Functions
+- **Web deployment**: API keys are stored server-side in Vercel Edge Functions
+- **Desktop runtime**: API keys are stored in the OS keychain (macOS Keychain / Windows Credential Manager) via a consolidated vault entry, never on disk in plaintext
 - No API keys should ever be committed to the repository
 - Environment variables (`.env.local`) are gitignored
 - The RSS proxy uses domain allowlisting to prevent SSRF
@@ -61,6 +62,15 @@ World Monitor is a client-side intelligence dashboard that aggregates publicly a
 - No sensitive data is stored in localStorage or sessionStorage
 - External content (RSS feeds, news) is sanitized before rendering
 - Map data layers use trusted, vetted data sources
+- Content Security Policy restricts script-src to `'self'` (no unsafe-inline/eval)
+
+### Desktop Runtime Security (Tauri)
+
+- **IPC origin validation**: Sensitive Tauri commands (secrets, cache, token) are gated to trusted windows only; external-origin windows (e.g., YouTube login) are blocked
+- **DevTools**: Disabled in production builds; gated behind an opt-in Cargo feature for development
+- **Sidecar authentication**: A per-session CSPRNG token (`LOCAL_API_TOKEN`) authenticates all renderer-to-sidecar requests, preventing other local processes from accessing the API
+- **Capability isolation**: The YouTube login window runs under a restricted capability with no access to secret or cache IPC commands
+- **Fetch patch trust boundary**: The global fetch interceptor injects the sidecar token with a 5-minute TTL; the renderer is the intended client — if renderer integrity is compromised, Tauri IPC provides strictly more access than the fetch patch
 
 ### Data Sources
 
@@ -77,6 +87,8 @@ The following are **in scope** for security reports:
 - Edge function security issues (SSRF, injection, auth bypass)
 - XSS or content injection through RSS feeds or external data
 - API key exposure or secret leakage
+- Tauri IPC command privilege escalation or capability bypass
+- Sidecar authentication bypass or token leakage
 - Dependency vulnerabilities with a viable attack vector
 
 The following are **out of scope**:

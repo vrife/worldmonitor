@@ -29,39 +29,33 @@ export class StablecoinPanel extends Panel {
   private data: StablecoinResult | null = null;
   private loading = true;
   private error: string | null = null;
-  private refreshInterval: ReturnType<typeof setInterval> | null = null;
-
   constructor() {
     super({ id: 'stablecoins', title: t('panels.stablecoins'), showCount: false });
     void this.fetchData();
-    this.refreshInterval = setInterval(() => this.fetchData(), 3 * 60000);
   }
 
-  public destroy(): void {
-    if (this.refreshInterval) {
-      clearInterval(this.refreshInterval);
-      this.refreshInterval = null;
-    }
-  }
-
-  private async fetchData(): Promise<void> {
+  public async fetchData(): Promise<void> {
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         const client = new MarketServiceClient('', { fetch: (...args) => globalThis.fetch(...args) });
         this.data = await client.listStablecoinMarkets({ coins: [] });
+        if (!this.element?.isConnected) return;
         this.error = null;
 
         if (this.data && this.data.stablecoins.length === 0 && attempt < 2) {
           this.showRetrying();
           await new Promise(r => setTimeout(r, 20_000));
+          if (!this.element?.isConnected) return;
           continue;
         }
         break;
       } catch (err) {
         if (this.isAbortError(err)) return;
+        if (!this.element?.isConnected) return;
         if (attempt < 2) {
           this.showRetrying();
           await new Promise(r => setTimeout(r, 20_000));
+          if (!this.element?.isConnected) return;
           continue;
         }
         this.error = err instanceof Error ? err.message : 'Failed to fetch';

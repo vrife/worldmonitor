@@ -12,8 +12,8 @@ import type {
   HackernewsItem,
 } from '../../../../src/generated/server/worldmonitor/research/v1/service_server';
 
-import { CHROME_UA } from '../../../_shared/constants';
-import { getCachedJson, setCachedJson } from '../../../_shared/redis';
+import { CHROME_UA, clampInt } from '../../../_shared/constants';
+import { cachedFetchJson } from '../../../_shared/redis';
 
 const REDIS_CACHE_KEY = 'research:hackernews:v1';
 const REDIS_CACHE_TTL = 600; // 10 min
@@ -27,7 +27,7 @@ const HN_MAX_CONCURRENCY = 10;
 
 async function fetchHackernewsItems(req: ListHackernewsItemsRequest): Promise<HackernewsItem[]> {
   const feedType = ALLOWED_HN_FEEDS.has(req.feedType) ? req.feedType : 'top';
-  const pageSize = req.pagination?.pageSize || 30;
+  const pageSize = clampInt(req.pageSize, 30, 1, 100);
 
   // Step 1: Fetch story IDs
   const idsUrl = `https://hacker-news.firebaseio.com/v0/${feedType}stories.json`;
@@ -87,16 +87,12 @@ export async function listHackernewsItems(
 ): Promise<ListHackernewsItemsResponse> {
   try {
     const feedType = ALLOWED_HN_FEEDS.has(req.feedType) ? req.feedType : 'top';
-    const cacheKey = `${REDIS_CACHE_KEY}:${feedType}:${req.pagination?.pageSize || 30}`;
-    const cached = (await getCachedJson(cacheKey)) as ListHackernewsItemsResponse | null;
-    if (cached?.items?.length) return cached;
-
-    const items = await fetchHackernewsItems(req);
-    const result: ListHackernewsItemsResponse = { items, pagination: undefined };
-    if (items.length > 0) {
-      setCachedJson(cacheKey, result, REDIS_CACHE_TTL).catch(() => {});
-    }
-    return result;
+    const cacheKey = `${REDIS_CACHE_KEY}:${feedType}:${clampInt(req.pageSize, 30, 1, 100)}`;
+    const result = await cachedFetchJson<ListHackernewsItemsResponse>(cacheKey, REDIS_CACHE_TTL, async () => {
+      const items = await fetchHackernewsItems(req);
+      return items.length > 0 ? { items, pagination: undefined } : null;
+    });
+    return result || { items: [], pagination: undefined };
   } catch {
     return { items: [], pagination: undefined };
   }

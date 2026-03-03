@@ -88,8 +88,8 @@ export class CountryIntelModal {
       critical: '--semantic-critical',
       high: '--semantic-high',
       elevated: '--semantic-elevated',
-      normal: '--semantic-low',
-      low: '--semantic-normal',
+      normal: '--semantic-normal',
+      low: '--semantic-low',
     };
     const color = getCSSColor(varMap[level] || '--text-dim');
     return `<span class="cii-badge" style="background:${color}20;color:${color};border:1px solid ${color}40">${level.toUpperCase()}</span>`;

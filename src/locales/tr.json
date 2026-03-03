@@ -36,7 +36,10 @@
       "earthquakes": "depremler",
       "displaced": "yerinden edilen",
       "climate": "Iklim stresi",
-      "conflictEvents": "catisma olaylari"
+      "conflictEvents": "catisma olaylari",
+      "gpsJammingZones": "GPS Jamming Zones",
+      "activeStrikes": "aktif grevler",
+      "aviationDisruptions": "havaalanı aksamaları"
     },
     "timeAgo": {
       "m": "{{count}}dk once",
@@ -72,7 +75,8 @@
       "internetOutages": "{{count}} internet kesintisi",
       "recentEarthquakes": "{{count}} son deprem",
       "stockIndex": "Borsa endeksi: {{value}}",
-      "recentHeadlines": "**Son basliklar:**"
+      "recentHeadlines": "**Son basliklar:**",
+      "activeStrikes": "{{count}} aktif grev tespit edildi"
     }
   },
   "header": {
@@ -80,7 +84,7 @@
     "tech": "TEKNOLOJI",
     "live": "CANLI",
     "search": "Ara",
-    "settings": "PANELLER",
+    "settings": "AYARLAR",
     "sources": "KAYNAKLAR",
     "copyLink": "Baglanti Kopyala",
     "fullscreen": "Tam Ekran",
@@ -89,7 +93,57 @@
     "filterSources": "Kaynaklari filtrele...",
     "sourcesEnabled": "{{enabled}}/{{total}} aktif",
     "finance": "FINANS",
-    "toggleTheme": "Koyu/acik tema degistir"
+    "toggleTheme": "Koyu/acik tema degistir",
+    "panelDisplayCaption": "Gösterge panelinde hangi panellerin gösterileceğini seçin",
+    "tabGeneral": "Genel",
+    "tabPanels": "Paneller",
+    "tabSources": "Kaynaklar",
+    "languageLabel": "Dil",
+    "sourceRegionAll": "Tümü",
+    "sourceRegionWorldwide": "Dünya",
+    "sourceRegionUS": "ABD",
+    "sourceRegionMiddleEast": "Orta Doğu",
+    "sourceRegionAfrica": "Afrika",
+    "sourceRegionLatAm": "Latin Amerika",
+    "sourceRegionAsiaPacific": "Asya-Pasifik",
+    "sourceRegionEurope": "Avrupa",
+    "sourceRegionTopical": "Tematik",
+    "sourceRegionIntel": "İstihbarat",
+    "sourceRegionTechNews": "Tech News",
+    "sourceRegionAiMl": "AI & ML",
+    "sourceRegionStartupsVc": "Startups & VC",
+    "sourceRegionRegionalTech": "Regional Ecosystems",
+    "sourceRegionDeveloper": "Developer",
+    "sourceRegionCybersecurity": "Cybersecurity",
+    "sourceRegionTechPolicy": "Policy & Research",
+    "sourceRegionTechMedia": "Media & Podcasts",
+    "sourceRegionMarkets": "Markets & Analysis",
+    "sourceRegionFixedIncomeFx": "Fixed Income & FX",
+    "sourceRegionCommodities": "Commodities",
+    "sourceRegionCryptoDigital": "Crypto & Digital",
+    "sourceRegionCentralBanks": "Central Banks & Economy",
+    "sourceRegionDeals": "Deals & Corporate",
+    "sourceRegionFinRegulation": "Financial Regulation",
+    "sourceRegionGulfMena": "Körfez & MENA",
+    "filterPanels": "Panelleri filtrele...",
+    "resetLayout": "Düzeni sıfırla",
+    "panelCatCore": "Temel",
+    "panelCatIntelligence": "İstihbarat",
+    "panelCatRegionalNews": "Bölgesel Haberler",
+    "panelCatMarketsFinance": "Piyasalar & Finans",
+    "panelCatTopical": "Güncel",
+    "panelCatDataTracking": "Veri & Takip",
+    "panelCatTechAi": "Teknoloji & YZ",
+    "panelCatStartupsVc": "Girişimler & GS",
+    "panelCatSecurityPolicy": "Güvenlik & Politika",
+    "panelCatMarkets": "Piyasalar",
+    "panelCatFixedIncomeFx": "Sabit Getiri & Döviz",
+    "panelCatCommodities": "Emtialar",
+    "panelCatCryptoDigital": "Kripto & Dijital",
+    "panelCatCentralBanks": "Merkez Bankaları & Ekonomi",
+    "panelCatDeals": "Anlaşmalar & Kurumsal",
+    "panelCatGulfMena": "Körfez & MENA",
+    "panelCatTradePolicy": "Ticaret Politikası"
   },
   "panels": {
     "liveNews": "Canli Haberler",
@@ -106,6 +160,8 @@
     "gdeltIntel": "Canli Istihbarat",
     "cascade": "Altyapi Domino Etkisi",
     "politics": "Dunya Haberleri",
+    "us": "ABD",
+    "europe": "Avrupa",
     "middleeast": "Orta Dogu",
     "africa": "Afrika",
     "latam": "Latin Amerika",
@@ -116,6 +172,7 @@
     "polymarket": "Tahminler",
     "commodities": "Emtialar",
     "economic": "Ekonomik Gostergeler",
+    "tradePolicy": "Ticaret Politikası",
     "finance": "Finansal",
     "tech": "Teknoloji",
     "crypto": "Kripto",
@@ -127,6 +184,7 @@
     "macroSignals": "Piyasa Radari",
     "etfFlows": "BTC ETF Takibi",
     "stablecoins": "Stablecoin'ler",
+    "deduction": "Durum çıkarımı",
     "ucdpEvents": "UCDP Catisma Olaylari",
     "displacement": "UNHCR Yerinden Edilme",
     "climate": "Iklim Anomalileri",
@@ -151,18 +209,60 @@
     "techReadiness": "Teknoloji Hazirlik Endeksi",
     "gccInvestments": "GCC Yatirimlari",
     "geoHubs": "Jeopolitik Merkezler",
-    "liveWebcams": "Canli Web Kameralari"
+    "liveWebcams": "Canli Web Kameralari",
+    "securityAdvisories": "Güvenlik Uyarıları",
+    "orefSirens": "Israel Sirens",
+    "telegramIntel": "Telegram İstihbarat",
+    "giving": "Küresel Bağış",
+    "supplyChain": "Tedarik Zinciri",
+    "gulfEconomies": "Körfez Ekonomileri",
+    "gulfIndices": "Körfez Endeksleri",
+    "gulfCurrencies": "Körfez Para Birimleri",
+    "gulfOil": "Körfez Petrolü"
+  },
+  "commands": {
+    "prefixes": {
+      "map": "Harita",
+      "panel": "Panel",
+      "brief": "Özet"
+    },
+    "categories": {
+      "navigate": "Gezinme",
+      "layers": "Katmanlar",
+      "panels": "Paneller",
+      "view": "Görünüm",
+      "actions": "Eylemler",
+      "country": "Ülke"
+    },
+    "regions": {
+      "global": "Küresel görünüm",
+      "mena": "Orta Doğu ve Kuzey Afrika",
+      "eu": "Avrupa",
+      "asia": "Asya-Pasifik",
+      "america": "Amerika",
+      "africa": "Afrika",
+      "latam": "Latin Amerika",
+      "oceania": "Okyanusya"
+    },
+    "tips": {
+      "map": "Haritada o konuma uçmak için bir ülke adı yazın",
+      "panel": "Bir panel adı yazarak o panele gidin",
+      "brief": "Bir ülke adı yazarak istihbarat özeti alın",
+      "layers": "Katman ön ayarları için \"military\" veya \"finance\" yazın",
+      "time": "Zamana göre filtrelemek için \"1h\", \"24h\" veya \"7d\" yazın",
+      "settings": "\"dark mode\", \"settings\" veya \"fullscreen\" yazın"
+    }
   },
   "modals": {
     "search": {
-      "placeholder": "Haberler, boru hatlari, usler, piyasalar ara...",
-      "hint": "Haberler - Boru Hatlari - Usler - Kablolar - Veri Merkezleri - Piyasalar",
-      "placeholderTech": "Sirketler, yapay zeka laboratuvarlari, girisimler, etkinlikler ara...",
-      "hintTech": "Merkezler - Sirketler - Yapay Zeka Lab. - Girisimler - Hizlandiricilar - Etkinlikler",
-      "placeholderFinance": "Borsalar, piyasalar, merkez bankalari ara...",
-      "hintFinance": "Borsalar - Finans Merkezleri - Merkez Bankalari - Emtialar",
+      "placeholder": "Ara veya komut yaz...",
+      "hint": "Arama • Ülkeler • Katmanlar • Paneller • Gezinme • Ayarlar",
+      "placeholderTech": "Ara veya komut yaz...",
+      "hintTech": "Arama • Şirketler • Yapay Zeka Lab. • Katmanlar • Gezinme • Ayarlar",
+      "placeholderFinance": "Ara veya komut yaz...",
+      "hintFinance": "Arama • Borsalar • Piyasalar • Katmanlar • Gezinme • Ayarlar",
       "recent": "Son Aramalar",
-      "empty": "Tum veri kaynaklarinda ara",
+      "empty": "Veri ara veya komut çalıştır",
       "noResults": "Sonuc bulunamadi",
       "navigate": "gezin",
       "select": "sec",
@@ -295,7 +395,8 @@
         "NASA_FIRMS_API_KEY": "Kaynak Yonetimi icin Yangin Bilgi Sistemi.",
         "OLLAMA_API_URL": "e.g. http://127.0.0.1:11434 (Ollama) or http://127.0.0.1:1234/v1 (LM Studio) — OpenAI-compatible endpoint.",
         "OLLAMA_MODEL": "e.g. llama3.1:8b — model tag to use for summarization."
-      }
+      },
+      "skipSetup": "Kurulumu atlayın — tek bir World Monitor lisansı her şeyi açar. Erken erişim için bekleme listesine katılın."
     },
     "settingsWindow": {
       "validating": "API anahtarlari dogrulaniyor...",
@@ -317,6 +418,32 @@
         "path": "Yol",
         "status": "Durum",
         "duration": "Sure"
+      },
+      "worldMonitor": {
+        "tabLabel": "World Monitor",
+        "heroTitle": "Tek anahtar. Her şey dahil.",
+        "heroDescription": "Tek bir World Monitor lisansı, kendiniz yapılandıracağınız tüm API anahtarlarını ve LLM sağlayıcılarını değiştirir. AI özetleri, gerçek zamanlı istihbarat, piyasa verileri, çatışma takibi, yangın tespiti, uydu görüntüleri — hepsi aktif, hepsi yönetilen, sıfır kurulum.",
+        "apiKey": {
+          "title": "Lisans Anahtarı",
+          "placeholder": "wm_xxxxxxxxxxxxxxxxxxxxxxxx",
+          "description": "Tüm veri kaynaklarını ve AI özelliklerini anında açmak için lisansınızı yapıştırın.",
+          "statusValid": "LİSANSLI",
+          "statusMissing": "LİSANS YOK"
+        },
+        "dividerOr": "VEYA",
+        "register": {
+          "title": "Yerinizi Ayırtın",
+          "description": "World Monitor lisanslarını başlatmaya hazırlanıyoruz. Şimdi kaydolun ve ilk sıraya girin — erken üyeler öncelikli erişim ve kurucu üye fiyatlandırması alır.",
+          "emailPlaceholder": "your@email.com",
+          "submitBtn": "Bekleme Listesine Katıl",
+          "submitting": "Gönderiliyor...",
+          "success": "Listedesiniz! Sizi ilk olarak bilgilendireceğiz.",
+          "alreadyRegistered": "Zaten bekleme listesinde kayıtlısınız.",
+          "error": "Kayıt başarısız. Lütfen tekrar deneyin.",
+          "invalidEmail": "Lütfen geçerli bir e-posta adresi girin."
+        },
+        "byokTitle": "Veya kendi anahtarlarınızı kullanın",
+        "byokDescription": "Tam kontrol mü istiyorsunuz? Her veri kaynağını ve AI sağlayıcısını ayrı ayrı yapılandırmak için API Anahtarları ve LLM sekmelerine gidin."
       }
     },
     "countryIntel": {
@@ -370,7 +497,10 @@
         "earthquakes": "depremler",
         "displaced": "yerinden edilen",
         "climate": "Iklim stresi",
-        "conflictEvents": "catisma olaylari"
+        "conflictEvents": "catisma olaylari",
+        "gpsJammingZones": "GPS Jamming Zones",
+        "activeStrikes": "aktif grevler",
+        "aviationDisruptions": "havaalanı aksamaları"
       },
       "timeAgo": {
         "m": "{{count}}dk once",
@@ -406,19 +536,22 @@
         "internetOutages": "{{count}} internet outages",
         "recentEarthquakes": "{{count}} recent earthquakes",
         "stockIndex": "Stock index: {{value}}",
-        "recentHeadlines": "**Recent headlines:**"
+        "recentHeadlines": "**Recent headlines:**",
+        "activeStrikes": "{{count}} aktif grev tespit edildi"
       }
     }
   },
   "components": {
     "webcams": {
       "regions": {
+        "iran": "IRAN ATTACKS",
         "all": "TUMU",
         "mideast": "ORTA DOGU",
         "europe": "AVRUPA",
         "americas": "AMERIKA",
         "asia": "ASYA"
-      }
+      },
+      "expand": "Genişlet"
     },
     "monitor": {
       "placeholder": "Anahtar kelimeler (virgul ile ayirin)",
@@ -473,7 +606,38 @@
       "noIndicatorData": "Henuz gosterge verisi yok - FRED yuklenme asamasinda olabilir",
       "noOilDataRetry": "Petrol verisi gecici olarak kullanilamiyor - tekrar denenecek",
       "vsPreviousWeek": "onceki haftaya gore",
-      "in": "icinde"
+      "in": "icinde",
+      "centralBanks": "Central Banks",
+      "noBisData": "BIS data temporarily unavailable - will retry",
+      "policyRate": "Policy Rate",
+      "exchangeRate": "Exchange Rate",
+      "creditToGdp": "Credit / GDP",
+      "realEer": "Real EER",
+      "change": "Change",
+      "cut": "cut",
+      "hike": "hike",
+      "hold": "hold",
+      "fredKeyMissing": "FRED API anahtarı gerekli — ekonomik göstergeleri etkinleştirmek için Ayarlar'dan ekleyin"
+    },
+    "tradePolicy": {
+      "restrictions": "Kısıtlamalar",
+      "tariffs": "Gümrük Tarifeleri",
+      "flows": "Ticaret Akışları",
+      "barriers": "Engeller",
+      "noRestrictions": "Aktif ticaret kısıtlaması yok",
+      "noTariffData": "Tarife verisi mevcut değil",
+      "noFlowData": "Ticaret akışı verisi mevcut değil",
+      "noBarriers": "Ticaret engeli bildirilmedi",
+      "apiKeyMissing": "WTO API anahtarı gerekli — Ayarlar'dan ekleyin",
+      "upstreamUnavailable": "WTO verileri geçici olarak kullanılamıyor — önbellek verileri gösteriliyor",
+      "appliedRate": "Uygulanan Oran",
+      "boundRate": "Bağlı Oran",
+      "exports": "İhracat",
+      "imports": "İthalat",
+      "yoyChange": "Yıllık Değişim",
+      "highTariff": "Yüksek",
+      "moderateTariff": "Orta",
+      "lowTariff": "Düşük"
     },
     "gdelt": {
       "empty": "Bu konu icin son makale yok"
@@ -495,7 +659,8 @@
       "error": "Tahminler yuklenemedi",
       "yes": "Evet",
       "no": "Hayir",
-      "vol": "Hacim"
+      "vol": "Hacim",
+      "closes": "Kapanış"
     },
     "stablecoins": {
       "pegHealth": "Parite Sagligi",
@@ -700,7 +865,11 @@
         "financialCenters": "Finans Merkezleri",
         "centralBanks": "Merkez Bankalari",
         "commodityHubs": "Emtia Merkezleri",
-        "gulfInvestments": "GCC Yatirimlari"
+        "gulfInvestments": "GCC Yatirimlari",
+        "tradeRoutes": "Ticaret Rotaları",
+        "gpsJamming": "GPS JAMMING",
+        "dayNight": "Gündüz/Gece",
+        "iranAttacks": "İran Saldırıları"
       },
       "tooltip": {
         "earthquake": "Deprem",
@@ -749,7 +918,8 @@
           "geopolitical": "Jeopolitik",
           "militaryStrategic": "Askeri ve Stratejik",
           "transport": "Ulasim",
-          "labels": "Etiketler"
+          "labels": "Etiketler",
+          "overlays": "Katmanlar ve etiketler"
         },
         "descriptions": {
           "techStartupHubs": "Buyuk girisim ekosistemleri (SF, NYC, Londra vb.)",
@@ -790,7 +960,20 @@
           "transportShipping": "Gemiler, darbogazlar, 61 stratejik liman",
           "transportDelays": "Havaalani gecikmeleri ve yer durdurmalari (FAA)",
           "naturalEventsFull": "Depremler (USGS) + firtinalar, yanginlar, yanardaglar, seller (NASA EONET)",
-          "waterwaysLabels": "Stratejik darbogaz etiketleri"
+          "waterwaysLabels": "Stratejik darbogaz etiketleri",
+          "tradeRoutes": "Limanları stratejik darboğazlar üzerinden bağlayan başlıca küresel deniz yolları",
+          "dayNight": "Gündüz ve gece bölgelerini gösteren gerçek zamanlı güneş terminatörü",
+          "climateAnomalies": "Sıcaklık ve yağış anomalileri",
+          "financeGulfInvestments": "GCC egemen varlık fonu yatırımları ve doğrudan yabancı yatırımlar",
+          "firesFull": "Aktif orman yangınları ve yangın çevreleri (NASA FIRMS)",
+          "geoDisplacement": "Mülteci ve yerinden edilme akış kalıpları",
+          "geoUcdpEvents": "Uppsala Çatışma Veri Programı silahlı çatışma olayları",
+          "infraCyberThreats": "Siber saldırılar ve güvenlik olayları",
+          "militarySpaceports": "Roket fırlatma alanları ve uzay tesisleri",
+          "mineralsFull": "Stratejik mineral yatakları ve madencilik alanları",
+          "techCyberThreats": "Siber saldırılar ve güvenlik olayları",
+          "techEvents": "Büyük teknoloji konferansları ve etkinlikleri",
+          "techFires": "Teknoloji altyapısına yakın aktif orman yangınları"
         },
         "notes": {
           "timeAffects": "Etkiler: Depremler, Hava Durumu, Protestolar, Kesintiler"
@@ -809,7 +992,36 @@
       "waitingForData": "Waiting for news data...",
       "rankingStories": "Ranking important stories...",
       "analyzingSentiment": "Analyzing sentiment...",
-      "generatingBrief": "Generating world brief..."
+      "generatingBrief": "Generating world brief...",
+      "settingsTitle": "Settings",
+      "sectionMap": "Map",
+      "sectionAi": "AI Analysis",
+      "mapFlashLabel": "Live Event Pulse",
+      "mapFlashDesc": "Flash locations on the map when breaking news arrives",
+      "aiFlowTitle": "Settings",
+      "aiFlowCloudLabel": "Bulut AI (Groq & OpenRouter)",
+      "aiFlowCloudDesc": "Basliklari AI ozetleme icin buluta gonder (onerilen)",
+      "aiFlowBrowserLabel": "Tarayici Yerel Modeli",
+      "aiFlowBrowserDesc": "AI'yi tarayicinizda yerel olarak calistirin",
+      "aiFlowBrowserWarn": "Bilgisayariniza yaklasik 250 MB veri indirilecektir",
+      "aiFlowOllamaCta": "Tamamen yerel AI mi istiyorsunuz?",
+      "aiFlowOllamaCtaDesc": "Ollama destegi icin masaustu uygulamasini indirin",
+      "aiFlowDownloadDesktop": "Masaustu Uygulamasini Indir →",
+      "aiFlowStatusActive": "Bulut AI aktif",
+      "aiFlowStatusCloudAndBrowser": "Bulut AI + Tarayici modeli aktif",
+      "aiFlowStatusBrowserOnly": "Yalnizca tarayici modeli",
+      "aiFlowStatusDisabled": "Etkinlestirilmis AI saglayici yok",
+      "insightsDisabledTitle": "AI analizi devre disi",
+      "insightsDisabledHint": "Enable providers via the settings gear in the map header",
+      "sectionStreaming": "Canlı Yayın",
+      "streamQualityDesc": "Tüm canlı yayınlar için kaliteyi ayarlayın (düşük kalite bant genişliği tasarrufu sağlar)",
+      "streamQualityLabel": "Video Kalitesi",
+      "sectionPanels": "Paneller",
+      "badgeAnimLabel": "Rozet animasyonları",
+      "badgeAnimDesc": "Panel başlıklarındaki güncelleme rozetlerini canlandır",
+      "sectionIntelligence": "İstihbarat",
+      "headlineMemoryLabel": "Başlık hafızası",
+      "headlineMemoryDesc": "Yenileri vurgulamak için görülen başlıkları hatırla"
     },
     "cascade": {
       "noImpacts": "Ulke etkisi tespit edilmedi",
@@ -1022,7 +1234,9 @@
         "hoursAgo": "{{count}}sa once",
         "daysAgo": "{{count}}g once"
       },
-      "hideFindings": "Hide Intelligence Findings"
+      "breakingAlerts": "Son Dakika Uyarıları",
+      "popupAlerts": "Yeni uyarıları açılır pencerede göster",
+      "hideFindings": "Bulguları gizle"
     },
     "countryTimeline": {
       "now": "simdi",
@@ -1030,6 +1244,19 @@
     },
     "gdeltIntel": {
       "infoTooltip": "<strong>GDELT Istihbarati</strong> Gercek zamanli kuresel haber izleme:<ul><li>Secilmis konu kategorileri (catismalar, siber vb.)</li><li>100+ dilden cevrilen makaleler</li><li>Her 15 dakikada guncelleme</li></ul>Kaynak: GDELT Project (gdeltproject.org)"
+    },
+    "telegramIntel": {
+      "infoTooltip": "İzlenen Telegram OSINT kanallarından gerçek zamanlı sinyaller",
+      "loading": "Telegram aktarıcısına bağlanılıyor...",
+      "empty": "Mevcut mesaj yok",
+      "disabled": "Telegram aktarıcısı etkin değil",
+      "filterAll": "Tümü",
+      "filterBreaking": "Son Dakika",
+      "filterConflict": "Çatışma",
+      "filterAlerts": "Uyarılar",
+      "filterOsint": "OSINT",
+      "filterPolitics": "Siyaset",
+      "filterMiddleeast": "Orta Doğu"
     },
     "investments": {
       "infoTooltip": "Suudi Arabistan ve BAE'nin kuresel kritik altyapilara dogrudan yabanci yatirimlari veritabani. Yatirimi haritada gormek icin bir satira tiklayin.",
@@ -1085,7 +1312,8 @@
         "estFlow": "Tahmini Akis",
         "volume": "Hacim",
         "change": "Degisim"
-      }
+      },
+      "rateLimited": "ETF verileri geçici olarak kullanılamıyor (hız sınırlaması) — kısa süre içinde yeniden denenecek"
     },
     "macroSignals": {
       "overall": "Genel",
@@ -1100,8 +1328,8 @@
         "regime": "Rejim",
         "btcTrend": "BTC Egilimi",
         "hashRate": "Hash Rate",
-        "mining": "Madencilik",
-        "fearGreed": "Korku &amp; Acgozluluk"
+        "fearGreed": "Korku &amp; Acgozluluk",
+        "momentum": "Momentum"
       }
     },
     "panel": {
@@ -1159,12 +1387,13 @@
     "liveNews": {
       "retry": "Retry",
       "notLive": "{{name}} is not currently live",
-      "cannotEmbed": "{{name}} cannot be embedded in this app (YouTube {{code}})",
+      "cannotEmbed": "{{name}} burada oynatılamıyor — bölgenizde kısıtlanmış olabilir (hata {{code}})",
       "openOnYouTube": "Open on YouTube",
       "manage": "Kanalları yönet",
       "addChannel": "Kanal ekle",
       "remove": "Kaldır",
       "youtubeHandle": "YouTube tanıtıcı (örn. @Channel)",
+      "youtubeHandleOrUrl": "YouTube tanıtıcısı veya URL",
       "displayName": "Görünen ad (isteğe bağlı)",
       "openPanelSettings": "Panel görüntü ayarları",
       "channelSettings": "Kanal ayarları",
@@ -1172,7 +1401,107 @@
       "cancel": "İptal",
       "confirmDelete": "Bu kanal silinsin mi?",
       "confirmTitle": "Onayla",
-      "restoreDefaults": "Varsayılan kanalları geri yükle"
+      "restoreDefaults": "Varsayılan kanalları geri yükle",
+      "availableChannels": "Mevcut kanallar",
+      "customChannel": "Özel kanal",
+      "regionAll": "Tümü",
+      "regionNorthAmerica": "Kuzey Amerika",
+      "regionEurope": "Avrupa",
+      "regionLatinAmerica": "Latin Amerika",
+      "regionAsia": "Asya",
+      "regionMiddleEast": "Orta Doğu",
+      "regionAfrica": "Afrika",
+      "regionOceania": "Okyanusya",
+      "botCheck": "YouTube, {{name}} oynatmak için oturum açmanızı istiyor",
+      "channelNotFound": "YouTube kanalı bulunamadı",
+      "invalidHandle": "Geçerli bir YouTube tanıtıcısı girin (örn. @KanalAdı)",
+      "signInToYouTube": "YouTube'a giriş yap",
+      "verifying": "Doğrulanıyor…"
+    },
+    "securityAdvisories": {
+      "loading": "Seyahat uyarıları yükleniyor...",
+      "noMatching": "Bu filtre için uyarı yok",
+      "critical": "Kritik",
+      "health": "Sağlık",
+      "sources": "US State Dept, AU DFAT, UK FCDO, NZ MFAT, CDC, ECDC, WHO, US Embassies",
+      "refresh": "Yenile",
+      "levels": {
+        "doNotTravel": "Seyahat etmeyin",
+        "reconsider": "Seyahati yeniden düşünün",
+        "caution": "Dikkat",
+        "normal": "Normal",
+        "info": "Bilgi"
+      },
+      "time": {
+        "justNow": "şimdi",
+        "minutesAgo": "{{count}} dk önce",
+        "hoursAgo": "{{count}} sa önce",
+        "daysAgo": "{{count}} gün önce"
+      },
+      "infoTooltip": "<strong>Güvenlik Uyarıları</strong><br>Hükümet kurumlarından seyahat uyarıları ve güvenlik bildirimleri."
+    },
+    "orefSirens": {
+      "checking": "Checking siren alerts...",
+      "noAlerts": "No active sirens — all clear",
+      "notConfigured": "Sirens service not configured",
+      "activeSirens": "{{count}} active siren(s)",
+      "area": "Area",
+      "time": "Time",
+      "justNow": "just now",
+      "historyCount": "{{count}} alerts in last 24h",
+      "infoTooltip": "<strong>Israel Sirens</strong><br>Real-time rocket and missile siren alerts from Israel Home Front Command.<br><br>Data is polled every 10 seconds. A pulsing red indicator means active sirens are sounding.",
+      "historySummary": "24 saatte {{count}} uyarı — {{waves}} dalga",
+      "loadingHistory": "Geçmiş yükleniyor..."
+    },
+    "breakingNews": {
+      "critical": "KRİTİK",
+      "dismiss": "Kapat",
+      "enableNotifications": "Masaüstü bildirimlerini etkinleştir",
+      "high": "YÜKSEK"
+    },
+    "giving": {
+      "activityIndex": "Faaliyet Endeksi",
+      "cafIndex": "CAF Endeksi",
+      "candidGrants": "Candid Hibeleri",
+      "category": "Kategori",
+      "cryptoDaily": "Günlük Kripto",
+      "dailyInflow": "24 Saatlik Giriş",
+      "dailyVol": "Günlük Hacim",
+      "dataLag": "Veri Gecikmesi",
+      "estDailyFlow": "Tahmini Günlük Akış",
+      "freshness": "Veri",
+      "infoTooltip": "<strong>Küresel Bağış Faaliyet Endeksi</strong> Kitlesel fonlama platformları ve kripto cüzdanları üzerinden kişisel bağışları izleyen bileşik endeks.<ul><li><strong>Platformlar</strong>: GoFundMe, GlobalGiving, JustGiving kampanya örneklemesi</li><li><strong>Kripto</strong>: Zincir üzeri hayır kurumu cüzdan girişleri (Endaoment, Giving Block)</li><li><strong>Kurumsal</strong>: OECD ODA, CAF Dünya Bağış Endeksi, Candid hibeleri</li></ul>Endeks yönsel bir göstergedir (kesin dolar tutarları değildir). Canlı örnekleme ile yayımlanan yıllık raporları birleştirir.",
+      "oecdOda": "OECD ODA",
+      "ofTotal": "Toplamın %'si",
+      "platform": "Platform",
+      "share": "Pay",
+      "tabs": {
+        "categories": "Kategoriler",
+        "crypto": "Kripto",
+        "institutional": "Kurumsal",
+        "platforms": "Platformlar"
+      },
+      "topReceivers": "En Büyük Alıcılar",
+      "trend": "Eğilim",
+      "trending": "TREND",
+      "velocity": "Hız",
+      "wallets": "Cüzdanlar"
+    },
+    "supplyChain": {
+      "chokepoints": "Darboğazlar",
+      "fredKeyMissing": "Nakliye ücretleri için FRED API anahtarı gerekli — Ayarlar'dan ekleyin. Darboğazlar ve mineraller anahtarsız kullanılabilir.",
+      "mineral": "Mineral",
+      "minerals": "Mineraller",
+      "noChokepoints": "Darboğaz verileri yükleniyor...",
+      "noMinerals": "Mineral verileri yükleniyor...",
+      "noShipping": "Nakliye ücreti verisi mevcut değil",
+      "risk": "Risk",
+      "shipping": "Nakliye",
+      "sources": "FRED / NGA / USGS",
+      "spikeAlert": "Ani artış tespit edildi — ücret 52 haftalık ortalamanın önemli ölçüde üzerinde (haftalık)",
+      "topProducers": "En Büyük Üreticiler",
+      "upstreamUnavailable": "Tedarik zinciri verileri geçici olarak kullanılamıyor — önbellek verileri gösteriliyor",
+      "warnings": "uyarı(lar)"
     }
   },
   "popups": {
@@ -1226,12 +1555,20 @@
       "riots": "Isyanlar",
       "highSeverity": "Yuksek Siddet"
     },
+    "gpsJamming": {
+      "title": "GPS/GNSS Paraziti",
+      "interference": "Parazit",
+      "aircraftAffected": "Etkilenen Uçaklar",
+      "aircraftNormal": "Normal Uçaklar",
+      "h3Hex": "H3 Hex"
+    },
     "flight": {
       "groundStop": "YER DURDURMA",
       "groundDelay": "YER GECIKME PROGRAMI",
       "departureDelay": "KALKIS GECIKMELERI",
       "arrivalDelay": "VARIS GECIKMELERI",
       "delaysReported": "BILDIRILEN GECIKMELER",
+      "closure": "HAVAALANI KAPALI",
       "delays": "GECIKMELER",
       "avgDelay": "ORT. GECIKME",
       "cancelled": "IPTAL EDILEN",
@@ -1632,6 +1969,9 @@
       "uae_ecsr": "BAE/ECSR",
       "venezuela_crisis": "Venezuela Krizi",
       "yemen_houthis": "Yemen/Husiler"
+    },
+    "iranEvent": {
+      "relatedEvents": "İlgili Olaylar"
     }
   },
   "signals": {
@@ -1802,6 +2142,7 @@
     "information": "Bilgi",
     "shareStory": "Hikayeyi paylas",
     "exportImage": "Gorsel Disari Aktar",
+    "exportPdf": "PDF Dışa Aktar",
     "new": "YENI",
     "live": "CANLI",
     "cached": "ONBELLEK",
@@ -1809,6 +2150,9 @@
     "close": "Kapat",
     "currentVariant": "(mevcut)",
     "retry": "Retry",
-    "refresh": "Refresh"
+    "refresh": "Refresh",
+    "all": "Tümü",
+    "loadingGiving": "Küresel bağış verileri yükleniyor",
+    "rateLimitedMarket": "Piyasa verileri geçici olarak kullanılamıyor (hız sınırlaması) — kısa süre içinde yeniden denenecek"
   }
 }

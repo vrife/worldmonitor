@@ -1,5 +1,6 @@
 import type { Hotspot, EscalationTrend, MilitaryFlight, MilitaryVessel } from '@/types';
 import { INTEL_HOTSPOTS } from '@/config/geo';
+import { getHotspotCountries } from '@/config/countries';
 
 export interface DynamicEscalationScore {
   hotspotId: string;
@@ -27,31 +28,6 @@ interface EscalationInputs {
   flightsNearby: number;
   vesselsNearby: number;
 }
-
-const HOTSPOT_COUNTRY_MAP: Record<string, string | string[] | null> = {
-  tehran: 'IR',
-  moscow: 'RU',
-  beijing: 'CN',
-  kyiv: 'UA',
-  taipei: 'TW',
-  telaviv: 'IL',
-  pyongyang: 'KP',
-  sanaa: 'YE',
-  sahel: ['ML', 'NE', 'BF'],
-  haiti: 'HT',
-  horn_africa: ['ET', 'SO', 'SD'],
-  silicon_valley: 'US',
-  wall_street: 'US',
-  houston: 'US',
-  dc: 'US',
-  cairo: 'EG',
-  doha: 'QA',
-  beirut: 'LB',
-  riyadh: 'SA',
-  ankara: 'TR',
-  damascus: 'SY',
-  caracas: 'VE',
-};
 
 const COMPONENT_WEIGHTS = {
   news: 0.35,
@@ -84,15 +60,11 @@ function getStaticBaseline(hotspot: Hotspot): number {
 function getCIIForHotspot(hotspotId: string): number | null {
   if (!ciiGetter) return null;
 
-  const mapping = HOTSPOT_COUNTRY_MAP[hotspotId];
-  if (!mapping) return null;
+  const countryCodes = getHotspotCountries(hotspotId);
+  if (countryCodes.length === 0) return null;
 
-  if (Array.isArray(mapping)) {
-    const scores = mapping.map(code => ciiGetter!(code)).filter((s): s is number => s !== null);
-    return scores.length > 0 ? Math.max(...scores) : null;
-  }
-
-  return ciiGetter(mapping);
+  const scores = countryCodes.map(code => ciiGetter!(code)).filter((s): s is number => s !== null);
+  return scores.length > 0 ? Math.max(...scores) : null;
 }
 
 function getGeoAlertForHotspot(hotspot: Hotspot): { score: number; types: number } | null {

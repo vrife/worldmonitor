@@ -5,7 +5,7 @@ import type { GetPopulationExposureResponse } from '@/generated/client/worldmoni
 
 const client = new DisplacementServiceClient('', { fetch: (...args) => globalThis.fetch(...args) });
 
-const countriesBreaker = createCircuitBreaker<GetPopulationExposureResponse>({ name: 'WorldPop Countries' });
+const countriesBreaker = createCircuitBreaker<GetPopulationExposureResponse>({ name: 'WorldPop Countries', cacheTtlMs: 30 * 60 * 1000, persistCache: true });
 
 export async function fetchCountryPopulations(): Promise<CountryPopulation[]> {
   const result = await countriesBreaker.execute(async () => {

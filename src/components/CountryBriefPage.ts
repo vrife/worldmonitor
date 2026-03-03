@@ -5,34 +5,20 @@ import type { CountryScore } from '@/services/country-instability';
 import type { NewsItem } from '@/types';
 import type { PredictionMarket } from '@/services/prediction';
 import type { AssetType } from '@/types';
-import type { CountryBriefSignals } from '@/App';
-import type { StockIndexData } from '@/components/CountryIntelModal';
+import type { CountryBriefSignals } from '@/app/app-context';
+import type { CountryBriefPanel, CountryIntelData, StockIndexData } from '@/components/CountryBriefPanel';
 import { getNearbyInfrastructure, haversineDistanceKm } from '@/services/related-assets';
 import { PORTS } from '@/config/ports';
 import type { Port } from '@/config/ports';
 import { exportCountryBriefJSON, exportCountryBriefCSV } from '@/utils/export';
 import type { CountryBriefExport } from '@/utils/export';
+import { ME_STRIKE_BOUNDS } from '@/services/country-geometry';
 
 type BriefAssetType = AssetType | 'port';
 
-interface CountryIntelData {
-  brief: string;
-  country: string;
-  code: string;
-  cached?: boolean;
-  generatedAt?: string;
-  error?: string;
-  skipped?: boolean;
-  reason?: string;
-  fallback?: boolean;
-}
-
-export class CountryBriefPage {
+export class CountryBriefPage implements CountryBriefPanel {
   private static BRIEF_BOUNDS: Record<string, { n: number; s: number; e: number; w: number }> = {
-    IR: { n: 40, s: 25, e: 63, w: 44 }, IL: { n: 33.3, s: 29.5, e: 35.9, w: 34.3 },
-    SA: { n: 32, s: 16, e: 55, w: 35 }, AE: { n: 26.1, s: 22.6, e: 56.4, w: 51.6 },
-    IQ: { n: 37.4, s: 29.1, e: 48.6, w: 38.8 }, SY: { n: 37.3, s: 32.3, e: 42.4, w: 35.7 },
-    YE: { n: 19, s: 12, e: 54.5, w: 42 }, LB: { n: 34.7, s: 33.1, e: 36.6, w: 35.1 },
+    ...ME_STRIKE_BOUNDS,
     CN: { n: 53.6, s: 18.2, e: 134.8, w: 73.5 }, TW: { n: 25.3, s: 21.9, e: 122, w: 120 },
     JP: { n: 45.5, s: 24.2, e: 153.9, w: 122.9 }, KR: { n: 38.6, s: 33.1, e: 131.9, w: 124.6 },
     KP: { n: 43.0, s: 37.7, e: 130.7, w: 124.2 }, IN: { n: 35.5, s: 6.7, e: 97.4, w: 68.2 },
@@ -108,8 +94,8 @@ export class CountryBriefPage {
       critical: '--semantic-critical',
       high: '--semantic-high',
       elevated: '--semantic-elevated',
-      normal: '--semantic-low',
-      low: '--semantic-normal',
+      normal: '--semantic-normal',
+      low: '--semantic-low',
     };
     return getCSSColor(varMap[level] || '--text-dim');
   }
@@ -170,10 +156,15 @@ export class CountryBriefPage {
 
   private signalChips(signals: CountryBriefSignals): string {
     const chips: string[] = [];
+    if (signals.criticalNews > 0) chips.push(`<span class="signal-chip conflict">🚨 ${signals.criticalNews} Critical News</span>`);
     if (signals.protests > 0) chips.push(`<span class="signal-chip protest">📢 ${signals.protests} ${t('modals.countryBrief.signals.protests')}</span>`);
     if (signals.militaryFlights > 0) chips.push(`<span class="signal-chip military">✈️ ${signals.militaryFlights} ${t('modals.countryBrief.signals.militaryAir')}</span>`);
     if (signals.militaryVessels > 0) chips.push(`<span class="signal-chip military">⚓ ${signals.militaryVessels} ${t('modals.countryBrief.signals.militarySea')}</span>`);
     if (signals.outages > 0) chips.push(`<span class="signal-chip outage">🌐 ${signals.outages} ${t('modals.countryBrief.signals.outages')}</span>`);
+    if (signals.aisDisruptions > 0) chips.push(`<span class="signal-chip outage">🚢 ${signals.aisDisruptions} AIS Disruptions</span>`);
+    if (signals.satelliteFires > 0) chips.push(`<span class="signal-chip climate">🔥 ${signals.satelliteFires} Satellite Fires</span>`);
+    if (signals.temporalAnomalies > 0) chips.push(`<span class="signal-chip outage">⏱️ ${signals.temporalAnomalies} Temporal Anomalies</span>`);
+    if (signals.cyberThreats > 0) chips.push(`<span class="signal-chip conflict">🛡️ ${signals.cyberThreats} Cyber Threats</span>`);
     if (signals.earthquakes > 0) chips.push(`<span class="signal-chip quake">🌍 ${signals.earthquakes} ${t('modals.countryBrief.signals.earthquakes')}</span>`);
     if (signals.displacementOutflow > 0) {
       const fmt = signals.displacementOutflow >= 1_000_000
@@ -183,6 +174,20 @@ export class CountryBriefPage {
     }
     if (signals.climateStress > 0) chips.push(`<span class="signal-chip climate">🌡️ ${t('modals.countryBrief.signals.climate')}</span>`);
     if (signals.conflictEvents > 0) chips.push(`<span class="signal-chip conflict">⚔️ ${signals.conflictEvents} ${t('modals.countryBrief.signals.conflictEvents')}</span>`);
+    if (signals.activeStrikes > 0) chips.push(`<span class="signal-chip conflict">\u{1F4A5} ${signals.activeStrikes} ${t('modals.countryBrief.signals.activeStrikes')}</span>`);
+    if (signals.travelAdvisories > 0 && signals.travelAdvisoryMaxLevel) {
+      const advisoryClass = signals.travelAdvisoryMaxLevel === 'do-not-travel' ? 'conflict'
+        : signals.travelAdvisoryMaxLevel === 'reconsider' ? 'outage'
+        : 'military';
+      const advisoryLabel = signals.travelAdvisoryMaxLevel === 'do-not-travel' ? 'Do Not Travel'
+        : signals.travelAdvisoryMaxLevel === 'reconsider' ? 'Reconsider Travel'
+        : 'Exercise Caution';
+      chips.push(`<span class="signal-chip ${advisoryClass}">\u26A0\uFE0F ${signals.travelAdvisories} Advisory: ${advisoryLabel}</span>`);
+    }
+    if (signals.orefSirens > 0) chips.push(`<span class="signal-chip conflict">\u{1F6A8} ${signals.orefSirens} Active Sirens</span>`);
+    if (signals.orefHistory24h > 0) chips.push(`<span class="signal-chip conflict">\u{1F553} ${signals.orefHistory24h} Sirens / 24h</span>`);
+    if (signals.aviationDisruptions > 0) chips.push(`<span class="signal-chip outage">\u{1F6AB} ${signals.aviationDisruptions} ${t('modals.countryBrief.signals.aviationDisruptions')}</span>`);
+    if (signals.gpsJammingHexes > 0) chips.push(`<span class="signal-chip outage">\u{1F4E1} ${signals.gpsJammingHexes} ${t('modals.countryBrief.signals.gpsJammingZones')}</span>`);
     chips.push(`<span class="signal-chip stock-loading">📈 ${t('modals.countryBrief.loadingIndex')}</span>`);
     return chips.join('');
   }
@@ -251,6 +256,9 @@ export class CountryBriefPage {
             ${tierBadge}
           </div>
           <div class="cb-header-right">
+            <button class="cb-link-share-btn" title="${t('components.countryBrief.shareLink')}">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+            </button>
             <button class="cb-share-btn" title="${t('components.countryBrief.shareStory')}">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a2 2 0 002 2h12a2 2 0 002-2v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
             </button>
@@ -263,6 +271,7 @@ export class CountryBriefPage {
               </button>
               <div class="cb-export-menu hidden">
                 <button class="cb-export-option" data-format="image">${t('common.exportImage')}</button>
+                <button class="cb-export-option" data-format="pdf">${t('common.exportPdf')}</button>
                 <button class="cb-export-option" data-format="json">${t('common.exportJson')}</button>
                 <button class="cb-export-option" data-format="csv">${t('common.exportCsv')}</button>
               </div>
@@ -341,6 +350,21 @@ export class CountryBriefPage {
       </div>`;
 
     this.overlay.querySelector('.cb-close')?.addEventListener('click', () => this.hide());
+    const linkShareBtn = this.overlay.querySelector('.cb-link-share-btn') as HTMLButtonElement | null;
+    linkShareBtn?.addEventListener('click', () => {
+      if (!this.currentCode || !this.currentName) return;
+      const url = `${window.location.origin}/?c=${this.currentCode}`;
+      const title = `${this.currentName} — World Monitor`;
+      if (navigator.share) {
+        navigator.share({ title, url }).catch(() => {});
+      } else {
+        navigator.clipboard.writeText(url).then(() => {
+          const orig = linkShareBtn!.innerHTML;
+          linkShareBtn!.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+          setTimeout(() => { linkShareBtn!.innerHTML = orig; }, 1500);
+        }).catch(() => {});
+      }
+    });
     this.overlay.querySelector('.cb-share-btn')?.addEventListener('click', () => {
       if (this.onShareStory && this.currentCode && this.currentName) {
         this.onShareStory(this.currentCode, this.currentName);
@@ -363,6 +387,8 @@ export class CountryBriefPage {
           if (this.onExportImage && this.currentCode && this.currentName) {
             this.onExportImage(this.currentCode, this.currentName);
           }
+        } else if (format === 'pdf') {
+          this.exportPdf();
         } else {
           this.exportBrief(format as 'json' | 'csv');
         }
@@ -597,14 +623,26 @@ export class CountryBriefPage {
     }
     if (this.currentSignals) {
       data.signals = {
+        criticalNews: this.currentSignals.criticalNews,
         protests: this.currentSignals.protests,
         militaryFlights: this.currentSignals.militaryFlights,
         militaryVessels: this.currentSignals.militaryVessels,
         outages: this.currentSignals.outages,
+        aisDisruptions: this.currentSignals.aisDisruptions,
+        satelliteFires: this.currentSignals.satelliteFires,
+        temporalAnomalies: this.currentSignals.temporalAnomalies,
+        cyberThreats: this.currentSignals.cyberThreats,
         earthquakes: this.currentSignals.earthquakes,
         displacementOutflow: this.currentSignals.displacementOutflow,
         climateStress: this.currentSignals.climateStress,
         conflictEvents: this.currentSignals.conflictEvents,
+        activeStrikes: this.currentSignals.activeStrikes,
+        orefSirens: this.currentSignals.orefSirens,
+        orefHistory24h: this.currentSignals.orefHistory24h,
+        aviationDisruptions: this.currentSignals.aviationDisruptions,
+        travelAdvisories: this.currentSignals.travelAdvisories,
+        travelAdvisoryMaxLevel: this.currentSignals.travelAdvisoryMaxLevel,
+        gpsJammingHexes: this.currentSignals.gpsJammingHexes,
       };
     }
     if (this.currentBrief) data.brief = this.currentBrief;
@@ -618,6 +656,42 @@ export class CountryBriefPage {
     }
     if (format === 'json') exportCountryBriefJSON(data);
     else exportCountryBriefCSV(data);
+  }
+
+  private exportPdf(): void {
+    const content = this.overlay.querySelector('.cb-body');
+    const header = this.overlay.querySelector('.cb-header');
+    if (!content) return;
+
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;left:-9999px;width:0;height:0;border:none';
+    document.body.appendChild(iframe);
+    const doc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!doc) { document.body.removeChild(iframe); return; }
+
+    const styles = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
+      .map(el => el.outerHTML).join('\n');
+
+    doc.open();
+    doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8">${styles}
+      <style>
+        @media print { body { margin: 0; padding: 16px; background: #fff; color: #111; }
+          .cb-grid { display: block !important; }
+          .cb-grid > * { break-inside: avoid; margin-bottom: 16px; }
+          .cb-badge, .cb-trend { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+          canvas { max-width: 100% !important; }
+        }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .country-brief-overlay { position: static !important; background: none !important; }
+      </style>
+    </head><body>${header ? header.outerHTML : ''}${content.outerHTML}</body></html>`);
+    doc.close();
+
+    iframe.contentWindow!.onafterprint = () => document.body.removeChild(iframe);
+    setTimeout(() => {
+      iframe.contentWindow!.print();
+      setTimeout(() => { if (iframe.parentNode) document.body.removeChild(iframe); }, 5000);
+    }, 300);
   }
 
   public hide(): void {

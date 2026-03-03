@@ -53,8 +53,8 @@ test.describe('desktop runtime routing guardrails', () => {
           hasTauriGlobals: false,
           userAgent: 'Mozilla/5.0',
           locationProtocol: 'https:',
-          locationHost: 'worldmonitor.io',
-          locationOrigin: 'https://worldmonitor.io',
+          locationHost: 'worldmonitor.app',
+          locationOrigin: 'https://worldmonitor.app',
         }),
       };
     });
@@ -97,14 +97,14 @@ test.describe('desktop runtime routing guardrails', () => {
         if (url.includes('127.0.0.1:46123/api/fred-data')) {
           return responseJson({ error: 'missing local api key' }, 500);
         }
-        if (url.includes('worldmonitor.io/api/fred-data')) {
+        if (url.includes('worldmonitor.app/api/fred-data')) {
           return responseJson({ observations: [{ value: '321.5' }] }, 200);
         }
 
         if (url.includes('127.0.0.1:46123/api/stablecoin-markets')) {
           throw new Error('ECONNREFUSED');
         }
-        if (url.includes('worldmonitor.io/api/stablecoin-markets')) {
+        if (url.includes('worldmonitor.app/api/stablecoin-markets')) {
           return responseJson({ stablecoins: [{ symbol: 'USDT' }] }, 200);
         }
 
@@ -152,9 +152,9 @@ test.describe('desktop runtime routing guardrails', () => {
     expect(result.stableSymbol).toBe('USDT');
 
     expect(result.calls.some((url) => url.includes('127.0.0.1:46123/api/fred-data'))).toBe(true);
-    expect(result.calls.some((url) => url.includes('worldmonitor.io/api/fred-data'))).toBe(true);
+    expect(result.calls.some((url) => url.includes('worldmonitor.app/api/fred-data'))).toBe(true);
     expect(result.calls.some((url) => url.includes('127.0.0.1:46123/api/stablecoin-markets'))).toBe(true);
-    expect(result.calls.some((url) => url.includes('worldmonitor.io/api/stablecoin-markets'))).toBe(true);
+    expect(result.calls.some((url) => url.includes('worldmonitor.app/api/stablecoin-markets'))).toBe(true);
   });
 
   test('runtime fetch patch never sends local-only endpoints to cloud', async ({ page }) => {
@@ -188,10 +188,10 @@ test.describe('desktop runtime routing guardrails', () => {
           throw new Error('ECONNREFUSED');
         }
 
-        if (url.includes('worldmonitor.io/api/local-env-update')) {
+        if (url.includes('worldmonitor.app/api/local-env-update')) {
           return responseJson({ leaked: true }, 200);
         }
-        if (url.includes('worldmonitor.io/api/local-validate-secret')) {
+        if (url.includes('worldmonitor.app/api/local-validate-secret')) {
           return responseJson({ leaked: true }, 200);
         }
 
@@ -243,8 +243,8 @@ test.describe('desktop runtime routing guardrails', () => {
 
     expect(result.calls.some((url) => url.includes('127.0.0.1:46123/api/local-env-update'))).toBe(true);
     expect(result.calls.some((url) => url.includes('127.0.0.1:46123/api/local-validate-secret'))).toBe(true);
-    expect(result.calls.some((url) => url.includes('worldmonitor.io/api/local-env-update'))).toBe(false);
-    expect(result.calls.some((url) => url.includes('worldmonitor.io/api/local-validate-secret'))).toBe(false);
+    expect(result.calls.some((url) => url.includes('worldmonitor.app/api/local-env-update'))).toBe(false);
+    expect(result.calls.some((url) => url.includes('worldmonitor.app/api/local-validate-secret'))).toBe(false);
   });
 
   test('chunk preload reload guard is one-shot until app boot clears it', async ({ page }) => {
@@ -324,20 +324,20 @@ test.describe('desktop runtime routing guardrails', () => {
     await page.goto('/tests/runtime-harness.html');
 
     const result = await page.evaluate(async () => {
-      const { App } = await import('/src/App.ts');
+      const { DesktopUpdater } = await import('/src/app/desktop-updater.ts');
       const globalWindow = window as unknown as {
         __TAURI__?: { core?: { invoke?: (command: string) => Promise<unknown> } };
       };
       const previousTauri = globalWindow.__TAURI__;
-      const releaseUrl = 'https://github.com/vrife/worldmonitor/releases/latest';
+      const releaseUrl = 'https://github.com/koala73/worldmonitor/releases/latest';
 
-      const appProto = App.prototype as unknown as {
+      const updaterProto = DesktopUpdater.prototype as unknown as {
         resolveUpdateDownloadUrl: (releaseUrl: string) => Promise<string>;
         mapDesktopDownloadPlatform: (os: string, arch: string) => string | null;
         getDesktopBuildVariant: () => 'full' | 'tech' | 'finance';
       };
       const fakeApp = {
-        mapDesktopDownloadPlatform: appProto.mapDesktopDownloadPlatform,
+        mapDesktopDownloadPlatform: updaterProto.mapDesktopDownloadPlatform,
         getDesktopBuildVariant: () => 'full' as const,
       };
 
@@ -350,21 +350,21 @@ test.describe('desktop runtime routing guardrails', () => {
             },
           },
         };
-        const macArm = await appProto.resolveUpdateDownloadUrl.call(fakeApp, releaseUrl);
+        const macArm = await updaterProto.resolveUpdateDownloadUrl.call(fakeApp, releaseUrl);
 
         globalWindow.__TAURI__ = {
           core: {
             invoke: async () => ({ os: 'windows', arch: 'amd64' }),
           },
         };
-        const windowsX64 = await appProto.resolveUpdateDownloadUrl.call(fakeApp, releaseUrl);
+        const windowsX64 = await updaterProto.resolveUpdateDownloadUrl.call(fakeApp, releaseUrl);
 
         globalWindow.__TAURI__ = {
           core: {
             invoke: async () => ({ os: 'linux', arch: 'x86_64' }),
           },
         };
-        const linuxFallback = await appProto.resolveUpdateDownloadUrl.call(fakeApp, releaseUrl);
+        const linuxFallback = await updaterProto.resolveUpdateDownloadUrl.call(fakeApp, releaseUrl);
 
         return { macArm, windowsX64, linuxFallback };
       } finally {
@@ -376,9 +376,9 @@ test.describe('desktop runtime routing guardrails', () => {
       }
     });
 
-    expect(result.macArm).toBe('https://worldmonitor.io/api/download?platform=macos-arm64&variant=full');
-    expect(result.windowsX64).toBe('https://worldmonitor.io/api/download?platform=windows-exe&variant=full');
-    expect(result.linuxFallback).toBe('https://github.com/vrife/worldmonitor/releases/latest');
+    expect(result.macArm).toBe('https://worldmonitor.app/api/download?platform=macos-arm64&variant=full');
+    expect(result.windowsX64).toBe('https://worldmonitor.app/api/download?platform=windows-exe&variant=full');
+    expect(result.linuxFallback).toBe('https://github.com/koala73/worldmonitor/releases/latest');
   });
 
   test('MapContainer falls back to SVG when WebGL2 is unavailable', async ({ page }) => {
@@ -513,7 +513,7 @@ test.describe('desktop runtime routing guardrails', () => {
     await page.goto('/tests/runtime-harness.html');
 
     const result = await page.evaluate(async () => {
-      const { App } = await import('/src/App.ts');
+      const { DataLoaderManager } = await import('/src/app/data-loader.ts');
       const originalFetch = window.fetch.bind(window);
 
       const calls: string[] = [];
@@ -594,33 +594,37 @@ test.describe('desktop runtime routing guardrails', () => {
       }) as typeof window.fetch;
 
       const fakeApp = {
-        latestMarkets: [] as Array<unknown>,
-        panels: {
-          markets: {
-            renderMarkets: (data: Array<unknown>) => marketRenders.push(data.length),
-            showConfigError: (message: string) => marketConfigErrors.push(message),
+        ctx: {
+          latestMarkets: [] as Array<unknown>,
+          panels: {
+            markets: {
+              renderMarkets: (data: Array<unknown>) => marketRenders.push(data.length),
+              showConfigError: (message: string) => marketConfigErrors.push(message),
+            },
+            heatmap: {
+              renderHeatmap: (data: Array<unknown>) => heatmapRenders.push(data.length),
+              showConfigError: (message: string) => heatmapConfigErrors.push(message),
+            },
+            commodities: {
+              renderCommodities: (data: Array<unknown>) => commoditiesRenders.push(data.length),
+              showConfigError: (message: string) => commoditiesConfigErrors.push(message),
+              showRetrying: () => {},
+            },
+            crypto: {
+              renderCrypto: (data: Array<unknown>) => cryptoRenders.push(data.length),
+              showRetrying: () => {},
+            },
           },
-          heatmap: {
-            renderHeatmap: (data: Array<unknown>) => heatmapRenders.push(data.length),
-            showConfigError: (message: string) => heatmapConfigErrors.push(message),
-          },
-          commodities: {
-            renderCommodities: (data: Array<unknown>) => commoditiesRenders.push(data.length),
-            showConfigError: (message: string) => commoditiesConfigErrors.push(message),
-          },
-          crypto: {
-            renderCrypto: (data: Array<unknown>) => cryptoRenders.push(data.length),
-          },
-        },
-        statusPanel: {
-          updateApi: (name: string, payload: { status?: string }) => {
-            apiStatuses.push({ name, status: payload.status ?? '' });
+          statusPanel: {
+            updateApi: (name: string, payload: { status?: string }) => {
+              apiStatuses.push({ name, status: payload.status ?? '' });
+            },
           },
         },
       };
 
       try {
-        await (App.prototype as unknown as { loadMarkets: (thisArg: unknown) => Promise<void> })
+        await (DataLoaderManager.prototype as unknown as { loadMarkets: () => Promise<void> })
           .loadMarkets.call(fakeApp);
 
         // Commodities now go through listMarketQuotes (batch), not individual Yahoo calls
@@ -637,7 +641,7 @@ test.describe('desktop runtime routing guardrails', () => {
           commoditiesConfigErrors,
           cryptoRenders,
           apiStatuses,
-          latestMarketsCount: fakeApp.latestMarkets.length,
+          latestMarketsCount: fakeApp.ctx.latestMarkets.length,
           marketQuoteCalls: marketQuoteCalls.length,
         };
       } finally {
@@ -749,7 +753,7 @@ test.describe('desktop runtime routing guardrails', () => {
         if (url.includes('127.0.0.1:46123/api/fred-data')) {
           throw new Error('ECONNREFUSED');
         }
-        if (url.includes('worldmonitor.io/api/fred-data')) {
+        if (url.includes('worldmonitor.app/api/fred-data')) {
           return responseJson({ observations: [{ value: '999' }] }, 200);
         }
         return responseJson({ ok: true }, 200);
@@ -769,7 +773,7 @@ test.describe('desktop runtime routing guardrails', () => {
           fetchError = err instanceof Error ? err.message : String(err);
         }
 
-        const cloudCalls = calls.filter(u => u.includes('worldmonitor.io'));
+        const cloudCalls = calls.filter(u => u.includes('worldmonitor.app'));
 
         return {
           fetchError,
@@ -819,7 +823,7 @@ test.describe('desktop runtime routing guardrails', () => {
 
         calls.push(url);
 
-        if (url.includes('worldmonitor.io') && init?.headers) {
+        if (url.includes('worldmonitor.app') && init?.headers) {
           const h = new Headers(init.headers);
           const wmKey = h.get('X-WorldMonitor-Key');
           if (wmKey) capturedHeaders['X-WorldMonitor-Key'] = wmKey;
@@ -828,7 +832,7 @@ test.describe('desktop runtime routing guardrails', () => {
         if (url.includes('127.0.0.1:46123/api/market/v1/test')) {
           throw new Error('ECONNREFUSED');
         }
-        if (url.includes('worldmonitor.io/api/market/v1/test')) {
+        if (url.includes('worldmonitor.app/api/market/v1/test')) {
           return responseJson({ quotes: [] }, 200);
         }
         return responseJson({ ok: true }, 200);
@@ -850,7 +854,7 @@ test.describe('desktop runtime routing guardrails', () => {
         return {
           status: response.status,
           hasQuotes: Array.isArray(body.quotes),
-          cloudCalls: calls.filter(u => u.includes('worldmonitor.io')).length,
+          cloudCalls: calls.filter(u => u.includes('worldmonitor.app')).length,
           wmKeyHeader: capturedHeaders['X-WorldMonitor-Key'] || null,
         };
       } finally {

@@ -12,7 +12,7 @@ import { isFeatureAvailable } from '../runtime-config';
 // ---- Proto fallback (desktop safety when relay URL is unavailable) ----
 
 const client = new MaritimeServiceClient('', { fetch: (...args) => globalThis.fetch(...args) });
-const snapshotBreaker = createCircuitBreaker<GetVesselSnapshotResponse>({ name: 'Maritime Snapshot' });
+const snapshotBreaker = createCircuitBreaker<GetVesselSnapshotResponse>({ name: 'Maritime Snapshot', cacheTtlMs: 10 * 60 * 1000, persistCache: true });
 const emptySnapshotFallback: GetVesselSnapshotResponse = { snapshot: undefined };
 
 const DISRUPTION_TYPE_REVERSE: Record<string, AisDisruptionType> = {
@@ -127,15 +127,16 @@ let latestStatus: SnapshotStatus = {
 
 // ---- Constants ----
 
-const SNAPSHOT_POLL_INTERVAL_MS = 30 * 1000;
-const SNAPSHOT_STALE_MS = 45 * 1000;
+const SNAPSHOT_POLL_INTERVAL_MS = 5 * 60 * 1000;
+const SNAPSHOT_STALE_MS = 6 * 60 * 1000;
 const CALLBACK_RETENTION_MS = 2 * 60 * 60 * 1000; // 2 hours
 const MAX_CALLBACK_TRACKED_VESSELS = 20000;
 
 // ---- Raw Relay URL (for candidate reports path) ----
 
+const SNAPSHOT_PROXY_URL = '/api/ais-snapshot';
 const wsRelayUrl = import.meta.env.VITE_WS_RELAY_URL || '';
-const RAILWAY_SNAPSHOT_URL = wsRelayUrl
+const DIRECT_RAILWAY_SNAPSHOT_URL = wsRelayUrl
   ? wsRelayUrl.replace('wss://', 'https://').replace('ws://', 'http://').replace(/\/$/, '') + '/ais/snapshot'
   : '';
 const LOCAL_SNAPSHOT_FALLBACK = 'http://localhost:3004/ais/snapshot';
@@ -178,9 +179,15 @@ function parseSnapshot(data: unknown): {
 async function fetchRawRelaySnapshot(includeCandidates: boolean): Promise<unknown> {
   const query = `?candidates=${includeCandidates ? 'true' : 'false'}`;
 
-  if (RAILWAY_SNAPSHOT_URL) {
+  try {
+    const proxied = await fetch(`${SNAPSHOT_PROXY_URL}${query}`, { headers: { Accept: 'application/json' } });
+    if (proxied.ok) return proxied.json();
+  } catch { /* Proxy unavailable -- fall through */ }
+
+  // Local development fallback only.
+  if (isLocalhost && DIRECT_RAILWAY_SNAPSHOT_URL) {
     try {
-      const railway = await fetch(`${RAILWAY_SNAPSHOT_URL}${query}`, { headers: { Accept: 'application/json' } });
+      const railway = await fetch(`${DIRECT_RAILWAY_SNAPSHOT_URL}${query}`, { headers: { Accept: 'application/json' } });
       if (railway.ok) return railway.json();
     } catch { /* Railway unavailable -- fall through */ }
   }
@@ -205,7 +212,7 @@ async function fetchSnapshotPayload(includeCandidates: boolean): Promise<unknown
   } catch (rawError) {
     // Desktop fallback: use proto route when relay URL/local relay is unavailable.
     const response = await snapshotBreaker.execute(async () => {
-      return client.getVesselSnapshot({});
+      return client.getVesselSnapshot({ neLat: 0, neLon: 0, swLat: 0, swLon: 0 });
     }, emptySnapshotFallback);
 
     if (response.snapshot) {
@@ -289,6 +296,9 @@ function emitCandidateReports(reports: SnapshotCandidateReport[]): void {
 
 async function pollSnapshot(force = false): Promise<void> {
   if (!isAisConfigured()) return;
+  // Skip polling when tab is hidden to avoid wasting relay bandwidth.
+  // The interval keeps running so polling resumes instantly on focus.
+  if (!force && isClientRuntime && document.hidden) return;
   if (inFlight && !force) return;
 
   inFlight = true;
@@ -333,6 +343,36 @@ function startPolling(): void {
   pollInterval = setInterval(() => {
     void pollSnapshot(false);
   }, SNAPSHOT_POLL_INTERVAL_MS);
+}
+
+function pausePolling(): void {
+  if (pollInterval) {
+    clearInterval(pollInterval);
+    pollInterval = null;
+  }
+}
+
+function resumePolling(): void {
+  if (!isPolling || pollInterval) return;
+  // Avoid overlapping relay requests if a poll is already in flight.
+  if (!inFlight) {
+    void pollSnapshot(false);
+  }
+  pollInterval = setInterval(() => {
+    void pollSnapshot(false);
+  }, SNAPSHOT_POLL_INTERVAL_MS);
+}
+
+// Pause AIS polling when the browser tab is hidden to avoid wasting
+// Railway relay bandwidth on backgrounded tabs.
+if (isClientRuntime) {
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      pausePolling();
+    } else {
+      resumePolling();
+    }
+  });
 }
 
 // ---- Exported Functions ----

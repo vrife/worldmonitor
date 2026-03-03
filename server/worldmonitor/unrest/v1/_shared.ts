@@ -1,5 +1,3 @@
-declare const process: { env: Record<string, string | undefined> };
-
 import type {
   UnrestEvent,
   UnrestEventType,
@@ -10,7 +8,6 @@ import type {
 // API URLs
 // ========================================================================
 
-export const ACLED_API_URL = 'https://acleddata.com/api/acled/read';
 export const GDELT_GEO_URL = 'https://api.gdeltproject.org/api/v2/geo/geo';
 
 // ========================================================================
@@ -123,4 +120,3 @@ export function sortBySeverityAndRecency(events: UnrestEvent[]): UnrestEvent[] {
     return b.occurredAt - a.occurredAt;
   });
 }
-

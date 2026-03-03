@@ -1,5 +1,3 @@
-declare const process: { env: Record<string, string | undefined> };
-
 import type {
   ServerContext,
   GetRiskScoresRequest,
@@ -10,10 +8,9 @@ import type {
   SeverityLevel,
 } from '../../../../src/generated/server/worldmonitor/intelligence/v1/service_server';
 
-import { getCachedJson, setCachedJson } from '../../../_shared/redis';
-import { getAcledToken } from '../../../_shared/acled-auth';
-import { UPSTREAM_TIMEOUT_MS, TIER1_COUNTRIES } from './_shared';
-import { CHROME_UA } from '../../../_shared/constants';
+import { getCachedJson, setCachedJson, cachedFetchJson } from '../../../_shared/redis';
+import { TIER1_COUNTRIES } from './_shared';
+import { fetchAcledCached } from '../../../_shared/acled';
 
 // ========================================================================
 // Country risk baselines and multipliers
@@ -72,20 +69,14 @@ interface AcledEvent {
 }
 
 async function fetchACLEDProtests(): Promise<AcledEvent[]> {
-  const token = await getAcledToken();
-  const endDate = new Date().toISOString().split('T')[0];
-  const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-  const headers: Record<string, string> = { Accept: 'application/json', 'User-Agent': CHROME_UA };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-
-  const resp = await fetch(
-    `https://acleddata.com/api/acled/read?_format=json&event_type=Protests&event_type=Riots&event_date=${startDate}|${endDate}&event_date_where=BETWEEN&limit=500`,
-    { headers, signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS) },
-  );
-  if (!resp.ok) throw new Error(`ACLED API error: ${resp.status}`);
-  const data = (await resp.json()) as { data?: AcledEvent[]; message?: string; error?: string };
-  if (data.message || data.error) throw new Error(data.message || data.error || 'ACLED API error');
-  return data.data || [];
+  const endDate = new Date().toISOString().split('T')[0]!;
+  const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]!;
+  const raw = await fetchAcledCached({
+    eventTypes: 'Protests|Riots',
+    startDate,
+    endDate,
+  });
+  return raw.map((e) => ({ country: e.country || '', event_type: e.event_type || '' }));
 }
 
 function computeCIIScores(protests: AcledEvent[]): CiiScore[] {
@@ -169,26 +160,24 @@ export async function getRiskScores(
   _ctx: ServerContext,
   _req: GetRiskScoresRequest,
 ): Promise<GetRiskScoresResponse> {
-  // Check cache
-  const cached = (await getCachedJson(RISK_CACHE_KEY)) as GetRiskScoresResponse | null;
-  if (cached) return cached;
-
   try {
-    const protests = (process.env.ACLED_EMAIL || process.env.ACLED_ACCESS_TOKEN) ? await fetchACLEDProtests() : [];
-    const ciiScores = computeCIIScores(protests);
-    const strategicRisks = computeStrategicRisks(ciiScores);
-    const result: GetRiskScoresResponse = { ciiScores, strategicRisks };
+    const result = await cachedFetchJson<GetRiskScoresResponse>(
+      RISK_CACHE_KEY,
+      RISK_CACHE_TTL,
+      async () => {
+        const protests = await fetchACLEDProtests();
+        const ciiScores = computeCIIScores(protests);
+        const strategicRisks = computeStrategicRisks(ciiScores);
+        const r: GetRiskScoresResponse = { ciiScores, strategicRisks };
+        await setCachedJson(RISK_STALE_CACHE_KEY, r, RISK_STALE_TTL).catch(() => {});
+        return r;
+      },
+    );
+    if (result) return result;
+  } catch { /* upstream failed — fall through to stale */ }
 
-    await Promise.all([
-      setCachedJson(RISK_CACHE_KEY, result, RISK_CACHE_TTL),
-      setCachedJson(RISK_STALE_CACHE_KEY, result, RISK_STALE_TTL),
-    ]);
-    return result;
-  } catch {
-    const stale = (await getCachedJson(RISK_STALE_CACHE_KEY)) as GetRiskScoresResponse | null;
-    if (stale) return stale;
-    // Baseline fallback
-    const ciiScores = computeCIIScores([]);
-    return { ciiScores, strategicRisks: computeStrategicRisks(ciiScores) };
-  }
+  const stale = (await getCachedJson(RISK_STALE_CACHE_KEY)) as GetRiskScoresResponse | null;
+  if (stale) return stale;
+  const ciiScores = computeCIIScores([]);
+  return { ciiScores, strategicRisks: computeStrategicRisks(ciiScores) };
 }

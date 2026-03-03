@@ -7,7 +7,7 @@ import type { CableHealthRecord, CableHealthResponse, CableHealthStatus } from '
 import { createCircuitBreaker } from '@/utils';
 
 const client = new InfrastructureServiceClient('', { fetch: (...args) => globalThis.fetch(...args) });
-const breaker = createCircuitBreaker<GetCableHealthResponse>({ name: 'Cable Health' });
+const breaker = createCircuitBreaker<GetCableHealthResponse>({ name: 'Cable Health', cacheTtlMs: 10 * 60 * 1000, persistCache: true });
 const emptyFallback: GetCableHealthResponse = { generatedAt: 0, cables: {} };
 
 // ---- Proto enum -> frontend string adapter ----

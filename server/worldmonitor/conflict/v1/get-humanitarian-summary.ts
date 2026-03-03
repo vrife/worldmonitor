@@ -14,7 +14,7 @@ import type {
 } from '../../../../src/generated/server/worldmonitor/conflict/v1/service_server';
 
 import { CHROME_UA } from '../../../_shared/constants';
-import { getCachedJson, setCachedJson } from '../../../_shared/redis';
+import { cachedFetchJson } from '../../../_shared/redis';
 
 const REDIS_CACHE_KEY = 'conflict:humanitarian:v1';
 const REDIS_CACHE_TTL = 21600; // 6 hr — monthly humanitarian data
@@ -43,7 +43,7 @@ interface HapiCountryAgg {
 
 async function fetchHapiSummary(countryCode: string): Promise<HumanitarianCountrySummary | undefined> {
   try {
-    const appId = btoa('worldmonitor:monitor@worldmonitor.io');
+    const appId = btoa('worldmonitor:monitor@worldmonitor.app');
     let url = `https://hapi.humdata.org/api/v2/coordination-context/conflict-events?output_format=json&limit=1000&offset=0&app_identifier=${appId}`;
 
     // Filter by country — if a specific country was requested but has no ISO3 mapping,
@@ -148,17 +148,16 @@ export async function getHumanitarianSummary(
   _ctx: ServerContext,
   req: GetHumanitarianSummaryRequest,
 ): Promise<GetHumanitarianSummaryResponse> {
+  if (!req.countryCode) return { summary: undefined };
   try {
     const cacheKey = `${REDIS_CACHE_KEY}:${req.countryCode || 'all'}`;
-    const cached = (await getCachedJson(cacheKey)) as GetHumanitarianSummaryResponse | null;
-    if (cached?.summary) return cached;
 
-    const summary = await fetchHapiSummary(req.countryCode);
-    const result: GetHumanitarianSummaryResponse = { summary };
-    if (summary) {
-      setCachedJson(cacheKey, result, REDIS_CACHE_TTL).catch(() => {});
-    }
-    return result;
+    const result = await cachedFetchJson<GetHumanitarianSummaryResponse>(cacheKey, REDIS_CACHE_TTL, async () => {
+      const summary = await fetchHapiSummary(req.countryCode);
+      return summary ? { summary } : null;
+    });
+
+    return result || { summary: undefined };
   } catch {
     return { summary: undefined };
   }

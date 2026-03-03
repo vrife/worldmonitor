@@ -7,6 +7,7 @@ import type { Feature, Geometry } from 'geojson';
 import type { MapLayers, Hotspot, NewsItem, InternetOutage, RelatedAsset, AssetType, AisDisruptionEvent, AisDensityZone, CableAdvisory, RepairShip, SocialUnrestEvent, MilitaryFlight, MilitaryVessel, MilitaryFlightCluster, MilitaryVesselCluster, NaturalEvent, CyberThreat, CableHealthRecord } from '@/types';
 import type { AirportDelayAlert } from '@/services/aviation';
 import type { Earthquake } from '@/services/earthquakes';
+import type { IranEvent } from '@/services/conflict';
 import type { TechHubActivity } from '@/services/tech-activity';
 import type { GeoHubActivity } from '@/services/geo-activity';
 import { getNaturalEventIcon } from '@/services/eonet';
@@ -42,6 +43,7 @@ import {
   CENTRAL_BANKS,
   COMMODITY_HUBS,
 } from '@/config';
+import { tokenizeForMatch, matchKeyword, findMatchingKeywords } from '@/utils/keyword-match';
 import { MapPopup } from './MapPopup';
 import {
   updateHotspotEscalation,
@@ -52,6 +54,8 @@ import {
 } from '@/services/hotspot-escalation';
 import { getCountryScore } from '@/services/country-instability';
 import { getAlertsNearLocation } from '@/services/geo-convergence';
+import { getCountryAtCoordinates, getCountryBbox } from '@/services/country-geometry';
+import type { CountryClickPayload } from './DeckGLMap';
 import { t } from '@/services/i18n';
 
 export type TimeRange = '1h' | '6h' | '24h' | '48h' | '7d' | 'all';
@@ -108,6 +112,7 @@ export class MapComponent {
   private state: MapState;
   private worldData: WorldTopology | null = null;
   private countryFeatures: Feature<Geometry>[] | null = null;
+  private isResizing = false;
   private baseLayerGroup: d3.Selection<SVGGElement, unknown, null, undefined> | null = null;
   private dynamicLayerGroup: d3.Selection<SVGGElement, unknown, null, undefined> | null = null;
   private baseRendered = false;
@@ -133,6 +138,7 @@ export class MapComponent {
   private techEvents: TechEventMarker[] = [];
   private techActivities: TechHubActivity[] = [];
   private geoActivities: GeoHubActivity[] = [];
+  private iranEvents: IranEvent[] = [];
   private news: NewsItem[] = [];
   private onTechHubClick?: (hub: TechHubActivity) => void;
   private onGeoHubClick?: (hub: GeoHubActivity) => void;
@@ -142,6 +148,7 @@ export class MapComponent {
   private onLayerChange?: (layer: keyof MapLayers, enabled: boolean, source: 'user' | 'programmatic') => void;
   private layerZoomOverrides: Partial<Record<keyof MapLayers, boolean>> = {};
   private onStateChange?: (state: MapState) => void;
+  private onCountryClick?: (country: CountryClickPayload) => void;
   private highlightedAssets: Record<AssetType, Set<string>> = {
     pipeline: new Set(),
     cable: new Set(),
@@ -206,6 +213,7 @@ export class MapComponent {
     let lastWidth = 0;
     let lastHeight = 0;
     const resizeObserver = new ResizeObserver((entries) => {
+      if (this.isResizing) return;
       for (const entry of entries) {
         const { width, height } = entry.contentRect;
         if (width > 0 && height > 0 && (width !== lastWidth || height !== lastHeight)) {
@@ -224,6 +232,14 @@ export class MapComponent {
       }
     };
     document.addEventListener('visibilitychange', this.boundVisibilityHandler);
+  }
+
+  public setIsResizing(value: boolean): void {
+    const wasResizing = this.isResizing;
+    this.isResizing = value;
+    if (wasResizing && !value) {
+      requestAnimationFrame(() => this.render());
+    }
   }
 
   public destroy(): void {
@@ -330,12 +346,13 @@ export class MapComponent {
 
     // Variant-aware layer buttons
     const fullLayers: (keyof MapLayers)[] = [
+      'iranAttacks',                                      // Iran conflict
       'conflicts', 'hotspots', 'sanctions', 'protests',  // geopolitical
       'bases', 'nuclear', 'irradiators',                 // military/strategic
       'military',                                         // military tracking (flights + vessels)
       'cables', 'pipelines', 'outages', 'datacenters',   // infrastructure
       // cyberThreats is intentionally hidden on SVG/mobile fallback (DeckGL desktop only)
-      'ais', 'flights',                                   // transport
+      'ais', 'flights', 'gpsJamming',                      // transport/interference
       'natural', 'weather',                               // natural
       'economic',                                         // economic
       'waterways',                                        // labels
@@ -352,7 +369,10 @@ export class MapComponent {
       'sanctions', 'economic', 'waterways',               // geopolitical/economic
       'natural', 'weather',                               // natural events
     ];
-    const layers = SITE_VARIANT === 'tech' ? techLayers : SITE_VARIANT === 'finance' ? financeLayers : fullLayers;
+    const happyLayers: (keyof MapLayers)[] = [
+      'positiveEvents', 'kindness', 'happiness', 'speciesRecovery', 'renewableInstallations',
+    ];
+    const layers = SITE_VARIANT === 'tech' ? techLayers : SITE_VARIANT === 'finance' ? financeLayers : SITE_VARIANT === 'happy' ? happyLayers : fullLayers;
     const layerLabelKeys: Partial<Record<keyof MapLayers, string>> = {
       hotspots: 'components.deckgl.layers.intelHotspots',
       conflicts: 'components.deckgl.layers.conflictZones',
@@ -380,6 +400,8 @@ export class MapComponent {
       centralBanks: 'components.deckgl.layers.centralBanks',
       commodityHubs: 'components.deckgl.layers.commodityHubs',
       gulfInvestments: 'components.deckgl.layers.gulfInvestments',
+      iranAttacks: 'components.deckgl.layers.iranAttacks',
+      gpsJamming: 'components.deckgl.layers.gpsJamming',
     };
     const getLayerLabel = (layer: keyof MapLayers): string => {
       if (layer === 'sanctions') return t('components.deckgl.layerHelp.labels.sanctions');
@@ -582,6 +604,11 @@ export class MapComponent {
         <div class="map-legend-item"><span class="map-legend-icon" style="color:#a855f7">📅</span>${escapeHtml(t('components.deckgl.layers.techEvents').toUpperCase())}</div>
         <div class="map-legend-item"><span class="map-legend-icon" style="color:#4ecdc4">💾</span>${escapeHtml(t('components.deckgl.layers.aiDataCenters').toUpperCase())}</div>
       `;
+    } else if (SITE_VARIANT === 'happy') {
+      // Happy variant legend — natural events only
+      legend.innerHTML = `
+        <div class="map-legend-item"><span class="map-legend-icon earthquake">●</span>${escapeHtml(t('components.deckgl.layers.naturalEvents').toUpperCase())}</div>
+      `;
     } else {
       // Geopolitical variant legend
       legend.innerHTML = `
@@ -693,14 +720,22 @@ export class MapComponent {
       }
     });
 
-    // Touch events for mobile and trackpad
+    let touchStartPos = { x: 0, y: 0 };
+    let touchDragActive = false;
+    let lastDragEndTime = 0;
+    const TOUCH_DRAG_THRESHOLD = 8;
+    const touchHistory: Array<{ x: number; y: number; t: number }> = [];
+    let inertiaRaf = 0;
+
     this.container.addEventListener('touchstart', (e) => {
       if (shouldIgnoreInteractionStart(e.target)) return;
+      cancelAnimationFrame(inertiaRaf);
       const touch1 = e.touches[0];
       const touch2 = e.touches[1];
 
       if (e.touches.length === 2 && touch1 && touch2) {
         e.preventDefault();
+        touchDragActive = false;
         lastTouchDist = Math.hypot(
           touch2.clientX - touch1.clientX,
           touch2.clientY - touch1.clientY
@@ -711,7 +746,11 @@ export class MapComponent {
         };
       } else if (e.touches.length === 1 && touch1) {
         isDragging = true;
+        touchDragActive = false;
+        touchStartPos = { x: touch1.clientX, y: touch1.clientY };
         lastPos = { x: touch1.clientX, y: touch1.clientY };
+        touchHistory.length = 0;
+        touchHistory.push({ x: touch1.clientX, y: touch1.clientY, t: performance.now() });
       }
     }, { passive: false });
 
@@ -722,7 +761,6 @@ export class MapComponent {
       if (e.touches.length === 2 && touch1 && touch2) {
         e.preventDefault();
 
-        // Pinch zoom
         const dist = Math.hypot(
           touch2.clientX - touch1.clientX,
           touch2.clientY - touch1.clientY
@@ -731,7 +769,6 @@ export class MapComponent {
         this.state.zoom = Math.max(1, Math.min(10, this.state.zoom * scale));
         lastTouchDist = dist;
 
-        // Two-finger pan
         const center = {
           x: (touch1.clientX + touch2.clientX) / 2,
           y: (touch1.clientY + touch2.clientY) / 2,
@@ -743,6 +780,15 @@ export class MapComponent {
 
         this.applyTransform();
       } else if (e.touches.length === 1 && isDragging && touch1) {
+        if (!touchDragActive) {
+          const dx0 = touch1.clientX - touchStartPos.x;
+          const dy0 = touch1.clientY - touchStartPos.y;
+          if (Math.hypot(dx0, dy0) < TOUCH_DRAG_THRESHOLD) return;
+          touchDragActive = true;
+        }
+
+        e.preventDefault();
+
         const dx = touch1.clientX - lastPos.x;
         const dy = touch1.clientY - lastPos.y;
 
@@ -751,16 +797,67 @@ export class MapComponent {
         this.state.pan.y += dy * panSpeed;
 
         lastPos = { x: touch1.clientX, y: touch1.clientY };
+        const now = performance.now();
+        touchHistory.push({ x: touch1.clientX, y: touch1.clientY, t: now });
+        if (touchHistory.length > 4) touchHistory.shift();
+
         this.applyTransform();
       }
     }, { passive: false });
 
     this.container.addEventListener('touchend', () => {
+      if (touchDragActive && touchHistory.length >= 2) {
+        const last = touchHistory[touchHistory.length - 1]!;
+        const first = touchHistory[0]!;
+        const dt = (last.t - first.t) / 1000;
+        if (dt > 0 && dt < 0.3) {
+          let vx = (last.x - first.x) / dt;
+          let vy = (last.y - first.y) / dt;
+          const panSpeed = 1 / this.state.zoom;
+          const decay = 0.92;
+          const animate = () => {
+            vx *= decay;
+            vy *= decay;
+            if (Math.abs(vx) < 10 && Math.abs(vy) < 10) return;
+            this.state.pan.x += (vx / 60) * panSpeed;
+            this.state.pan.y += (vy / 60) * panSpeed;
+            this.applyTransform();
+            inertiaRaf = requestAnimationFrame(animate);
+          };
+          inertiaRaf = requestAnimationFrame(animate);
+        }
+      }
       isDragging = false;
+      if (touchDragActive) lastDragEndTime = performance.now();
+      touchDragActive = false;
       lastTouchDist = 0;
+      touchHistory.length = 0;
     });
 
-    // Set initial cursor
+    this.container.addEventListener('click', (e) => {
+      if (!this.onCountryClick) return;
+      if (performance.now() - lastDragEndTime < 300) return;
+      const containerRect = this.container.getBoundingClientRect();
+      const zoom = this.state.zoom;
+      const width = this.container.clientWidth;
+      const height = this.container.clientHeight;
+      const centerOffsetX = (width / 2) * (1 - zoom);
+      const centerOffsetY = (height / 2) * (1 - zoom);
+      const tx = centerOffsetX + this.state.pan.x * zoom;
+      const ty = centerOffsetY + this.state.pan.y * zoom;
+      const rawX = (e.clientX - containerRect.left - tx) / zoom;
+      const rawY = (e.clientY - containerRect.top - ty) / zoom;
+      const projection = this.getProjection(width, height);
+      if (!projection.invert) return;
+      const coords = projection.invert([rawX, rawY]);
+      if (!coords) return;
+      const [lon, lat] = coords;
+      const hit = getCountryAtCoordinates(lat, lon);
+      if (hit) {
+        this.onCountryClick({ lat, lon, code: hit.code, name: hit.name });
+      }
+    });
+
     this.container.style.cursor = 'grab';
   }
 
@@ -1336,6 +1433,41 @@ export class MapComponent {
         });
 
         this.overlays.appendChild(clickArea);
+      });
+    }
+
+    // Iran events (severity-colored circles matching DeckGL layer)
+    if (this.state.layers.iranAttacks && this.iranEvents.length > 0) {
+      this.iranEvents.forEach((ev) => {
+        const pos = projection([ev.longitude, ev.latitude]);
+        if (!pos || !Number.isFinite(pos[0]) || !Number.isFinite(pos[1])) return;
+
+        const size = ev.severity === 'high' ? 14 : ev.severity === 'medium' ? 11 : 8;
+        const color = ev.category === 'military' ? 'rgba(255,50,50,0.85)'
+          : (ev.category === 'politics' || ev.category === 'diplomacy') ? 'rgba(255,165,0,0.8)'
+          : 'rgba(255,255,0,0.7)';
+
+        const div = document.createElement('div');
+        div.className = 'iran-event-marker';
+        div.style.left = `${pos[0]}px`;
+        div.style.top = `${pos[1]}px`;
+        div.style.width = `${size}px`;
+        div.style.height = `${size}px`;
+        div.style.background = color;
+        div.title = `${ev.title} (${ev.category})`;
+
+        div.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const rect = this.container.getBoundingClientRect();
+          this.popup.show({
+            type: 'iranEvent',
+            data: ev,
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top,
+          });
+        });
+
+        this.overlays.appendChild(div);
       });
     }
 
@@ -2732,32 +2864,27 @@ export class MapComponent {
   }
 
   private getRelatedNews(hotspot: Hotspot): NewsItem[] {
-    // High-priority conflict keywords that indicate the news is really about another topic
-    const conflictTopics = ['gaza', 'ukraine', 'russia', 'israel', 'iran', 'china', 'taiwan', 'korea', 'syria'];
+    const conflictTopics = ['gaza', 'ukraine', 'ukrainian', 'russia', 'russian', 'israel', 'israeli', 'iran', 'iranian', 'china', 'chinese', 'taiwan', 'taiwanese', 'korea', 'korean', 'syria', 'syrian'];
 
     return this.news
       .map((item) => {
-        const titleLower = item.title.toLowerCase();
-        const matchedKeywords = hotspot.keywords.filter((kw) => titleLower.includes(kw.toLowerCase()));
+        const tokens = tokenizeForMatch(item.title);
+        const matchedKeywords = findMatchingKeywords(tokens, hotspot.keywords);
 
         if (matchedKeywords.length === 0) return null;
 
-        // Check if this news mentions other hotspot conflict topics
         const conflictMatches = conflictTopics.filter(t =>
-          titleLower.includes(t) && !hotspot.keywords.some(k => k.toLowerCase().includes(t))
+          matchKeyword(tokens, t) && !hotspot.keywords.some(k => k.toLowerCase().includes(t))
         );
 
-        // If article mentions a major conflict topic that isn't this hotspot, deprioritize heavily
         if (conflictMatches.length > 0) {
-          // Only include if it ALSO has a strong local keyword (city name, agency)
           const strongLocalMatch = matchedKeywords.some(kw =>
             kw.toLowerCase() === hotspot.name.toLowerCase() ||
-            hotspot.agencies?.some(a => titleLower.includes(a.toLowerCase()))
+            hotspot.agencies?.some(a => matchKeyword(tokens, a))
           );
           if (!strongLocalMatch) return null;
         }
 
-        // Score: more keyword matches = more relevant
         const score = matchedKeywords.length;
         return { item, score };
       })
@@ -2776,8 +2903,8 @@ export class MapComponent {
       let matchedCount = 0;
 
       news.forEach((item) => {
-        const titleLower = item.title.toLowerCase();
-        const matches = spot.keywords.filter((kw) => titleLower.includes(kw.toLowerCase()));
+        const tokens = tokenizeForMatch(item.title);
+        const matches = spot.keywords.filter((kw) => matchKeyword(tokens, kw));
 
         if (matches.length > 0) {
           matchedCount++;
@@ -3301,6 +3428,35 @@ export class MapComponent {
     this.onTimeRangeChange = callback;
   }
 
+  public setOnCountryClick(cb: (country: CountryClickPayload) => void): void {
+    this.onCountryClick = cb;
+  }
+
+  public fitCountry(code: string): void {
+    const bbox = getCountryBbox(code);
+    if (!bbox) return;
+    const [minLon, minLat, maxLon, maxLat] = bbox;
+    const midLon = (minLon + maxLon) / 2;
+    const midLat = (minLat + maxLat) / 2;
+    const width = this.container.clientWidth;
+    const height = this.container.clientHeight;
+    const projection = this.getProjection(width, height);
+    const topLeft = projection([minLon, maxLat]);
+    const bottomRight = projection([maxLon, minLat]);
+    if (!topLeft || !bottomRight) {
+      this.state.zoom = 4;
+      this.setCenter(midLat, midLon);
+      return;
+    }
+    const pxWidth = Math.abs(bottomRight[0] - topLeft[0]);
+    const pxHeight = Math.abs(bottomRight[1] - topLeft[1]);
+    const padFactor = 0.8;
+    const zoomX = pxWidth > 0 ? (width * padFactor) / pxWidth : 4;
+    const zoomY = pxHeight > 0 ? (height * padFactor) / pxHeight : 4;
+    this.state.zoom = Math.max(1, Math.min(8, Math.min(zoomX, zoomY)));
+    this.setCenter(midLat, midLon);
+  }
+
   public getState(): MapState {
     return { ...this.state };
   }
@@ -3457,6 +3613,11 @@ export class MapComponent {
 
   public setCyberThreats(_threats: CyberThreat[]): void {
     // SVG/mobile fallback intentionally does not render this layer to stay lightweight.
+  }
+
+  public setIranEvents(events: IranEvent[]): void {
+    this.iranEvents = events;
+    this.render();
   }
 
   public setNewsLocations(_data: Array<{ lat: number; lon: number; title: string; threatLevel: string; timestamp?: Date }>): void {
