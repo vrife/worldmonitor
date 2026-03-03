@@ -36,3 +36,4 @@ opensky_credentials.json
 
 update_code.md
 app_intricacies.md
+generate-session.cjs

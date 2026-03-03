@@ -91,6 +91,7 @@
     "fast-xml-parser": "^5.3.7",
     "i18next": "^25.8.10",
     "i18next-browser-languagedetector": "^8.2.1",
+    "input": "^1.0.1",
     "maplibre-gl": "^5.16.0",
     "marked": "^17.0.3",
     "onnxruntime-web": "^1.23.2",
