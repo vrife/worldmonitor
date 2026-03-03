@@ -193,7 +193,7 @@ export class EventHandlerManager implements AppModule {
       }
     });
 
-    this.initDownloadDropdown();
+    // this.initDownloadDropdown();
 
     window.addEventListener('storage', (e) => {
       if (e.key === STORAGE_KEYS.panels && e.newValue) {
