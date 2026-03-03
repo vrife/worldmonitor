@@ -5293,7 +5293,7 @@ body.playback-mode .status-dot {
 }
 
 .sector-change.up {
-  color: var(--lighter-blue);
+  color: var(--green);
 }
 
 .sector-change.down {
@@ -5354,7 +5354,7 @@ body.playback-mode .status-dot {
 }
 
 .market-change.up {
-  color: var(--lighter-blue);
+  color: var(--green);
 }
 
 .market-change.down {
@@ -5411,7 +5411,7 @@ body.playback-mode .status-dot {
 }
 
 .commodity-change.up {
-  color: var(--lighter-blue);
+  color: var(--green);
 }
 
 .commodity-change.down {
@@ -7624,7 +7624,7 @@ a.prediction-link:hover {
 }
 
 .indicator-value .change.positive {
-  color: var(--lighter-blue);
+  color: var(--green);
 }
 
 .indicator-value .change.negative {
@@ -8031,7 +8031,7 @@ a.prediction-link:hover {
 }
 
 .trade-flow-change.change-positive {
-  color: var(--lighter-blue);
+  color: var(--green);
 }
 
 .trade-flow-change.change-negative {
