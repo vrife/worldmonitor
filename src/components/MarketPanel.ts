@@ -7,6 +7,8 @@ import { miniSparkline } from '@/utils/sparkline';
 
 
 
+
+
 export class MarketPanel extends Panel {
   constructor() {
     super({ id: 'markets', title: t('panels.markets') });

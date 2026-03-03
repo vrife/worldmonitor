@@ -59,7 +59,7 @@ export class IntelligenceFindingsBadge {
     this.badge = document.createElement('button');
     this.badge.className = 'intel-findings-badge';
     this.badge.title = t('components.intelligenceFindings.badgeTitle');
-    this.badge.innerHTML = '<span class="findings-icon">🎯</span><span class="findings-count">0</span>';
+    this.badge.innerHTML = '<span class="findings-icon">🔍</span><span class="findings-count">0</span>';
 
     this.dropdown = document.createElement('div');
     this.dropdown.className = 'intel-findings-dropdown';
@@ -498,8 +498,9 @@ export class IntelligenceFindingsBadge {
     overlay.innerHTML = `
       <div class="findings-modal">
         <div class="findings-modal-header">
-          <span class="findings-modal-title">🎯 ${t('components.intelligenceFindings.all', { count: String(this.findings.length) })}</span>
-          <button class="findings-modal-close" aria-label="Close">×</button>
+          <span class="findings-modal-title">🔍 ${t('components.intelligenceFindings.all', { count: String(this.findings.length) })}</span>
+          <button class="findings-modal-close">×</button>
+
         </div>
         <div class="findings-modal-content">
           ${findingsHtml}

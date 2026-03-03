@@ -547,9 +547,10 @@
   z-index: 900;
   width: 230px;
   background: var(--surface);
-  border-left: 3px solid var(--green);
+  border-left: 3px solid var(--lighter-blue);
   border-top: 1px solid var(--border);
   border-top-left-radius: 8px;
+
   padding: 14px;
   transform: translateX(110%);
   transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
@@ -570,12 +571,13 @@
 .wm-dl-title {
   font-size: 11px;
   font-weight: 700;
-  color: var(--green);
+  color: var(--lighter-blue);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   display: flex;
   align-items: center;
   gap: 5px;
+
 }
 
 .wm-dl-close {
@@ -619,14 +621,15 @@
 }
 
 .wm-dl-btn.mac {
-  background: color-mix(in srgb, var(--green) 10%, transparent);
-  border: 1px solid color-mix(in srgb, var(--green) 20%, transparent);
-  color: var(--green);
+  background: color-mix(in srgb, var(--lighter-blue) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--lighter-blue) 20%, transparent);
+  color: var(--lighter-blue);
 }
 
 .wm-dl-btn.mac:hover {
-  background: color-mix(in srgb, var(--green) 18%, transparent);
+  background: color-mix(in srgb, var(--lighter-blue) 18%, transparent);
 }
+
 
 .wm-dl-btn.win {
   background: color-mix(in srgb, var(--semantic-info) 8%, transparent);

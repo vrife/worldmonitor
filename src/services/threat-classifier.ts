@@ -19,7 +19,7 @@ export const THREAT_COLORS: Record<ThreatLevel, string> = {
   critical: '#ef4444',
   high: '#f97316',
   medium: '#eab308',
-  low: '#22c55e',
+  low: '#0DBFE3',
   info: '#3b82f6',
 };
 

@@ -13,6 +13,7 @@ import { mlWorker } from '@/services/ml-worker';
 import { getAiFlowSettings, subscribeAiFlowChange, isHeadlineMemoryEnabled } from '@/services/ai-flow-settings';
 import { startLearning } from '@/services/country-instability';
 import { loadFromStorage, parseMapUrlState, saveToStorage, isMobileDevice } from '@/utils';
+
 import type { ParsedMapUrlState } from '@/utils';
 import { SignalModal, IntelligenceGapBadge, BreakingNewsBanner } from '@/components';
 import { initBreakingNewsAlerts, destroyBreakingNewsAlerts } from '@/services/breaking-news-alerts';
@@ -517,7 +518,6 @@ export class App {
           });
           this.eventHandlers.syncUrlState();
         }, DEEP_LINK_INITIAL_DELAY_MS);
-        return;
       }
     }
 
@@ -620,6 +620,7 @@ export class App {
       () => !!this.state.panels['telegram-intel']
     );
 
+
     // Refresh intelligence signals for CII (geopolitical variant only)
     if (SITE_VARIANT === 'full') {
       this.refreshScheduler.scheduleRefresh('intelligence', () => {
@@ -630,5 +631,6 @@ export class App {
         return this.dataLoader.loadIntelligenceSignals();
       }, 15 * 60 * 1000);
     }
+
   }
 }

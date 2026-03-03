@@ -94,8 +94,8 @@ export class CountryBriefPage implements CountryBriefPanel {
       critical: '--semantic-critical',
       high: '--semantic-high',
       elevated: '--semantic-elevated',
-      normal: '--semantic-normal',
-      low: '--semantic-low',
+      normal: '--semantic-low',
+      low: '--semantic-normal',
     };
     return getCSSColor(varMap[level] || '--text-dim');
   }
