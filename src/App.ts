@@ -396,6 +396,7 @@ export class App {
 
     // Phase 2: Shared UI components
     this.state.signalModal = new SignalModal();
+    this.state.signalModal.showStartupMessage();
     this.state.signalModal.setLocationClickHandler((lat, lon) => {
       this.state.map?.setCenter(lat, lon, 4);
     });
