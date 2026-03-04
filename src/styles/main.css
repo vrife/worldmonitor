@@ -2630,6 +2630,182 @@ canvas,
   opacity: 0.9;
 }
 
+.startup-djinn-btn {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-appearance: button;
+  background-color: white;
+  color: black;
+  cursor: pointer;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica Neue, Arial, Noto Sans, sans-serif;
+  font-size: 10px;
+  line-height: 1.2;
+  margin: 0;
+  padding: 0.3rem 0.4rem;
+  position: relative;
+  font-weight: 900;
+  outline: 1px solid #000;
+  outline-offset: -1px;
+  overflow: hidden;
+  text-transform: uppercase;
+  transition: 0.2s linear 0.1s;
+  border-radius: 6px;
+  border: none;
+  text-decoration: none;
+}
+
+.startup-donate-btn {
+  --startup-neon: #fbdb04;
+}
+
+.startup-subscribe-btn {
+  --startup-neon: #21a2d6;
+}
+
+.startup-djinn-btn:hover {
+  background: var(--startup-neon);
+  box-shadow: 0 0 2px var(--startup-neon),
+              0 0 12px var(--startup-neon),
+              0 0 25px var(--startup-neon),
+              0 0 50px var(--startup-neon);
+  color: #fff;
+  outline-color: transparent;
+  transition: 0.2s linear 0.6s;
+}
+
+.startup-djinn-btn span:not(.startup-btn-text) {
+  display: block;
+  position: absolute;
+}
+
+.startup-btn-text {
+  position: relative;
+  z-index: 1;
+}
+
+.startup-djinn-btn .startup-btn-top {
+  border-top: 1px solid var(--startup-neon);
+  inset: 0;
+  opacity: 0;
+  transform: translateX(calc(-100% + var(--progress, 0%)));
+  transition: none;
+  border-radius: 6px;
+}
+
+.startup-djinn-btn:hover .startup-btn-top {
+  --progress: 100%;
+  opacity: 1;
+  transition: transform 0.2s linear;
+}
+
+.startup-djinn-btn .startup-btn-right {
+  border-right: 1px solid var(--startup-neon);
+  inset: 0;
+  opacity: 0;
+  transform: translateY(calc(-100% + var(--progress, 0%)));
+  transition: none;
+  border-radius: 6px;
+}
+
+.startup-djinn-btn:hover .startup-btn-right {
+  --progress: 100%;
+  opacity: 1;
+  transition: transform 0.2s linear 0.2s;
+}
+
+.startup-djinn-btn .startup-btn-bottom {
+  border-bottom: 1px solid var(--startup-neon);
+  inset: 0;
+  opacity: 0;
+  transform: translateX(calc(100% - var(--progress, 0%)));
+  transition: none;
+  border-radius: 6px;
+}
+
+.startup-djinn-btn:hover .startup-btn-bottom {
+  --progress: 100%;
+  opacity: 1;
+  transition: transform 0.2s linear 0.4s;
+}
+
+.startup-djinn-btn .startup-btn-left {
+  border-left: 1px solid var(--startup-neon);
+  inset: 0;
+  opacity: 0;
+  transform: translateY(calc(100% - var(--progress, 0%)));
+  transition: none;
+  border-radius: 6px;
+}
+
+.startup-djinn-btn:hover .startup-btn-left {
+  --progress: 100%;
+  opacity: 1;
+  transition: transform 0.2s linear 0.6s;
+}
+
+.signal-modal-overlay.startup-active .signal-modal {
+  border-color: #21a2d6;
+}
+
+.signal-modal-overlay.startup-active .signal-modal-header {
+  background: #21a2d6;
+}
+
+.signal-modal-overlay.startup-active .signal-modal-title {
+  color: #ffffff;
+}
+
+.signal-modal-overlay.startup-active .signal-dismiss-btn {
+  background: transparent;
+  border: 1px solid #21a2d6;
+  color: #21a2d6;
+}
+
+.startup-social-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #1f2937;
+  color: #9ca3af;
+  text-decoration: none;
+  flex-shrink: 0;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+
+.startup-social-djinn img {
+  filter: grayscale(1);
+  transition: filter 0.2s;
+}
+
+.startup-social-djinn:hover {
+  background: #0a1a2a;
+  box-shadow: 0 0 4px #21a2d6, 0 0 12px #21a2d6;
+}
+
+.startup-social-djinn:hover img {
+  filter: grayscale(0);
+}
+
+.startup-social-instagram:hover {
+  background: #2a1020;
+  color: #e1306c;
+  box-shadow: 0 0 4px #e1306c, 0 0 12px #e1306c;
+}
+
+.startup-social-linkedin:hover {
+  background: #0a1525;
+  color: #0a66c2;
+  box-shadow: 0 0 4px #0a66c2, 0 0 12px #0a66c2;
+}
+
+.startup-social-twitter:hover {
+  background: #1a1a1a;
+  color: #c0c0c0;
+  box-shadow: 0 0 4px #c0c0c0, 0 0 12px #c0c0c0;
+}
+
 /* Header flash for signals */
 .header.signal-flash {
   animation: header-flash 0.5s ease-out 3;

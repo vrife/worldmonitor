@@ -348,6 +348,7 @@ export class App {
     this.renderLayout();
     this.startHeaderClock();
     this.signalModal = new SignalModal();
+    this.signalModal.showStartupMessage();
     this.signalModal.setLocationClickHandler((lat, lon) => {
       this.map?.setCenter(lat, lon, 4);
     });
