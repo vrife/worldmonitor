@@ -35,7 +35,7 @@ const TIER_HEADERS: Record<CacheTier, string> = {
 };
 
 const RPC_CACHE_TIER: Record<string, CacheTier> = {
-  '/api/maritime/v1/get-vessel-snapshot': 'no-store',
+  '/api/maritime/v1/get-vessel-snapshot': 'fast',
 
   '/api/market/v1/list-market-quotes': 'medium',
   '/api/market/v1/list-crypto-quotes': 'medium',

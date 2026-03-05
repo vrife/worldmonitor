@@ -8,7 +8,7 @@ import { cachedFetchJson } from '../../../_shared/redis';
 import { hashString } from './_shared';
 import { CHROME_UA } from '../../../_shared/constants';
 
-const DEDUCT_TIMEOUT_MS = 120_000;
+const DEDUCT_TIMEOUT_MS = 30_000;
 const DEDUCT_CACHE_TTL = 3600;
 const DEFAULT_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const DEFAULT_MODEL = 'llama-3.1-8b-instant';
