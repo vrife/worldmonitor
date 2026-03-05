@@ -146,9 +146,12 @@ export function createDomainGateway(
       });
     }
 
-    // IP-based rate limiting (60 req/min sliding window)
-    const rateLimitResponse = await checkRateLimit(request, corsHeaders);
-    if (rateLimitResponse) return rateLimitResponse;
+    // IP-based rate limiting — only for external callers (desktop app, API key holders, unknown origins).
+    // Browser-origin requests are already CORS-gated above; the Redis round-trip is unnecessary overhead.
+    if (keyCheck.required) {
+      const rateLimitResponse = await checkRateLimit(request, corsHeaders);
+      if (rateLimitResponse) return rateLimitResponse;
+    }
 
     // Route matching — if POST doesn't match, convert to GET for stale clients
     let matchedHandler = router.match(request);
