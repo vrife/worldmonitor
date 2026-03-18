@@ -257,7 +257,7 @@ A: No. There are no tracking cookies, no user profiling, and no data sales. The 
 A: Yes. World Monitor is licensed under AGPL-3.0, meaning anyone can inspect, audit, modify, and redistribute the code. If you run a modified version as a service, you must share your modifications under the same license.
 
 **Q: Who built this?**
-A: World Monitor was created by Elie Habib. It is an independent project, not affiliated with any government, intelligence agency, or defense contractor.
+A: worldmonitor.io was created by Vladimir Rife. It is an independent project, not affiliated with any government, intelligence agency, or defense contractor.
 
 **Q: Can I embed World Monitor or use its data in my reporting?**
 A: The web interface can be referenced and linked in reporting. For data integration, an API tier is planned. Please attribute "World Monitor (worldmonitor.app)" when referencing the platform in published work.
@@ -277,7 +277,7 @@ A: World Monitor is primarily a solo project by its creator, with occasional ope
 
 For press inquiries, interview requests, or additional information:
 
-- **GitHub**: github.com/koala73/worldmonitor
+- **GitHub**: github.com/vrife/worldmonitor
 - **Website**: worldmonitor.app
 
 ---

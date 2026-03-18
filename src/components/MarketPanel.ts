@@ -11,6 +11,8 @@ import {
   setMarketWatchlistEntries,
 } from '@/services/market-watchlist';
 
+
+
 export class MarketPanel extends Panel {
   private settingsBtn: HTMLButtonElement | null = null;
   private overlay: HTMLElement | null = null;

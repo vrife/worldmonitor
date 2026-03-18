@@ -9,7 +9,7 @@ import { sha256Hex } from './_shared';
 import { callLlm } from '../../../_shared/llm';
 import { buildDeductionPrompt, postProcessDeductionOutput } from './deduction-prompt';
 
-const DEDUCT_TIMEOUT_MS = 120_000;
+const DEDUCT_TIMEOUT_MS = 30_000;
 const DEDUCT_CACHE_TTL = 3600;
 
 export async function deductSituation(

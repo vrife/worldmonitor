@@ -12,7 +12,7 @@ export async function GET(context: { site: URL }) {
     },
     customData: [
       '<language>en-us</language>',
-      `<atom:link href="https://www.worldmonitor.app/blog/rss.xml" rel="self" type="application/rss+xml" />`,
+      `<atom:link href="https://www.worldmonitor.io/blog/rss.xml" rel="self" type="application/rss+xml" />`,
     ].join(''),
     items: posts
       .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
@@ -24,7 +24,7 @@ export async function GET(context: { site: URL }) {
         categories: post.data.keywords?.split(',').map((k: string) => k.trim()),
         ...(post.data.heroImage ? {
           enclosure: {
-            url: `https://www.worldmonitor.app${post.data.heroImage}`,
+            url: `https://www.worldmonitor.io${post.data.heroImage}`,
             length: 0,
             type: 'image/jpeg',
           },
