@@ -131,6 +131,13 @@ export default async function handler(req) {
 
   const url = new URL(req.url);
   const tier = url.searchParams.get('tier');
+  // mktSymbols: comma-separated list of symbols the client actually needs.
+  // When present, marketQuotes and commodityQuotes are filtered to this set
+  // so the response contains only the quotes the user will display.
+  const mktSymbolsRaw = url.searchParams.get('mktSymbols');
+  const mktSymbolSet = mktSymbolsRaw
+    ? new Set(mktSymbolsRaw.split(',').map((s) => s.trim()).filter(Boolean))
+    : null;
   let registry;
   if (tier === 'slow' || tier === 'fast') {
     const tierSet = tier === 'slow' ? SLOW_KEYS : FAST_KEYS;
@@ -161,6 +168,9 @@ export default async function handler(req) {
       if (names[i] === 'forecasts' && val != null && 'enrichmentMeta' in val) {
         const { enrichmentMeta: _stripped, ...rest } = val;
         data[names[i]] = rest;
+      } else if (mktSymbolSet && (names[i] === 'marketQuotes' || names[i] === 'commodityQuotes') && val?.quotes) {
+        // Filter to only the symbols this user actually watches
+        data[names[i]] = { ...val, quotes: val.quotes.filter((q) => mktSymbolSet.has(q.symbol)) };
       } else {
         data[names[i]] = val;
       }

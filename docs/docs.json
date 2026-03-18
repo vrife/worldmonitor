@@ -6,18 +6,18 @@
   "logo": {
     "dark": "/logo.png",
     "light": "/logo.png",
-    "href": "https://www.worldmonitor.app"
+    "href": "https://www.worldmonitor.io"
   },
   "favicon": "/favicon.png",
   "seo": {
     "metatags": {
-      "og:image": "https://www.worldmonitor.app/favico/og-image.png",
+      "og:image": "https://www.worldmonitor.io/favico/og-image.png",
       "og:site_name": "World Monitor Documentation",
       "og:type": "website",
       "og:locale": "en_US",
       "twitter:card": "summary_large_image",
-      "twitter:site": "@worldmonitorai",
-      "twitter:image": "https://www.worldmonitor.app/favico/og-image.png"
+      "twitter:site": "@vladrife",
+      "twitter:image": "https://www.worldmonitor.io/favico/og-image.png"
     }
   },
   "colors": {
@@ -29,25 +29,25 @@
     "links": [
       {
         "label": "Blog",
-        "href": "https://www.worldmonitor.app/blog"
+        "href": "https://www.worldmonitor.io/blog"
       },
       {
         "label": "Dashboard",
-        "href": "https://www.worldmonitor.app"
+        "href": "https://www.worldmonitor.io"
       },
       {
         "label": "Pro",
-        "href": "https://www.worldmonitor.app/pro"
+        "href": "https://www.worldmonitor.io/pro"
       },
       {
         "label": "GitHub",
-        "href": "https://github.com/koala73/worldmonitor"
+        "href": "https://github.com/vrife/worldmonitor"
       }
     ],
     "primary": {
       "type": "button",
       "label": "Get Early Access",
-      "href": "https://www.worldmonitor.app/pro#waitlist"
+      "href": "https://www.worldmonitor.io/pro#waitlist"
     }
   },
   "navigation": {
@@ -263,8 +263,8 @@
   },
   "footer": {
     "socials": {
-      "github": "https://github.com/koala73/worldmonitor",
-      "x": "https://x.com/worldmonitorai"
+      "github": "https://github.com/vrife/worldmonitor",
+      "x": "https://x.com/vladrife"
     },
     "links": [
       {
@@ -272,15 +272,15 @@
         "items": [
           {
             "label": "Dashboard",
-            "href": "https://www.worldmonitor.app"
+            "href": "https://www.worldmonitor.io"
           },
           {
             "label": "Pro",
-            "href": "https://www.worldmonitor.app/pro"
+            "href": "https://www.worldmonitor.io/pro"
           },
           {
             "label": "Blog",
-            "href": "https://www.worldmonitor.app/blog"
+            "href": "https://www.worldmonitor.io/blog"
           }
         ]
       },
@@ -289,15 +289,15 @@
         "items": [
           {
             "label": "GitHub",
-            "href": "https://github.com/koala73/worldmonitor"
+            "href": "https://github.com/vrife/worldmonitor"
           },
           {
             "label": "Discussions",
-            "href": "https://github.com/koala73/worldmonitor/discussions"
+            "href": "https://github.com/vrife/worldmonitor/discussions"
           },
           {
             "label": "X",
-            "href": "https://x.com/worldmonitorai"
+            "href": "https://x.com/vladrife"
           },
           {
             "label": "Status",

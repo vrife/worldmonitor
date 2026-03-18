@@ -129,7 +129,7 @@ let latestStatus: SnapshotStatus = {
 
 // ---- Constants ----
 
-const SNAPSHOT_POLL_INTERVAL_MS = 5 * 60 * 1000;
+const SNAPSHOT_POLL_INTERVAL_MS = 10 * 60 * 1000;
 const SNAPSHOT_STALE_MS = 6 * 60 * 1000;
 const CALLBACK_RETENTION_MS = 2 * 60 * 60 * 1000; // 2 hours
 const MAX_CALLBACK_TRACKED_VESSELS = 20000;

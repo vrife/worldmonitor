@@ -24,9 +24,10 @@ export const serverOptions: ServerOptions = { onError: mapErrorToResponse };
 // NOTE: This map is shared across all domain bundles (~3KB). Kept centralised for
 // single-source-of-truth maintainability; the size is negligible vs handler code.
 
-type CacheTier = 'fast' | 'medium' | 'slow' | 'slow-browser' | 'static' | 'daily' | 'no-store';
+type CacheTier = 'micro' | 'fast' | 'medium' | 'slow' | 'slow-browser' | 'static' | 'daily' | 'no-store';
 
 const TIER_HEADERS: Record<CacheTier, string> = {
+  micro: 'public, s-maxage=30, stale-while-revalidate=10, stale-if-error=60',
   fast: 'public, s-maxage=300, stale-while-revalidate=60, stale-if-error=600',
   medium: 'public, s-maxage=600, stale-while-revalidate=120, stale-if-error=900',
   slow: 'public, s-maxage=1800, stale-while-revalidate=300, stale-if-error=3600',
@@ -39,6 +40,7 @@ const TIER_HEADERS: Record<CacheTier, string> = {
 // Cloudflare-specific cache TTLs — more aggressive than s-maxage since CF can
 // revalidate via ETag/If-None-Match without full payload transfer.
 const TIER_CDN_CACHE: Record<CacheTier, string | null> = {
+  micro: 'public, s-maxage=30, stale-while-revalidate=10, stale-if-error=60',
   fast: 'public, s-maxage=600, stale-while-revalidate=300, stale-if-error=1200',
   medium: 'public, s-maxage=1200, stale-while-revalidate=600, stale-if-error=1800',
   slow: 'public, s-maxage=3600, stale-while-revalidate=900, stale-if-error=7200',
@@ -49,7 +51,7 @@ const TIER_CDN_CACHE: Record<CacheTier, string | null> = {
 };
 
 const RPC_CACHE_TIER: Record<string, CacheTier> = {
-  '/api/maritime/v1/get-vessel-snapshot': 'no-store',
+  '/api/maritime/v1/get-vessel-snapshot': 'fast',
 
   '/api/market/v1/list-market-quotes': 'medium',
   '/api/market/v1/list-crypto-quotes': 'medium',
@@ -75,7 +77,7 @@ const RPC_CACHE_TIER: Record<string, CacheTier> = {
   '/api/aviation/v1/list-airport-flights': 'static',
   '/api/aviation/v1/get-carrier-ops': 'slow',
   '/api/aviation/v1/get-flight-status': 'fast',
-  '/api/aviation/v1/track-aircraft': 'no-store',
+  '/api/aviation/v1/track-aircraft': 'micro',
   '/api/aviation/v1/search-flight-prices': 'medium',
   '/api/aviation/v1/list-aviation-news': 'slow',
   '/api/market/v1/get-country-stock-index': 'slow',

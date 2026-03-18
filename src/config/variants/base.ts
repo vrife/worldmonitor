@@ -11,17 +11,17 @@ export const IDLE_PAUSE_MS = 5 * 60 * 1000;
 
 // Refresh intervals - shared across all variants
 export const REFRESH_INTERVALS = {
-  feeds: 20 * 60 * 1000,
-  markets: 12 * 60 * 1000,
-  crypto: 12 * 60 * 1000,
-  predictions: 15 * 60 * 1000,
-  forecasts: 30 * 60 * 1000,
+  feeds: 30 * 60 * 1000,
+  markets: 20 * 60 * 1000,
+  crypto: 20 * 60 * 1000,
+  predictions: 30 * 60 * 1000,
+  forecasts: 60 * 60 * 1000,
   ais: 15 * 60 * 1000,
 };
 
 // Monitor colors - shared
 export const MONITOR_COLORS = [
-  '#44ff88',
+  '#0DBFE3',
   '#ff8844',
   '#4488ff',
   '#ff44ff',

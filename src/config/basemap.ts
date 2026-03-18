@@ -91,6 +91,13 @@ const DEFAULT_THEME: Record<MapProvider, string> = {
   carto: 'dark-matter',
 };
 
+const DEFAULT_LIGHT_THEME: Record<MapProvider, string> = {
+  pmtiles: 'light',
+  auto: 'light',
+  openfreemap: 'positron',
+  carto: 'positron',
+};
+
 export function getMapProvider(): MapProvider {
   const stored = localStorage.getItem(STORAGE_KEY) as MapProvider | null;
   if (stored) {
@@ -110,7 +117,8 @@ export function getMapTheme(provider: MapProvider): string {
   const stored = localStorage.getItem(THEME_STORAGE_PREFIX + provider);
   const options = MAP_THEME_OPTIONS[provider];
   if (stored && options.some(o => o.value === stored)) return stored;
-  return DEFAULT_THEME[provider];
+  const isLight = typeof document !== 'undefined' && document.documentElement.dataset.theme === 'light';
+  return isLight ? DEFAULT_LIGHT_THEME[provider] : DEFAULT_THEME[provider];
 }
 
 export function setMapTheme(provider: MapProvider, theme: string): void {

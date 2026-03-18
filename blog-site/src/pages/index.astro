@@ -11,14 +11,14 @@ const jsonLd = {
   "@type": "Blog",
   "name": "World Monitor Blog",
   "description": "Analysis, guides, and deep dives on real-time intelligence, OSINT, geopolitics, markets, and the open-source tools behind World Monitor.",
-  "url": "https://www.worldmonitor.app/blog/",
+  "url": "https://www.worldmonitor.io/blog/",
   "publisher": {
     "@type": "Organization",
     "name": "World Monitor",
     "url": "https://worldmonitor.app",
     "logo": {
       "@type": "ImageObject",
-      "url": "https://www.worldmonitor.app/favico/apple-touch-icon.png"
+      "url": "https://www.worldmonitor.io/favico/apple-touch-icon.png"
     }
   },
   "blogPost": posts.map(post => ({
@@ -26,8 +26,8 @@ const jsonLd = {
     "headline": post.data.title,
     "description": post.data.description,
     "datePublished": post.data.pubDate.toISOString(),
-    "url": `https://www.worldmonitor.app/blog/posts/${post.id}/`,
-    "image": post.data.heroImage ? `https://www.worldmonitor.app${post.data.heroImage}` : "https://www.worldmonitor.app/favico/og-image.png"
+    "url": `https://www.worldmonitor.io/blog/posts/${post.id}/`,
+    "image": post.data.heroImage ? `https://www.worldmonitor.io${post.data.heroImage}` : "https://www.worldmonitor.io/favico/og-image.png"
   }))
 };
 ---

@@ -28,7 +28,7 @@ jobs:
       - uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6
         id: meta
         with:
-          images: ghcr.io/koala73/worldmonitor
+          images: ghcr.io/vrife/worldmonitor
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}

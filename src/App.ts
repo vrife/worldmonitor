@@ -15,6 +15,7 @@ import { mlWorker } from '@/services/ml-worker';
 import { getAiFlowSettings, subscribeAiFlowChange, isHeadlineMemoryEnabled } from '@/services/ai-flow-settings';
 import { startLearning } from '@/services/country-instability';
 import { loadFromStorage, parseMapUrlState, saveToStorage, isMobileDevice } from '@/utils';
+
 import type { ParsedMapUrlState } from '@/utils';
 import { SignalModal, IntelligenceGapBadge, BreakingNewsBanner } from '@/components';
 import { initBreakingNewsAlerts, destroyBreakingNewsAlerts } from '@/services/breaking-news-alerts';
@@ -42,7 +43,6 @@ import { PanelLayoutManager } from '@/app/panel-layout';
 import { DataLoaderManager } from '@/app/data-loader';
 import { EventHandlerManager } from '@/app/event-handlers';
 import { resolveUserRegion, resolvePreciseUserCoordinates, type PreciseCoordinates } from '@/utils/user-location';
-import { showProBanner } from '@/components/ProBanner';
 import {
   CorrelationEngine,
   militaryAdapter,
@@ -562,7 +562,7 @@ export class App {
 
     // Phase 1: Layout (creates map + panels — they'll find hydrated data)
     this.panelLayout.init();
-    showProBanner(this.state.container);
+    // showProBanner(this.state.container);
 
     const mobileGeoCoords = await geoCoordsPromise;
     if (mobileGeoCoords && this.state.map) {
@@ -576,6 +576,7 @@ export class App {
 
     // Phase 2: Shared UI components
     this.state.signalModal = new SignalModal();
+    this.state.signalModal.showStartupMessage();
     this.state.signalModal.setLocationClickHandler((lat, lon) => {
       this.state.map?.setCenter(lat, lon, 4);
     });
@@ -731,7 +732,6 @@ export class App {
           });
           this.eventHandlers.syncUrlState();
         }, DEEP_LINK_INITIAL_DELAY_MS);
-        return;
       }
     }
 
@@ -777,9 +777,9 @@ export class App {
           intervalMs: REFRESH_INTERVALS.forecasts,
           condition: () => this.isPanelNearViewport('forecast'),
         },
-        { name: 'pizzint', fn: () => this.dataLoader.loadPizzInt(), intervalMs: 10 * 60 * 1000, condition: () => SITE_VARIANT === 'full' },
+        { name: 'pizzint', fn: () => this.dataLoader.loadPizzInt(), intervalMs: 20 * 60 * 1000, condition: () => SITE_VARIANT === 'full' },
         { name: 'natural', fn: () => this.dataLoader.loadNatural(), intervalMs: 60 * 60 * 1000, condition: () => this.state.mapLayers.natural },
-        { name: 'weather', fn: () => this.dataLoader.loadWeatherAlerts(), intervalMs: 10 * 60 * 1000, condition: () => this.state.mapLayers.weather },
+        { name: 'weather', fn: () => this.dataLoader.loadWeatherAlerts(), intervalMs: 20 * 60 * 1000, condition: () => this.state.mapLayers.weather },
         { name: 'fred', fn: () => this.dataLoader.loadFredData(), intervalMs: 6 * 60 * 60 * 1000, condition: () => this.isPanelNearViewport('economic') },
         { name: 'spending', fn: () => this.dataLoader.loadGovernmentSpending(), intervalMs: 6 * 60 * 60 * 1000, condition: () => this.isPanelNearViewport('economic') },
         { name: 'bis', fn: () => this.dataLoader.loadBisData(), intervalMs: 6 * 60 * 60 * 1000, condition: () => this.isPanelNearViewport('economic') },
@@ -793,7 +793,7 @@ export class App {
           name: 'cyberThreats', fn: () => {
             this.state.cyberThreatsCache = null;
             return this.dataLoader.loadCyberThreats();
-          }, intervalMs: 10 * 60 * 1000, condition: () => CYBER_LAYER_ENABLED && this.state.mapLayers.cyberThreats
+          }, intervalMs: 20 * 60 * 1000, condition: () => CYBER_LAYER_ENABLED && this.state.mapLayers.cyberThreats
         },
       ]);
     }
@@ -859,7 +859,7 @@ export class App {
 
     // Server-side temporal anomalies (news + satellite_fires)
     if (SITE_VARIANT !== 'happy') {
-      this.refreshScheduler.scheduleRefresh('temporalBaseline', () => this.dataLoader.refreshTemporalBaseline(), 600_000, () => this.shouldRefreshIntelligence());
+      this.refreshScheduler.scheduleRefresh('temporalBaseline', () => this.dataLoader.refreshTemporalBaseline(), 1_200_000, () => this.shouldRefreshIntelligence());
     }
 
     // WTO trade policy data — annual data, poll every 10 min to avoid hammering upstream
@@ -882,6 +882,7 @@ export class App {
       10 * 60_000,
       () => this.isPanelNearViewport('gulf-economies')
     );
+
 
     // Refresh intelligence signals for CII (geopolitical variant only)
     if (SITE_VARIANT === 'full') {

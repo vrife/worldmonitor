@@ -468,15 +468,7 @@ export class DeckGLMap {
     this.popup = new MapPopup(container);
 
     this.handleThemeChange = () => {
-      if (isHappyVariant) {
-        this.switchBasemap();
-        return;
-      }
-      const provider = getMapProvider();
-      const mapTheme = getMapTheme(provider);
-      const paintTheme = isLightMapTheme(mapTheme) ? 'light' as const : 'dark' as const;
-      this.updateCountryLayerPaint(paintTheme);
-      this.render();
+      this.switchBasemap();
     };
     window.addEventListener('theme-changed', this.handleThemeChange);
 
@@ -4070,7 +4062,7 @@ export class DeckGLMap {
 
     const authorBadge = document.createElement('div');
     authorBadge.className = 'map-author-badge';
-    authorBadge.textContent = '© Elie Habib · Someone™';
+    authorBadge.textContent = '© Vlad Rife';
     toggles.appendChild(authorBadge);
 
     this.container.appendChild(toggles);

@@ -288,7 +288,7 @@ When filing a bug report, please include:
 - **Browser/OS** — your environment details
 - **Console errors** — any relevant browser console output
 
-Use the [Bug Report issue template](https://github.com/koala73/worldmonitor/issues/new/choose) when available.
+Use the [Bug Report issue template](https://github.com/vrife/worldmonitor/issues/new/choose) when available.
 
 ## Feature Requests
 
@@ -299,7 +299,7 @@ We welcome feature ideas! When suggesting a feature:
 - **Consider alternatives** you've thought about
 - **Provide context** — who would benefit from this feature?
 
-Use the [Feature Request issue template](https://github.com/koala73/worldmonitor/issues/new/choose) when available.
+Use the [Feature Request issue template](https://github.com/vrife/worldmonitor/issues/new/choose) when available.
 
 ## Code of Conduct
 
