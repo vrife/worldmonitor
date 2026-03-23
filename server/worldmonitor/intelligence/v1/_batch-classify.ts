@@ -10,7 +10,7 @@ const VALID_CATEGORIES = [
 ];
 
 const CLASSIFY_CACHE_TTL = 86400;
-const SKIP_SENTINEL_TTL = 1800;
+const SKIP_SENTINEL_TTL = 3600;
 const BATCH_SIZE = 50;
 
 function sanitizeTitle(title: string): string {

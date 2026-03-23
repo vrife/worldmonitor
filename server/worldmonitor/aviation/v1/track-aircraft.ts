@@ -8,8 +8,7 @@ import { getRelayBaseUrl, getRelayHeaders } from './_shared';
 import { cachedFetchJson } from '../../../_shared/redis';
 import { CHROME_UA } from '../../../_shared/constants';
 
-// 120s for anonymous OpenSky tier (~10 req/min limit); TODO: reduce to 10s on commercial tier
-const CACHE_TTL = 120;
+const CACHE_TTL = 3600; // 1 hour
 
 interface OpenSkyResponse {
     states?: unknown[][];

@@ -113,7 +113,7 @@ export async function listAirportDelays(
 
   // Write bootstrap key for initial page load hydration
   try {
-    await setCachedJson('aviation:delays-bootstrap:v1', { alerts: allAlerts }, 1800);
+    await setCachedJson('aviation:delays-bootstrap:v1', { alerts: allAlerts }, 3600);
   } catch { /* non-critical */ }
 
   return { alerts: allAlerts };

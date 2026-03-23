@@ -8,7 +8,7 @@ import { cachedFetchJson } from '../../../_shared/redis';
 import { CHROME_UA } from '../../../_shared/constants';
 import { parseStringArray, xmlParser } from './_shared';
 
-const CACHE_TTL = 900; // 15 minutes
+const CACHE_TTL = 3600; // 1 hour
 
 const AVIATION_RSS_FEEDS = [
     { url: 'https://www.flightglobal.com/rss', name: 'FlightGlobal' },

@@ -2,7 +2,7 @@ import type { GetWebcamImageRequest, GetWebcamImageResponse, ServerContext } fro
 import { cachedFetchJson } from '../../../_shared/redis';
 
 const WINDY_BASE = 'https://api.windy.com/webcams/api/v3/webcams';
-const CACHE_TTL = 300;
+const CACHE_TTL = 3600;
 
 const WEBCAM_ID_RE = /^[\w-]+$/;
 

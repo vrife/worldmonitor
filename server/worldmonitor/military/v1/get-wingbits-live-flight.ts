@@ -9,8 +9,7 @@ import { cachedFetchJson } from '../../../_shared/redis';
 import { CHROME_UA } from '../../../_shared/constants';
 
 const ECS_API_BASE = 'https://ecs-api.wingbits.com/v1/flights';
-// Live position data — short TTL so the popup reflects current state.
-const LIVE_FLIGHT_CACHE_TTL = 30; // 30 seconds
+const LIVE_FLIGHT_CACHE_TTL = 3600; // 1 hour
 
 interface EcsFlightRaw {
   icao24?: string;

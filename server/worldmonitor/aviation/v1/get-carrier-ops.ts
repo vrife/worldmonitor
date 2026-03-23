@@ -8,7 +8,7 @@ import { cachedFetchJson } from '../../../_shared/redis';
 import { parseStringArray, DEFAULT_WATCHED_AIRPORTS } from './_shared';
 import { listAirportFlights } from './list-airport-flights';
 
-const CACHE_TTL = 300;
+const CACHE_TTL = 3600; // 1 hour
 
 export async function getCarrierOps(
     ctx: ServerContext,

@@ -17,7 +17,7 @@ import { cachedFetchJson } from '../../../_shared/redis';
 import { fetchAcledCached } from '../../../_shared/acled';
 
 const REDIS_CACHE_KEY = 'conflict:acled:v1';
-const REDIS_CACHE_TTL = 900; // 15 min — ACLED rate-limited
+const REDIS_CACHE_TTL = 3600; // 1 hour
 
 const fallbackAcledCache = new Map<string, { data: ListAcledEventsResponse; ts: number }>();
 

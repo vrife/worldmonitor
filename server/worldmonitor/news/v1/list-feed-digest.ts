@@ -290,7 +290,7 @@ export async function listFeedDigest(
     // neg-sentinel (120s) to absorb the request storm during degraded periods.
     const fresh = await cachedFetchJson<ListFeedDigestResponse>(
       digestCacheKey,
-      900,
+      3600,
       async () => {
         const result = await buildDigest(variant, lang);
         const totalItems = Object.values(result.categories).reduce((sum, b) => sum + b.items.length, 0);

@@ -10,7 +10,7 @@ import { cachedFetchJson } from './redis';
 import { getAcledAccessToken } from './acled-auth';
 
 const ACLED_API_URL = 'https://acleddata.com/api/acled/read';
-const ACLED_CACHE_TTL = 900; // 15 min — matches ACLED rate-limit window
+const ACLED_CACHE_TTL = 3600; // 1 hour
 const ACLED_TIMEOUT_MS = 15_000;
 
 export interface AcledRawEvent {

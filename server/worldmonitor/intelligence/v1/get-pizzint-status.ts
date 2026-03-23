@@ -14,7 +14,7 @@ import { CHROME_UA } from '../../../_shared/constants';
 import { cachedFetchJson } from '../../../_shared/redis';
 
 const REDIS_CACHE_KEY = 'intel:pizzint:v1';
-const REDIS_CACHE_TTL = 600; // 10 min
+const REDIS_CACHE_TTL = 3600; // 1 hour
 
 // ========================================================================
 // Constants

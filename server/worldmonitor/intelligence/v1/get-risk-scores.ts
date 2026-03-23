@@ -538,8 +538,8 @@ function computeStrategicRisks(ciiScores: CiiScore[]): StrategicRisk[] {
 
 const RISK_CACHE_KEY = 'risk:scores:sebuf:v1';
 const RISK_STALE_CACHE_KEY = 'risk:scores:sebuf:stale:v1';
-const RISK_CACHE_TTL = 600;
-const RISK_STALE_TTL = 3600;
+const RISK_CACHE_TTL = 3600;
+const RISK_STALE_TTL = 7200;
 
 // ========================================================================
 // RPC handler
