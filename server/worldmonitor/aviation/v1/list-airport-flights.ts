@@ -10,7 +10,7 @@ import type {
 import { cachedFetchJson } from '../../../_shared/redis';
 import { getRelayBaseUrl, getRelayHeaders } from './_shared';
 
-const CACHE_TTL = 3600; // 1 hour
+const CACHE_TTL = 86400; // 24 hours
 
 interface AVSFlight {
     flight?: { iata?: string; icao?: string; codeshared?: { flight_iata?: string; airline_iata?: string }[] };

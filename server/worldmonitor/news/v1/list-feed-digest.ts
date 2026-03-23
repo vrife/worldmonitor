@@ -110,7 +110,7 @@ async function fetchAndParseRss(
   const cacheKey = `rss:feed:v1:${variant}:${feed.url}`;
 
   try {
-    const cached = await cachedFetchJson<ParsedItem[]>(cacheKey, 3600, async () => {
+    const cached = await cachedFetchJson<ParsedItem[]>(cacheKey, 86400, async () => {
       // Try direct fetch first
       let text = await fetchRssText(feed.url, signal).catch(() => null);
 
@@ -290,7 +290,7 @@ export async function listFeedDigest(
     // neg-sentinel (120s) to absorb the request storm during degraded periods.
     const fresh = await cachedFetchJson<ListFeedDigestResponse>(
       digestCacheKey,
-      3600,
+      86400,
       async () => {
         const result = await buildDigest(variant, lang);
         const totalItems = Object.values(result.categories).reduce((sum, b) => sum + b.items.length, 0);

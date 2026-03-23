@@ -11,7 +11,7 @@ import { cachedFetchJson } from '../../../_shared/redis';
 import { markNoCacheResponse } from '../../../_shared/response-headers';
 
 const REDIS_CACHE_KEY = 'military:flights:v1';
-const REDIS_CACHE_TTL = 3600; // 1 hour
+const REDIS_CACHE_TTL = 86400; // 24 hours
 
 /** Snap a coordinate to a grid step so nearby bbox values share cache entries. */
 const quantize = (v: number, step: number) => Math.round(v / step) * step;

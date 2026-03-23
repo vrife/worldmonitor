@@ -9,7 +9,7 @@ import { cachedFetchJson } from '../../../_shared/redis';
 import { CHROME_UA } from '../../../_shared/constants';
 
 const ECS_API_BASE = 'https://ecs-api.wingbits.com/v1/flights';
-const LIVE_FLIGHT_CACHE_TTL = 3600; // 1 hour
+const LIVE_FLIGHT_CACHE_TTL = 86400; // 24 hours
 
 interface EcsFlightRaw {
   icao24?: string;

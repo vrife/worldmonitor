@@ -24,7 +24,7 @@ type ProviderRotationState = {
   signature: string;
 };
 
-const SEARCH_CACHE_TTL_SECONDS = 3_600;
+const SEARCH_CACHE_TTL_SECONDS = 86_400;
 const PROVIDER_ERROR_THRESHOLD = 3;
 const SEARCH_XML = new XMLParser({
   ignoreAttributes: false,

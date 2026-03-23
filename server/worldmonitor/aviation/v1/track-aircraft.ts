@@ -8,7 +8,7 @@ import { getRelayBaseUrl, getRelayHeaders } from './_shared';
 import { cachedFetchJson } from '../../../_shared/redis';
 import { CHROME_UA } from '../../../_shared/constants';
 
-const CACHE_TTL = 3600; // 1 hour
+const CACHE_TTL = 86400; // 24 hours
 
 interface OpenSkyResponse {
     states?: unknown[][];

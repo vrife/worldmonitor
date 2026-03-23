@@ -505,7 +505,7 @@ export function buildNotamAlert(
 // ---------- Shared NOTAM loader (used by both list-airport-delays and get-airport-ops-summary) ----------
 
 const NOTAM_CACHE_KEY = 'aviation:notam:closures:v2';
-const NOTAM_CACHE_TTL = 3600; // 1 hour
+const NOTAM_CACHE_TTL = 86400; // 24 hours
 const SEED_FRESHNESS_MS = 20 * 60 * 1000; // 20 minutes
 
 export interface LoadedNotamResult {
