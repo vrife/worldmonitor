@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
-import { createServer, request as httpRequest } from 'node:http';
+import http, { createServer, request as httpRequest } from 'node:http';
 import https from 'node:https';
 import { createHmac } from 'node:crypto';
 import { EventEmitter } from 'node:events';
@@ -75,6 +75,29 @@ async function postJsonViaHttp(url, payload, headers = {}) {
     });
     req.on('error', reject);
     req.write(body);
+    req.end();
+  });
+}
+
+async function getJsonViaHttp(url) {
+  const target = new URL(url);
+  return new Promise((resolve, reject) => {
+    const req = httpRequest({
+      hostname: target.hostname,
+      port: Number(target.port || 80),
+      path: `${target.pathname}${target.search}`,
+      method: 'GET',
+    }, (res) => {
+      const chunks = [];
+      res.on('data', (chunk) => chunks.push(chunk));
+      res.on('end', () => {
+        const text = Buffer.concat(chunks).toString('utf8');
+        let json = null;
+        try { json = JSON.parse(text); } catch { /* non-json response */ }
+        resolve({ status: res.statusCode || 0, text, json });
+      });
+    });
+    req.on('error', reject);
     req.end();
   });
 }
@@ -259,6 +282,7 @@ test('falls back to cloud when cloudFallback is enabled and local handler return
     apiDir: localApi.apiDir,
     remoteBase: remote.remoteBase,
     cloudFallback: 'true',
+    allowPrivateRemoteBase: true,
     logger: { log() { }, warn() { }, error() { } },
   });
   const { port } = await app.start();
@@ -307,6 +331,7 @@ test('preserves POST body when cloud fallback is triggered after local non-OK re
     apiDir: localApi.apiDir,
     remoteBase: `http://127.0.0.1:${remotePort}`,
     cloudFallback: 'true',
+    allowPrivateRemoteBase: true,
     logger: { log() { }, warn() { }, error() { } },
   });
   const { port } = await app.start();
@@ -503,8 +528,11 @@ test('replaces browser origin with localhost origin for local handlers', async (
 });
 
 test('preserves Request body when handler uses fetch(Request)', async () => {
+  // Use a DISTINCT upstream server (not the sidecar itself) so this test
+  // exercises real "handler proxies to external host" semantics. The upstream
+  // is on 127.0.0.1, so it must be opted into the SSRF allowlist via
+  // allowPrivateFetchOrigins — production startup has no such opt-in.
   let receivedBody = '';
-
   const upstream = createServer((req, res) => {
     const chunks = [];
     req.on('data', (chunk) => chunks.push(chunk));
@@ -515,12 +543,13 @@ test('preserves Request body when handler uses fetch(Request)', async () => {
     });
   });
   const upstreamPort = await listen(upstream);
-  process.env.WM_TEST_UPSTREAM = `http://127.0.0.1:${upstreamPort}`;
+  const upstreamOrigin = `http://127.0.0.1:${upstreamPort}`;
+  process.env.WM_TEST_UPSTREAM = `${upstreamOrigin}/echo`;
 
   const localApi = await setupApiDir({
     'request-proxy.js': `
       export default async function handler() {
-        const request = new Request(\`\${process.env.WM_TEST_UPSTREAM}/echo\`, {
+        const request = new Request(process.env.WM_TEST_UPSTREAM, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ secret: 'keep-body' }),
@@ -538,6 +567,7 @@ test('preserves Request body when handler uses fetch(Request)', async () => {
   const app = await createLocalApiServer({
     port: 0,
     apiDir: localApi.apiDir,
+    allowPrivateFetchOrigins: [upstreamOrigin],
     logger: { log() { }, warn() { }, error() { } },
   });
   const { port } = await app.start();
@@ -560,19 +590,19 @@ test('preserves Request body when handler uses fetch(Request)', async () => {
 
 test('returns local handler error when fetch(Request) uses a consumed body', async () => {
   let upstreamHits = 0;
-
-  const upstream = createServer((req, res) => {
+  const upstream = createServer((_req, res) => {
     upstreamHits += 1;
     res.writeHead(200, { 'content-type': 'application/json' });
     res.end(JSON.stringify({ ok: true }));
   });
   const upstreamPort = await listen(upstream);
-  process.env.WM_TEST_UPSTREAM = `http://127.0.0.1:${upstreamPort}`;
+  const upstreamOrigin = `http://127.0.0.1:${upstreamPort}`;
+  process.env.WM_TEST_UPSTREAM = `${upstreamOrigin}/echo`;
 
   const localApi = await setupApiDir({
     'request-consumed.js': `
       export default async function handler() {
-        const request = new Request(\`\${process.env.WM_TEST_UPSTREAM}/echo\`, {
+        const request = new Request(process.env.WM_TEST_UPSTREAM, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ secret: 'used-body' }),
@@ -590,6 +620,7 @@ test('returns local handler error when fetch(Request) uses a consumed body', asy
   const app = await createLocalApiServer({
     port: 0,
     apiDir: localApi.apiDir,
+    allowPrivateFetchOrigins: [upstreamOrigin],
     logger: { log() { }, warn() { }, error() { } },
   });
   const { port } = await app.start();
@@ -612,7 +643,279 @@ test('returns local handler error when fetch(Request) uses a consumed body', asy
   }
 });
 
-test('strips browser origin headers when proxying to cloud fallback (cloudFallback enabled)', async () => {
+test('blocks handler global fetches to private network targets (#3549)', async () => {
+  let upstreamHits = 0;
+
+  const upstream = createServer((_req, res) => {
+    upstreamHits += 1;
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ ok: true }));
+  });
+  const upstreamPort = await listen(upstream);
+  process.env.WM_TEST_UPSTREAM = `http://127.0.0.1:${upstreamPort}/secret?token=super-secret`;
+
+  const localApi = await setupApiDir({
+    'private-proxy.js': `
+      export default async function handler() {
+        const upstream = await fetch(process.env.WM_TEST_UPSTREAM);
+        const payload = await upstream.text();
+        return new Response(payload, {
+          status: upstream.status,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+    `,
+  });
+
+  const app = await createLocalApiServer({
+    port: 0,
+    apiDir: localApi.apiDir,
+    logger: { log() { }, warn() { }, error() { } },
+  });
+  const { port } = await app.start();
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/private-proxy`);
+    assert.equal(response.status, 502);
+    const body = await response.json();
+    assert.equal(body.error, 'Local handler error');
+    assert.match(body.reason, /SSRF blocked/);
+    assert.doesNotMatch(body.reason, /super-secret/);
+    assert.equal(upstreamHits, 0);
+  } finally {
+    delete process.env.WM_TEST_UPSTREAM;
+    await app.close();
+    await localApi.cleanup();
+    await new Promise((resolve, reject) => {
+      upstream.close((error) => (error ? reject(error) : resolve()));
+    });
+  }
+});
+
+test('blocks handler global fetches to non-global IPv4 special ranges', async () => {
+  const originalHttpRequest = http.request;
+  const blockedUrls = [
+    'http://100.64.0.1/secret',
+    'http://198.18.0.1/secret',
+    'http://192.0.0.1/secret',
+    'http://192.0.2.1/secret',
+    'http://192.88.99.1/secret',
+    'http://198.51.100.1/secret',
+    'http://203.0.113.1/secret',
+    'http://240.0.0.1/secret',
+  ];
+  let outboundHits = 0;
+
+  http.request = (options, onResponse) => {
+    if (options.hostname === '127.0.0.1') {
+      return originalHttpRequest.call(http, options, onResponse);
+    }
+
+    outboundHits += 1;
+    const req = new EventEmitter();
+    req.setTimeout = () => {};
+    req.write = () => {};
+    req.destroy = (error) => {
+      if (error) req.emit('error', error);
+    };
+    req.end = () => {
+      setImmediate(() => req.emit('error', new Error(`unexpected outbound request to ${options.hostname}`)));
+    };
+    return req;
+  };
+
+  const localApi = await setupApiDir({
+    'special-range-proxy.js': `
+      export default async function handler(request) {
+        const url = new URL(request.url);
+        const upstream = await fetch(url.searchParams.get('target'));
+        const payload = await upstream.text();
+        return new Response(payload, {
+          status: upstream.status,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+    `,
+  });
+
+  const app = await createLocalApiServer({
+    port: 0,
+    apiDir: localApi.apiDir,
+    logger: { log() { }, warn() { }, error() { } },
+  });
+  const { port } = await app.start();
+
+  try {
+    for (const blockedUrl of blockedUrls) {
+      const response = await fetch(`http://127.0.0.1:${port}/api/special-range-proxy?target=${encodeURIComponent(blockedUrl)}`);
+      assert.equal(response.status, 502, blockedUrl);
+      const body = await response.json();
+      assert.equal(body.error, 'Local handler error', blockedUrl);
+      assert.match(body.reason, /SSRF blocked/, blockedUrl);
+    }
+    assert.equal(outboundHits, 0);
+  } finally {
+    http.request = originalHttpRequest;
+    await app.close();
+    await localApi.cleanup();
+  }
+});
+
+test('uses asynchronous pinned lookup callback for handler global fetches (#3549)', async () => {
+  const originalHttpsRequest = https.request;
+  const envSnapshot = {
+    GROQ_API_KEY: process.env.GROQ_API_KEY,
+    OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
+    OLLAMA_API_URL: process.env.OLLAMA_API_URL,
+    LLM_API_URL: process.env.LLM_API_URL,
+  };
+  let lookupCallbackWasSync = null;
+
+  delete process.env.GROQ_API_KEY;
+  delete process.env.OPENROUTER_API_KEY;
+  delete process.env.OLLAMA_API_URL;
+  delete process.env.LLM_API_URL;
+
+  https.request = (options, onResponse) => {
+    assert.equal(options.hostname, '93.184.216.34');
+    assert.equal(typeof options.lookup, 'function');
+
+    let sync = true;
+    options.lookup(options.hostname, { family: 4 }, (error, address, family) => {
+      assert.ifError(error);
+      assert.equal(address, '93.184.216.34');
+      assert.equal(family, 4);
+      lookupCallbackWasSync = sync;
+    });
+    sync = false;
+
+    const req = new EventEmitter();
+    req.setTimeout = () => {};
+    req.write = () => {};
+    req.destroy = (error) => {
+      if (error) req.emit('error', error);
+    };
+    req.end = () => {
+      setImmediate(() => {
+        const res = new EventEmitter();
+        res.statusCode = 200;
+        res.statusMessage = 'OK';
+        res.headers = { 'content-type': 'application/json' };
+        onResponse(res);
+        res.emit('data', Buffer.from(JSON.stringify({ ok: true })));
+        res.emit('end');
+      });
+    };
+    return req;
+  };
+
+  const localApi = await setupApiDir({
+    'public-proxy.js': `
+      export default async function handler() {
+        const upstream = await fetch('https://93.184.216.34/data');
+        const payload = await upstream.text();
+        return new Response(payload, {
+          status: upstream.status,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+    `,
+  });
+
+  const app = await createLocalApiServer({
+    port: 0,
+    apiDir: localApi.apiDir,
+    logger: { log() { }, warn() { }, error() { } },
+  });
+  const { port } = await app.start();
+
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/public-proxy`);
+    assert.equal(response.status, 200);
+    assert.equal(lookupCallbackWasSync, false);
+  } finally {
+    https.request = originalHttpsRequest;
+    for (const [key, value] of Object.entries(envSnapshot)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+    await app.close();
+    await localApi.cleanup();
+  }
+});
+
+test('uses IPv4 sidecar fetch for allowed private-network LLM probes (#3549)', async () => {
+  const originalHttpRequest = http.request;
+  const envSnapshot = {
+    GROQ_API_KEY: process.env.GROQ_API_KEY,
+    OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
+    OLLAMA_API_URL: process.env.OLLAMA_API_URL,
+    LLM_API_URL: process.env.LLM_API_URL,
+  };
+  let sawOllamaProbe = false;
+
+  delete process.env.GROQ_API_KEY;
+  delete process.env.OPENROUTER_API_KEY;
+  delete process.env.LLM_API_URL;
+  process.env.OLLAMA_API_URL = 'http://ollama.test:11434';
+
+  http.request = (options, onResponse) => {
+    if (options.hostname !== 'ollama.test') {
+      return originalHttpRequest.call(http, options, onResponse);
+    }
+
+    sawOllamaProbe = true;
+    assert.equal(options.family, 4);
+    assert.equal(options.path, '/');
+
+    const req = new EventEmitter();
+    req.setTimeout = () => {};
+    req.write = () => {};
+    req.destroy = (error) => {
+      if (error) req.emit('error', error);
+    };
+    req.end = () => {
+      setImmediate(() => {
+        const res = new EventEmitter();
+        res.statusCode = 200;
+        res.statusMessage = 'OK';
+        res.headers = { 'content-type': 'application/json' };
+        onResponse(res);
+        res.emit('data', Buffer.from(JSON.stringify({ ok: true })));
+        res.emit('end');
+      });
+    };
+    return req;
+  };
+
+  const localApi = await setupApiDir({});
+  const app = await createLocalApiServer({
+    port: 0,
+    apiDir: localApi.apiDir,
+    logger: { log() { }, warn() { }, error() { } },
+  });
+  const { port } = await app.start();
+
+  try {
+    const response = await getJsonViaHttp(`http://127.0.0.1:${port}/api/llm-health`);
+    assert.equal(response.status, 200);
+    assert.equal(response.json.available, true);
+    assert.deepEqual(response.json.providers, [
+      { name: 'ollama', url: 'http://ollama.test:11434', available: true },
+    ]);
+    assert.equal(sawOllamaProbe, true);
+  } finally {
+    http.request = originalHttpRequest;
+    for (const [key, value] of Object.entries(envSnapshot)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+    await app.close();
+    await localApi.cleanup();
+  }
+});
+
+test('uses canonical app origin when proxying to cloud fallback (cloudFallback enabled)', async () => {
   const remote = await setupRemoteServer();
   const localApi = await setupApiDir({});
 
@@ -621,6 +924,7 @@ test('strips browser origin headers when proxying to cloud fallback (cloudFallba
     apiDir: localApi.apiDir,
     remoteBase: remote.remoteBase,
     cloudFallback: 'true',
+    allowPrivateRemoteBase: true,
     logger: { log() { }, warn() { }, error() { } },
   });
   const { port } = await app.start();
@@ -632,8 +936,8 @@ test('strips browser origin headers when proxying to cloud fallback (cloudFallba
     assert.equal(response.status, 200);
     const body = await response.json();
     assert.equal(body.source, 'remote');
-    assert.equal(body.origin, null);
-    assert.equal(remote.origins[0], null);
+    assert.equal(body.origin, 'https://worldmonitor.app');
+    assert.equal(remote.origins[0], 'https://worldmonitor.app');
   } finally {
     await app.close();
     await localApi.cleanup();
