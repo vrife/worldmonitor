@@ -209,6 +209,10 @@ export function formatResilienceServerLevel(level: string | null | undefined): s
   return normalized.length > 0 ? normalized.replace(/_/g, ' ') : 'unknown';
 }
 
+function isUnknownResilienceServerLevel(level: string | null | undefined): boolean {
+  return String(level || '').trim().toLowerCase() === 'unknown';
+}
+
 export interface ResilienceOverallDisplay {
   hasScore: boolean;
   scoreForBar: number;
@@ -221,12 +225,12 @@ export interface ResilienceOverallDisplay {
 export function getResilienceOverallDisplay(data: Pick<ResilienceScoreResponse, 'overallScore' | 'level'>): ResilienceOverallDisplay {
   const rawScore = Number(data.overallScore);
   const visualLevel = getResilienceVisualLevel(rawScore);
-  if (visualLevel === 'unknown') {
+  if (visualLevel === 'unknown' || (rawScore === 0 && isUnknownResilienceServerLevel(data.level))) {
     return {
       hasScore: false,
       scoreForBar: 0,
       scoreLabel: 'n/a',
-      visualLevel,
+      visualLevel: 'unknown',
       visualLevelLabel: 'Insufficient data',
       serverLevelLabel: `API level: ${formatResilienceServerLevel(data.level)}`,
     };
