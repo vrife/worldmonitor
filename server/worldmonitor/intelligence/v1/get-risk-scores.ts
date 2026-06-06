@@ -428,6 +428,58 @@ function buildPriorCiiScoreMap(priorScores: CiiScore[] | null | undefined): Map<
 
 const ISO3_TO_ISO2: Record<string, string> = iso3ToIso2Json;
 
+// --- UCDP conflict classification (ported from the frontend, src/services/conflict/index.ts
+// deriveUcdpClassifications + getUcdpFloor) ---
+//
+// The cached `conflict:ucdp-events:v1` payload (written by scripts/seed-ucdp-events.mjs and
+// scripts/ais-relay.cjs) emits per-event rows shaped as
+// `{ country, location, violenceType, deathsBest, dateStart, ... }`. There is NO
+// `intensity_level` or `type_of_violence` field — the pre-existing scorer read those two
+// non-existent keys, so `parseInt(...) === 0` for every event and the UCDP floor/coverage
+// were silently dead. The correct classification is the same per-country aggregate the
+// frontend uses: a 2-year trailing window scored by total deaths and event count.
+// The Redis writers currently keep only a 1-year trailing slice, so the effective
+// cached-event window is seed-bounded until retention changes upstream.
+const UCDP_CLASSIFICATION_WINDOW_MS = 2 * 365 * 24 * 60 * 60 * 1000;
+
+type UcdpIntensity = 'minor' | 'war';
+
+/**
+ * Classify each Tier-1 country's live UCDP conflict intensity from the cached event list,
+ * matching the frontend `deriveUcdpClassifications` heuristic. Returns only countries that
+ * clear the `minor`/`war` threshold (i.e. those that should receive a UCDP floor).
+ */
+function deriveUcdpIntensityByRegion(
+  ucdpEvents: any[] | undefined | null,
+  nowMs: number,
+): Map<string, UcdpIntensity> {
+  // Group by raw country string (frontend groups by `e.country`), then attribute to ISO2.
+  const eventsByCountryName = new Map<string, any[]>();
+  for (const ev of ucdpEvents ?? []) {
+    const name = String(ev?.country || ev?.location || '');
+    if (!name) continue;
+    if (!eventsByCountryName.has(name)) eventsByCountryName.set(name, []);
+    eventsByCountryName.get(name)!.push(ev);
+  }
+
+  const byRegion = new Map<string, UcdpIntensity>();
+  for (const [countryName, events] of eventsByCountryName) {
+    const code = normalizeCountryName(countryName);
+    if (!code || !isTier1CountryCode(code)) continue;
+    const recent = events.filter((e) => nowMs - (safeNum(e?.dateStart)) < UCDP_CLASSIFICATION_WINDOW_MS);
+    const totalDeaths = recent.reduce((sum, e) => sum + safeNonNegativeNum(e?.deathsBest), 0);
+    const eventCount = recent.length;
+    let intensity: UcdpIntensity | null = null;
+    if (totalDeaths > 1000 || eventCount > 100) intensity = 'war';
+    else if (eventCount > 10) intensity = 'minor';
+    if (!intensity) continue;
+    // Same ISO2 may be reached via multiple raw spellings — keep the stronger classification.
+    const prev = byRegion.get(code);
+    if (intensity === 'war' || !prev) byRegion.set(code, intensity);
+  }
+  return byRegion;
+}
+
 interface CountrySignals {
   protests: number;
   riots: number;
@@ -781,12 +833,13 @@ export function computeCIIScores(
   }
 
   // --- UCDP ---
-  for (const ev of aux.ucdpEvents) {
-    const code = normalizeCountryName(ev.country || ev.location || '');
-    if (!code || !data[code]) continue;
-    const intensity = parseInt(ev.intensity_level || ev.type_of_violence || '0', 10);
-    if (intensity >= 2) data[code].ucdpWar = true;
-    else if (intensity >= 1) data[code].ucdpMinor = true;
+  // Per-country aggregate classification (deaths + event count over a 2-year trailing
+  // window), matching the frontend `deriveUcdpClassifications`. The cached feed has no
+  // `intensity_level`/`type_of_violence` field — see deriveUcdpIntensityByRegion above.
+  for (const [code, intensity] of deriveUcdpIntensityByRegion(aux.ucdpEvents, computedAt)) {
+    if (!data[code]) continue;
+    if (intensity === 'war') data[code].ucdpWar = true;
+    else data[code].ucdpMinor = true;
   }
 
   // --- Outages (string enum severity) ---
@@ -1167,15 +1220,25 @@ function isTier1CountryCode(code: string | undefined | null): boolean {
 export function countCiiRealtimeSignalDensityCoverage(
   acled: Array<{ country: string; event_type: string; fatalities: number; daysAgo?: number }> | undefined | null,
   aux: AuxiliarySources | undefined | null,
+  nowMs = Date.now(),
 ): number {
   // Health semantics: this is signal-density coverage for score-relevant
   // realtime families, not a raw feed heartbeat. Quiet-but-available feeds may
   // produce 0 here; underlying feed freshness is monitored by their own
   // seed-meta/TTL health entries where available.
-  const coveredFamilies = new Set<'acled' | 'news' | 'cyber'>();
+  const coveredFamilies = new Set<'conflict' | 'news' | 'cyber'>();
 
-  if ((acled ?? []).some((ev) => isTier1CountryCode(normalizeCountryName(ev.country)))) {
-    coveredFamilies.add('acled');
+  // Conflict family: satisfied by EITHER the ACLED API path OR the UCDP aux feed.
+  // ACLED is only one of two live conflict sources both consumed by computeCIIScores —
+  // when the ACLED API path returns empty (rate-limit/auth/quiet window), the rich
+  // `conflict:ucdp-events:v1` feed (15+ Tier-1 countries) still drives the score floor,
+  // so the conflict signal is genuinely alive and must count toward health coverage.
+  // Requiring ACLED specifically here flipped /api/health.riskScores to COVERAGE_PARTIAL
+  // whenever ACLED was thin even though UCDP was fully healthy.
+  const acledCoversTier1 = (acled ?? []).some((ev) => isTier1CountryCode(normalizeCountryName(ev.country)));
+  const ucdpCoversTier1 = deriveUcdpIntensityByRegion(aux?.ucdpEvents, nowMs).size > 0;
+  if (acledCoversTier1 || ucdpCoversTier1) {
+    coveredFamilies.add('conflict');
   }
 
   for (const story of aux?.newsTopStories ?? []) {
@@ -1387,7 +1450,7 @@ export async function getRiskScores(
           readCiiTrendPriorScores(nowMs),
         ]);
         if (!priorCiiScores?.length) recordCiiTrendPriorGap(nowMs);
-        realtimeSignalDensityCoverageCount = countCiiRealtimeSignalDensityCoverage(acled, aux);
+        realtimeSignalDensityCoverageCount = countCiiRealtimeSignalDensityCoverage(acled, aux, nowMs);
         const ciiScores = computeCIIScores(acled, aux, { priorScores: priorCiiScores, nowMs });
         const strategicRisks = computeStrategicRisks(ciiScores);
         return { ciiScores, strategicRisks, degraded: false, stale: false };
