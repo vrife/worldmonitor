@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -39,6 +39,13 @@ function assertInRange(value, min, max, fieldName) {
     value >= min && value <= max,
     `${fieldName} must be between ${min} and ${max}; received ${value}`,
   );
+}
+
+function listSkillDirs() {
+  return readdirSync(SKILLS_DIR, { withFileTypes: true })
+    .filter((d) => d.isDirectory())
+    .map((d) => d.name)
+    .sort();
 }
 
 // Guards for the Agent Skills discovery manifest (#3310 / epic #3306).
@@ -87,10 +94,7 @@ describe('agent readiness: agent-skills index', () => {
   });
 
   it('every SKILL.md directory is represented in the index (no orphans)', () => {
-    const dirs = readdirSync(SKILLS_DIR, { withFileTypes: true })
-      .filter((d) => d.isDirectory())
-      .map((d) => d.name)
-      .sort();
+    const dirs = listSkillDirs();
     const names = index.skills.map((s) => s.name).sort();
     assert.deepEqual(names, dirs, 'every skill directory must have an index entry');
   });
@@ -98,8 +102,10 @@ describe('agent readiness: agent-skills index', () => {
   it('public skills use the current wm_<40 hex> API-key shape', () => {
     const hexKey = /wm_[0-9a-f]{40}/;
     const stalePrefixes = /wm_live_|wm_pro_/;
-    for (const name of ['fetch-country-brief', 'fetch-resilience-score']) {
-      const skill = readFileSync(join(SKILLS_DIR, name, 'SKILL.md'), 'utf-8');
+    for (const name of listSkillDirs()) {
+      const skillPath = join(SKILLS_DIR, name, 'SKILL.md');
+      assert.ok(existsSync(skillPath), `${name}/SKILL.md missing`);
+      const skill = readFileSync(skillPath, 'utf-8');
       assert.match(skill, hexKey, `${name} must show the current user API-key shape`);
       assert.doesNotMatch(skill, stalePrefixes, `${name} must not teach stale API-key prefixes`);
     }
