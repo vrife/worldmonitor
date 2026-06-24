@@ -449,11 +449,25 @@ function positionAlongPath(path: [number, number][], progress: number): [number,
   return [lon, latA + (latB - latA) * fraction];
 }
 
+const PREFERS_REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 const TRADE_ANIMATION_CYCLE = 1000;
 const TRADE_ANIMATION_SPEED = 0.3;
+const TRADE_ANIMATION_MAX_DELTA_MS = 100;
 const TRADE_GC_INTERPOLATION_POINTS = 20;
 const CHOKEPOINT_PULSE_FREQ = 0.01;
 const CHOKEPOINT_PULSE_AMP = 0.3;
+
+function stableTradeRoutePhase(routeId: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < routeId.length; i++) {
+    const codeUnit = routeId.charCodeAt(i);
+    hash ^= codeUnit & 0xff;
+    hash = Math.imul(hash, 16777619);
+    hash ^= (codeUnit >> 8) & 0xff;
+    hash = Math.imul(hash, 16777619);
+  }
+  return ((hash >>> 0) / 0x100000000) * TRADE_ANIMATION_CYCLE;
+}
 
 // Process-wide guard so the window error listener for the deck.gl/maplibre
 // interleaved-mode render race is installed exactly once even if a hot-reload
@@ -578,6 +592,7 @@ export class DeckGLMap {
   private tradeAnimationTime = 0;
   private tradeAnimationFrame: number | null = null;
   private tradeAnimationFrameCount = 0;
+  private tradeReducedMotionMedia: MediaQueryList | null = null;
   private storedChokepointData: GetChokepointStatusResponse | null = null;
   private highlightedRouteIds: Set<string> = new Set();
   private highlightedMarkers: HighlightedMarker[] = [];
@@ -740,6 +755,14 @@ export class DeckGLMap {
   private rafUpdateLayers: (() => void) & { cancel(): void };
   private handleThemeChange: () => void;
   private handleMapThemeChange: () => void;
+  private readonly handleTradeMotionPreferenceChange = (): void => {
+    if (this.prefersReducedTradeMotion()) {
+      this.stopTradeAnimation();
+    } else if (this.state.layers.tradeRoutes && !this.renderPaused) {
+      this.startTradeAnimation();
+    }
+    this.render();
+  };
   private moveTimeoutId: ReturnType<typeof setTimeout> | null = null;
   /** Target center set eagerly by setView() so getCenter() returns the correct
    *  destination before moveend fires, preventing stale intermediate coords
@@ -793,6 +816,8 @@ export class DeckGLMap {
       void this.switchBasemap();
     };
     window.addEventListener('map-theme-changed', this.handleMapThemeChange);
+    this.tradeReducedMotionMedia = window.matchMedia(PREFERS_REDUCED_MOTION_QUERY);
+    this.tradeReducedMotionMedia.addEventListener('change', this.handleTradeMotionPreferenceChange);
 
     this.initPromise = this.initMapLibre();
 
@@ -5694,11 +5719,13 @@ export class DeckGLMap {
       }
       this.stopPulseAnimation();
       this.stopDayNightTimer();
+      this.stopTradeAnimation();
       return;
     }
 
     this.syncPulseAnimation();
     if (this.state.layers.dayNight) this.startDayNightTimer();
+    if (this.state.layers.tradeRoutes) this.startTradeAnimation();
     if (!paused && this.renderPending) {
       this.renderPending = false;
       this.render();
@@ -6015,7 +6042,6 @@ export class DeckGLMap {
     }
 
     const trips: TripData[] = [];
-    let routeIndex = 0;
     for (const [, segments] of routeGroups) {
       const sorted = segments.sort((a, b) => a.segmentIndex - b.segmentIndex);
       const fullPath: [number, number][] = [];
@@ -6037,18 +6063,16 @@ export class DeckGLMap {
 
       trips.push({
         path: fullPath,
-        phase: (routeIndex / Math.max(1, routeGroups.size)) * TRADE_ANIMATION_CYCLE,
+        phase: stableTradeRoutePhase(first.routeId),
         color: colorForRoute(first.routeId, first.status),
         width: widthFor(first.category),
       });
-      routeIndex++;
     }
     this.tradeTrips = trips;
   }
 
   private createTradeRouteTripsLayer(): ScatterplotLayer<TripData> | null {
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (prefersReducedMotion) return null;
+    if (this.prefersReducedTradeMotion()) return null;
 
     if (this.tradeTrips.length === 0) this.buildTradeTrips();
 
@@ -6059,6 +6083,8 @@ export class DeckGLMap {
         d.path,
         ((this.tradeAnimationTime + d.phase) % TRADE_ANIMATION_CYCLE) / TRADE_ANIMATION_CYCLE,
       ),
+      // deck.gl preserves layer state by id across new layer instances; the
+      // accessor closes over animation time, so this trigger keeps positions live.
       updateTriggers: { getPosition: [this.tradeAnimationTime] },
       getFillColor: (d: TripData) => d.color,
       getRadius: (d: TripData) => d.width * 20_000,
@@ -6068,14 +6094,21 @@ export class DeckGLMap {
     });
   }
 
+  private prefersReducedTradeMotion(): boolean {
+    return this.tradeReducedMotionMedia?.matches ?? window.matchMedia(PREFERS_REDUCED_MOTION_QUERY).matches;
+  }
+
   private startTradeAnimation(): void {
     if (this.tradeAnimationFrame !== null) return;
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (prefersReducedMotion) return;
+    if (this.renderPaused || this.prefersReducedTradeMotion()) return;
 
     let lastTime = performance.now();
     const animate = (now: number) => {
-      const delta = now - lastTime;
+      if (this.destroyed) {
+        this.tradeAnimationFrame = null;
+        return;
+      }
+      const delta = Math.min(now - lastTime, TRADE_ANIMATION_MAX_DELTA_MS);
       lastTime = now;
       this.tradeAnimationTime = (this.tradeAnimationTime + delta * TRADE_ANIMATION_SPEED) % TRADE_ANIMATION_CYCLE;
       this.tradeAnimationFrame = requestAnimationFrame(animate);
@@ -6090,7 +6123,9 @@ export class DeckGLMap {
       cancelAnimationFrame(this.tradeAnimationFrame);
       this.tradeAnimationFrame = null;
     }
-    this.tradeAnimationTime = 0;
+    // Reset so the every-other-frame render gate restarts at a deterministic
+    // parity; otherwise a stop/start cycle can delay the first repaint a frame.
+    this.tradeAnimationFrameCount = 0;
   }
 
   private createTradeChokepointsLayer(): ScatterplotLayer {
@@ -7462,6 +7497,8 @@ export class DeckGLMap {
     this._unsubscribeEntitlement = null;
     window.removeEventListener('theme-changed', this.handleThemeChange);
     window.removeEventListener('map-theme-changed', this.handleMapThemeChange);
+    this.tradeReducedMotionMedia?.removeEventListener('change', this.handleTradeMotionPreferenceChange);
+    this.tradeReducedMotionMedia = null;
     this.debouncedRebuildLayers.cancel();
     this.debouncedFetchBases.cancel();
     this.debouncedFetchAircraft.cancel();
