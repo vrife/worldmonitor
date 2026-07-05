@@ -13,6 +13,7 @@
     { "source": "/index.md", "destination": "/home.md" },
     { "source": "/pro", "destination": "/pro/index.html" },
     { "source": "/mcp", "destination": "/api/mcp" },
+    { "source": "/a2a", "destination": "/api/a2a" },
     { "source": "/mcp-grant", "destination": "/mcp-grant.html" },
     { "source": "/oauth/token", "destination": "/api/oauth/token" },
     { "source": "/oauth/register", "destination": "/api/oauth/register" },
@@ -24,7 +25,7 @@
     { "source": "/.well-known/mcp.json", "destination": "/api/mcp" },
     { "source": "/embed", "destination": "/embed.html" },
     { "source": "/dashboard", "destination": "/dashboard.html" },
-    { "source": "/((?!api|mcp|oauth|assets|blog|docs|embed|embed\\.html|favico|map-styles|data|textures|pro|sw\\.js|workbox-[a-f0-9]+\\.js|manifest\\.webmanifest|offline\\.html|robots\\.txt|sitemap\\.xml|llms\\.txt|llms-full\\.txt|openapi\\.yaml|openapi\\.json|auth\\.md|\\.well-known|wm-widget-sandbox\\.html|mcp-grant\\.html|mcp-grant).*)", "destination": "/dashboard.html" }
+    { "source": "/((?!api|mcp|a2a|oauth|assets|blog|docs|embed|embed\\.html|favico|map-styles|data|textures|pro|sw\\.js|workbox-[a-f0-9]+\\.js|manifest\\.webmanifest|offline\\.html|robots\\.txt|sitemap\\.xml|llms\\.txt|llms-full\\.txt|openapi\\.yaml|openapi\\.json|auth\\.md|\\.well-known|wm-widget-sandbox\\.html|mcp-grant\\.html|mcp-grant).*)", "destination": "/dashboard.html" }
   ],
   "headers": [
     {
@@ -33,6 +34,14 @@
         { "key": "Access-Control-Allow-Origin", "value": "*" },
         { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
         { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, X-WorldMonitor-Key" }
+      ]
+    },
+    {
+      "source": "/a2a",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "POST, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }
       ]
     },
     {
@@ -172,7 +181,7 @@
       ]
     },
     {
-      "source": "/((?!api|mcp|oauth|assets|blog|docs|embed|embed\\.html|favico|map-styles|data|textures|pro|sw\\.js|workbox-[a-f0-9]+\\.js|manifest\\.webmanifest|offline\\.html|robots\\.txt|sitemap\\.xml|llms\\.txt|llms-full\\.txt|openapi\\.yaml|openapi\\.json|auth\\.md|\\.well-known|wm-widget-sandbox\\.html|mcp-grant\\.html|mcp-grant).*)",
+      "source": "/((?!api|mcp|a2a|oauth|assets|blog|docs|embed|embed\\.html|favico|map-styles|data|textures|pro|sw\\.js|workbox-[a-f0-9]+\\.js|manifest\\.webmanifest|offline\\.html|robots\\.txt|sitemap\\.xml|llms\\.txt|llms-full\\.txt|openapi\\.yaml|openapi\\.json|auth\\.md|\\.well-known|wm-widget-sandbox\\.html|mcp-grant\\.html|mcp-grant).*)",
       "headers": [
         { "key": "Cache-Control", "value": "private, no-cache, must-revalidate" }
       ]

@@ -3,6 +3,13 @@
   "schema_version": 1,
   "exceptions": [
     {
+      "path": "api/a2a.ts",
+      "category": "external-protocol",
+      "reason": "A2A (Agent-to-Agent) JSON-RPC 2.0 endpoint behind /.well-known/agent-card.json — envelope and method surface (message/send, tasks/*) dictated by the A2A spec v0.3.0, not something we can redefine as proto. Anonymous concierge over the public MCP tool catalog + public freshness envelope only; per-IP limit registered in ENDPOINT_RATE_POLICIES and enforced in-handler.",
+      "owner": "@SebastienMelki",
+      "removal_issue": null
+    },
+    {
       "path": "api/mcp.ts",
       "category": "external-protocol",
       "reason": "MCP streamable-HTTP transport — JSON-RPC 2.0 envelope dictated by the Model Context Protocol spec, not something we can or should redefine as proto. After the api/mcp.ts → api/mcp/ structural split, this file is a thin re-export shim that preserves the Vercel edge route URL and the public export surface; the actual handler and supporting modules live under api/mcp/ (each listed below).",

@@ -26,6 +26,7 @@ Open-source (AGPL-3.0), used by 2M+ people across 190+ countries, as featured in
 ## For AI agents
 
 - **MCP server:** `https://worldmonitor.app/mcp` (Streamable HTTP) — server card at [/.well-known/mcp/server-card.json](https://worldmonitor.app/.well-known/mcp/server-card.json)
+- **A2A:** agent card at [/.well-known/agent-card.json](https://worldmonitor.app/.well-known/agent-card.json) — JSON-RPC endpoint at `https://worldmonitor.app/a2a`
 - **REST API:** base `https://api.worldmonitor.app` — OpenAPI spec at [/openapi.json](https://worldmonitor.app/openapi.json)
 - **Agent guidance:** [/llms.txt](https://worldmonitor.app/llms.txt) · skills at [/.well-known/agent-skills/index.json](https://worldmonitor.app/.well-known/agent-skills/index.json)
 - **CLI:** `npx worldmonitor tools` — [npm package](https://www.npmjs.com/package/worldmonitor)
