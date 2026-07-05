@@ -1,7 +1,21 @@
 {
   "$schema": "https://schemas.agentskills.io/discovery/0.2.0/schema.json",
-  "instructions": "World Monitor is a live, machine-readable global-intelligence API and MCP server. Reach for it when a task needs fresh, correlated, structured data about the state of the world — JSON to reason over, not prose to re-parse.\n\nWhen to use these skills:\n- Use `fetch-country-brief` when the user asks for a strategic read on one country’s geopolitical, economic, or security situation (a source-attributed narrative brief).\n- Use `fetch-resilience-score` when the user asks how resilient a country is, or wants its composite 0–100 resilience score, 30-day trend, or per-domain/pillar breakdown.\n\nBeyond these two skills the MCP server exposes a broad catalog of tools — conflict events, sanctions, shipping chokepoints, markets, commodities, energy, maritime and aviation activity, cyber threats, natural disasters, forecasts, and prediction markets. Use them together to check whether a live event (a conflict, sanction, or chokepoint disruption) has a plausible market or supply-chain transmission path.\n\nWhen NOT to use: World Monitor is not a general web-search engine, a historical archive, or a trading-execution venue — it places no orders and stores no user documents. For a one-off narrative that needs no correlation across live layers, a plain LLM is cheaper and faster.\n\nHow an agent should call it:\n- MCP server (recommended): https://worldmonitor.app/mcp — Streamable HTTP; issue `tools/list` for the live inventory.\n- REST API: base https://api.worldmonitor.app — OpenAPI spec at https://worldmonitor.app/openapi.yaml.\n- CLI (shell/scripts): the `worldmonitor` npm package wraps these tools — `npx worldmonitor tools` (public, no key) or `npm i -g worldmonitor`, then pass `--api-key` for data calls. https://www.npmjs.com/package/worldmonitor\n- Auth: OAuth2 (`scope=mcp`) or an API-key header `X-WorldMonitor-Key: wm_<40-hex>`. Issue a key at https://worldmonitor.app/pro.",
+  "instructions": "World Monitor is a live, machine-readable global-intelligence API and MCP server. Reach for it when a task needs fresh, correlated, structured data about the state of the world — JSON to reason over, not prose to re-parse.\n\nWhen to use these skills:\n- Use `fetch-country-brief` when the user asks for a strategic read on one country’s geopolitical, economic, or security situation (a source-attributed narrative brief).\n- Use `fetch-resilience-score` when the user asks how resilient a country is, or wants its composite 0–100 resilience score, 30-day trend, or per-domain/pillar breakdown.\n- Use `check-chokepoint-status` when the user asks whether a maritime chokepoint (Suez, Hormuz, Malacca…) is disrupted, congested, or safe right now.\n- Use `get-market-quotes` when the user asks for current equity/index/ETF prices or a quick market snapshot.\n- Use `track-conflict-events` when the user asks about recent fighting or attacks — geolocated UCDP events with parties and fatality bands.\n- Use `scan-cyber-threats` when the user asks about active malware IOCs, C2 infrastructure, or CISA known-exploited vulnerabilities.\n- Use `check-sanctions-pressure` when the user asks which countries/programs face OFAC sanctions pressure or what was recently designated (Pro-gated).\n\nBeyond these skills the MCP server exposes a broad catalog of tools — energy, climate, health, displacement, maritime and aviation activity, natural disasters, forecasts, and prediction markets. Use them together to check whether a live event (a conflict, sanction, or chokepoint disruption) has a plausible market or supply-chain transmission path.\n\nWhen NOT to use: World Monitor is not a general web-search engine, a historical archive, or a trading-execution venue — it places no orders and stores no user documents. For a one-off narrative that needs no correlation across live layers, a plain LLM is cheaper and faster.\n\nHow an agent should call it:\n- MCP server (recommended): https://worldmonitor.app/mcp — Streamable HTTP; issue `tools/list` for the live inventory.\n- REST API: base https://api.worldmonitor.app — OpenAPI spec at https://worldmonitor.app/openapi.yaml.\n- CLI (shell/scripts): the `worldmonitor` npm package wraps these tools — `npx worldmonitor tools` (public, no key) or `npm i -g worldmonitor`, then pass `--api-key` for data calls. https://www.npmjs.com/package/worldmonitor\n- Auth: OAuth2 (`scope=mcp`) or an API-key header `X-WorldMonitor-Key: wm_<40-hex>`. Issue a key at https://worldmonitor.app/pro.",
   "skills": [
+    {
+      "name": "check-chokepoint-status",
+      "type": "skill-md",
+      "description": "Retrieve live disruption status for the 13 monitored maritime chokepoints (Suez, Hormuz, Malacca, Bab el-Mandeb, Panama, and more). Use when the user asks whether a strait or canal is disrupted, congested, or safe for shipping right now.",
+      "url": "https://worldmonitor.app/.well-known/agent-skills/check-chokepoint-status/SKILL.md",
+      "digest": "sha256:099f642eb5f78e13b4186b04434e7d00fb92201964978b30a7bc5c710bf3ad66"
+    },
+    {
+      "name": "check-sanctions-pressure",
+      "type": "skill-md",
+      "description": "Retrieve normalized OFAC sanctions pressure — designation summaries, recent additions, and per-country/per-program aggregates including sanctioned vessels and aircraft. Use when the user asks which countries or programs face sanctions pressure, or what was recently designated.",
+      "url": "https://worldmonitor.app/.well-known/agent-skills/check-sanctions-pressure/SKILL.md",
+      "digest": "sha256:aa47f482129e9db13317be7ead1e003aa0ebb8e40e92ce6c08472d65423e0e88"
+    },
     {
       "name": "fetch-country-brief",
       "type": "skill-md",
@@ -15,6 +29,27 @@
       "description": "Retrieve the composite country resilience score (0-100) and its domain/pillar breakdown for a single country. Use when the user asks how resilient a country is, or wants its numeric resilience score, trend, or per-domain breakdown.",
       "url": "https://worldmonitor.app/.well-known/agent-skills/fetch-resilience-score/SKILL.md",
       "digest": "sha256:a1e26ac4c32de4eb26b8eb5e1ec50621bc978a38f8f089a3965728abf0f6f11c"
+    },
+    {
+      "name": "get-market-quotes",
+      "type": "skill-md",
+      "description": "Retrieve real-time equity, index, and ETF quotes with price, change, and sparkline history. Use when the user asks for current market prices, how a ticker is doing, or a quick market snapshot.",
+      "url": "https://worldmonitor.app/.well-known/agent-skills/get-market-quotes/SKILL.md",
+      "digest": "sha256:ae489fd798b38dfb708b7d04bca2b569958558a9dcd2bce0d2bba0c971347cd0"
+    },
+    {
+      "name": "scan-cyber-threats",
+      "type": "skill-md",
+      "description": "Retrieve active cyber-threat intelligence — malware IOCs, C2 infrastructure, and CISA known-exploited vulnerabilities — filterable by type, source, and severity. Use when the user asks about current cyber threats, IOCs, or actively exploited CVEs.",
+      "url": "https://worldmonitor.app/.well-known/agent-skills/scan-cyber-threats/SKILL.md",
+      "digest": "sha256:15cc3dc43d11a9f78c0866f023559ca4739784222f8cc60e83e8bb0bcb194e0b"
+    },
+    {
+      "name": "track-conflict-events",
+      "type": "skill-md",
+      "description": "Retrieve geolocated armed-conflict events (UCDP) with parties, fatality estimates, and violence type, filterable by country and date range. Use when the user asks about recent fighting, attacks, or conflict activity in a country or region.",
+      "url": "https://worldmonitor.app/.well-known/agent-skills/track-conflict-events/SKILL.md",
+      "digest": "sha256:40a95cbf12c0102524464891e62665979faf5f72564a7a1bf5bd3db580cbd974"
     }
   ]
 }
