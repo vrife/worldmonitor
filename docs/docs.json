@@ -188,7 +188,7 @@
               "agent-discovery",
               "mcp-quickstart",
               "cli",
-              "mcp-server",
+              "mcp-overview",
               "mcp-tools-reference",
               "mcp-jmespath",
               "mcp-error-catalog",
@@ -455,5 +455,11 @@
         ]
       }
     ]
-  }
+  },
+  "redirects": [
+    {
+      "source": "/mcp-server",
+      "destination": "/mcp-overview"
+    }
+  ]
 }

@@ -39,9 +39,9 @@ Open any group in the sidebar to browse its operations.
 
 ## MCP equivalents
 
-If you're moving between REST and the [MCP server](/mcp-server), treat them as related but distinct catalogs. REST coverage is defined by OpenAPI. MCP coverage is narrower: an endpoint is **MCP-exposed** only when the exact `METHOD /api/...` path is declared in a tool's registry `_apiPaths` entry.
+If you're moving between REST and the [MCP server](/mcp-overview), treat them as related but distinct catalogs. REST coverage is defined by OpenAPI. MCP coverage is narrower: an endpoint is **MCP-exposed** only when the exact `METHOD /api/...` path is declared in a tool's registry `_apiPaths` entry.
 
-Use the [MCP API coverage table](/mcp-server#api-coverage) as the human-facing reverse lookup. It maps each MCP tool to the REST endpoints it explicitly serves. If a REST route is not in that table, it is REST-only as an API equivalence, even if a cache-backed MCP tool returns similar domain data.
+Use the [MCP API coverage table](/mcp-overview#api-coverage) as the human-facing reverse lookup. It maps each MCP tool to the REST endpoints it explicitly serves. If a REST route is not in that table, it is REST-only as an API equivalence, even if a cache-backed MCP tool returns similar domain data.
 
 Common shapes:
 
@@ -60,7 +60,7 @@ Important non-equivalences:
 | `GET /api/research/v1/list-arxiv-papers`, `GET /api/research/v1/list-trending-repos`, `GET /api/research/v1/list-hackernews-items` | REST-only. `get_research_signals` declares `list-tech-events` only. |
 | `GET /api/aviation/v1/list-airport-delays`, `GET /api/aviation/v1/get-flight-status` | REST-only. MCP aviation coverage is via `get_airspace`, flight-search tools, and cache-backed `get_aviation_status`, not these routes. |
 
-Always cross-check against [the bundled OpenAPI spec](https://www.worldmonitor.app/openapi.yaml) for REST path names, parameters, and response shapes, and against [MCP API coverage](/mcp-server#api-coverage) for MCP exposure.
+Always cross-check against [the bundled OpenAPI spec](https://www.worldmonitor.app/openapi.yaml) for REST path names, parameters, and response shapes, and against [MCP API coverage](/mcp-overview#api-coverage) for MCP exposure.
 
 ## Platform endpoints
 

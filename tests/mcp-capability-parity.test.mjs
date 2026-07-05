@@ -292,9 +292,9 @@ describe('api/mcp.ts — capability parity (advertised AND non-empty)', () => {
 
 });
 
-describe('docs/mcp-server.mdx — API-key quota contract', () => {
+describe('docs/mcp-overview.mdx — API-key quota contract', () => {
   it('keeps API-key auth separate from the Pro/OAuth daily reservation path', () => {
-    const docs = readFileSync(new URL('../docs/mcp-server.mdx', import.meta.url), 'utf8');
+    const docs = readFileSync(new URL('../docs/mcp-overview.mdx', import.meta.url), 'utf8');
     assert.doesNotMatch(docs, /Both modes check the same PRO entitlement/i,
       'docs must not claim API-key requests use the OAuth/Pro entitlement pre-check path');
     assert.match(docs, /OAuth bearer requests re-check[\s\S]*active entitlement[\s\S]*before dispatch/i,
