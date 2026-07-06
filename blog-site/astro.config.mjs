@@ -4,7 +4,7 @@ import sitemap from '@astrojs/sitemap';
 import { readdirSync, readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 
-const SITE_URL = 'https://www.worldmonitor.app';
+const SITE_URL = 'https://www.worldmonitor.io';
 const BLOG_DIR = new URL('./src/content/blog/', import.meta.url);
 
 function readFrontmatterDate(markdown, key) {
@@ -48,7 +48,7 @@ function buildPostDateMap() {
 const POST_DATES = buildPostDateMap();
 
 export default defineConfig({
-  site: 'https://www.worldmonitor.app',
+  site: 'https://www.worldmonitor.io',
   base: '/blog',
   output: 'static',
   integrations: [

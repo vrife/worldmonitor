@@ -8,7 +8,7 @@ import { cachedFetchJson } from '../../../_shared/redis';
 import { getRelayBaseUrl, getRelayHeaders } from './_shared';
 import { aviationStackBudgetMonth, reserveAviationStackCalls } from './_avstack-budget';
 
-const CACHE_TTL = 120; // 2 minutes
+const CACHE_TTL = 86400; // 24 hours
 
 interface AVSFlight {
     flight?: { iata?: string; codeshared?: Array<{ flight_iata?: string; airline_iata?: string }> };

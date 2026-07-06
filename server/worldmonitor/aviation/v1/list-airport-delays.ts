@@ -167,7 +167,7 @@ export async function listAirportDelays(
   // doesn't shorten the seeder's expiry and re-create the EMPTY-on-quiet-traffic
   // failure mode that motivated the canonical seeder write.
   try {
-    await setCachedJson('aviation:delays-bootstrap:v2', { alerts: allAlerts }, 7200);
+    await setCachedJson('aviation:delays-bootstrap:v2', { alerts: allAlerts }, 86400);
   } catch { /* non-critical */ }
 
   return { alerts: allAlerts };

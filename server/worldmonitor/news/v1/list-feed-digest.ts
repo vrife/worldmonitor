@@ -38,7 +38,7 @@ const fallbackDigestCache = new Map<string, { data: ListFeedDigestResponse; ts: 
 const ITEMS_PER_FEED = 5;
 const MAX_ITEMS_PER_CATEGORY = 20;
 const FEED_TIMEOUT_MS = 8_000;
-const OVERALL_DEADLINE_MS = 25_000;
+const OVERALL_DEADLINE_MS = 12_000;
 const BATCH_CONCURRENCY = 20;
 
 // U3 — hard freshness floor (default 96h, env override NEWS_MAX_AGE_HOURS).
@@ -1006,7 +1006,7 @@ export async function listFeedDigest(
     // neg-sentinel (120s) to absorb the request storm during degraded periods.
     const fresh = await cachedFetchJson<ListFeedDigestResponse>(
       digestCacheKey,
-      900,
+      86400,
       async () => {
         const result = await buildDigest(variant, lang);
         const totalItems = Object.values(result.categories).reduce((sum, b) => sum + b.items.length, 0);

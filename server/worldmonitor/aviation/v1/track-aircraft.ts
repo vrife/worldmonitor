@@ -9,7 +9,7 @@ import { cachedFetchJson } from '../../../_shared/redis';
 import { CHROME_UA } from '../../../_shared/constants';
 
 // 120s for anonymous OpenSky tier (~10 req/min limit); TODO: reduce to 10s on commercial tier
-const CACHE_TTL = 120;
+const CACHE_TTL = 86400; // 24 hours
 // Callsign searches hit the relay's in-memory index (5min TTL); cache positive hits 60s,
 // negative hits 10s so a retry after panning into view returns fresh data quickly.
 const CALLSIGN_CACHE_TTL = 60;

@@ -58,7 +58,7 @@
 }
 
 [dir="rtl"] .signal-item.silent_divergence {
-  border-right-color: var(--green);
+  border-right-color: var(--lighter-blue);
 }
 
 [dir="rtl"] .signal-item.convergence {

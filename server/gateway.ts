@@ -116,7 +116,7 @@ async function claimInternalMcpReplayNonce(userId: string, nonce: string): Promi
 // NOTE: This map is shared across all domain bundles (~3KB). Kept centralised for
 // single-source-of-truth maintainability; the size is negligible vs handler code.
 
-type CacheTier = 'fast' | 'medium' | 'slow' | 'slow-browser' | 'static' | 'daily' | 'no-store' | 'live';
+type CacheTier = 'micro' | 'fast' | 'medium' | 'slow' | 'slow-browser' | 'static' | 'daily' | 'no-store' | 'live';
 
 // Three-tier caching: browser (max-age) → CF edge (s-maxage) → Vercel CDN (CDN-Cache-Control).
 // CF ignores Vary: Origin so it may pin a single ACAO value, but this is acceptable
@@ -127,6 +127,7 @@ type CacheTier = 'fast' | 'medium' | 'slow' | 'slow-browser' | 'static' | 'daily
 // the order of one minute. Every shorter-than-medium tier is custom; we keep
 // the existing tiers untouched so unrelated endpoints aren't impacted.
 const TIER_HEADERS: Record<CacheTier, string> = {
+  micro: 'public, s-maxage=30, stale-while-revalidate=10, stale-if-error=60',
   fast: 'public, max-age=60, s-maxage=300, stale-while-revalidate=60, stale-if-error=600',
   medium: 'public, max-age=120, s-maxage=600, stale-while-revalidate=120, stale-if-error=900',
   slow: 'public, max-age=300, s-maxage=1800, stale-while-revalidate=300, stale-if-error=3600',
@@ -141,6 +142,7 @@ const TIER_HEADERS: Record<CacheTier, string> = {
 // Vercel's own edge cache, so Vercel can still cache aggressively (and respects
 // Vary: Origin correctly) while CF sees no public s-maxage and passes through.
 const TIER_CDN_CACHE: Record<CacheTier, string | null> = {
+  micro: 'public, s-maxage=30, stale-while-revalidate=10, stale-if-error=60',
   fast: 'public, s-maxage=600, stale-while-revalidate=300, stale-if-error=1200',
   medium: 'public, s-maxage=1200, stale-while-revalidate=600, stale-if-error=1800',
   slow: 'public, s-maxage=3600, stale-while-revalidate=900, stale-if-error=7200',
@@ -189,7 +191,7 @@ const RPC_CACHE_TIER: Record<string, CacheTier> = {
   '/api/aviation/v1/list-airport-flights': 'static',
   '/api/aviation/v1/get-carrier-ops': 'slow',
   '/api/aviation/v1/get-flight-status': 'fast',
-  '/api/aviation/v1/track-aircraft': 'no-store',
+  '/api/aviation/v1/track-aircraft': 'micro',
   '/api/aviation/v1/search-flight-prices': 'medium',
   '/api/aviation/v1/search-google-flights': 'no-store',
   '/api/aviation/v1/search-google-dates': 'medium',

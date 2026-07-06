@@ -13,7 +13,7 @@ import { markNoCacheResponse } from '../../../_shared/response-headers';
 import { getRelayBaseUrl, getRelayHeaders } from '../../../_shared/relay';
 
 const REDIS_CACHE_KEY = 'military:flights:v1';
-const REDIS_CACHE_TTL = 600; // 10 min — reduce upstream API pressure
+const REDIS_CACHE_TTL = 86400; // 24 hours
 const REDIS_STALE_KEY = 'military:flights:stale:v1';
 
 /** Snap a coordinate to a grid step so nearby bbox values share cache entries. */

@@ -37,12 +37,12 @@ function buildSentryInitOptions(): Parameters<SentryNs['init']>[0] {
   return {
     dsn: sentryDsn || undefined,
     release: `worldmonitor@${__APP_VERSION__}`,
-    environment: (location.hostname === 'worldmonitor.app' || location.hostname.endsWith('.worldmonitor.app')) ? 'production'
+    environment: (location.hostname === 'worldmonitor.io' || location.hostname.endsWith('.worldmonitor.io')) ? 'production'
       : location.hostname.includes('vercel.app') ? 'preview'
       : 'development',
     enabled: Boolean(sentryDsn) && !location.hostname.startsWith('localhost') && !('__TAURI_INTERNALS__' in window),
     allowUrls: [
-      /https?:\/\/(www\.|tech\.|finance\.|commodity\.|happy\.)?worldmonitor\.app/,
+      /https?:\/\/(www\.|tech\.|finance\.|commodity\.|happy\.)?worldmonitor\.io/,
       /https?:\/\/.*\.vercel\.app/,
     ],
     sendDefaultPii: true,

@@ -10,15 +10,15 @@ export { IDLE_PAUSE_MS } from '../idle';
 
 // Refresh intervals (ms) - shared across all variants
 export const REFRESH_INTERVALS = {
-  feeds: 20 * 60 * 1000,
-  markets: 12 * 60 * 1000,
-  crypto: 12 * 60 * 1000,
-  predictions: 15 * 60 * 1000,
-  forecasts: 30 * 60 * 1000,
+  feeds: 30 * 60 * 1000,
+  markets: 20 * 60 * 1000,
+  crypto: 20 * 60 * 1000,
+  predictions: 30 * 60 * 1000,
+  forecasts: 60 * 60 * 1000,
   ais: 15 * 60 * 1000,
-  pizzint: 10 * 60 * 1000,
+  pizzint: 20 * 60 * 1000,
   natural: 60 * 60 * 1000,
-  weather: 10 * 60 * 1000,
+  weather: 20 * 60 * 1000,
   fred: 6 * 60 * 60 * 1000,
   oil: 6 * 60 * 60 * 1000,
   spending: 6 * 60 * 60 * 1000,
@@ -27,7 +27,7 @@ export const REFRESH_INTERVALS = {
   cables: 30 * 60 * 1000,
   cableHealth: 2 * 60 * 60 * 1000,
   flights: 2 * 60 * 60 * 1000,
-  cyberThreats: 10 * 60 * 1000,
+  cyberThreats: 20 * 60 * 1000,
   stockAnalysis: 15 * 60 * 1000,
   dailyMarketBrief: 60 * 60 * 1000,
   marketImplications: 3 * 60 * 60 * 1000,
@@ -44,7 +44,7 @@ export const REFRESH_INTERVALS = {
   // FRESH_THRESHOLD or synthesized-OK sources (compact health carries no age
   // for healthy checks) would decay to stale between polls (#4907).
   healthFreshness: 5 * 60 * 1000,
-  temporalBaseline: 10 * 60 * 1000,
+  temporalBaseline: 20 * 60 * 1000,
   tradePolicy: 60 * 60 * 1000,
   supplyChain: 60 * 60 * 1000,
   telegramIntel: 60 * 1000,
@@ -81,7 +81,7 @@ export const REFRESH_INTERVALS = {
 
 // Monitor colors - shared
 export const MONITOR_COLORS = [
-  '#44ff88',
+  '#0DBFE3',
   '#ff8844',
   '#4488ff',
   '#ff44ff',

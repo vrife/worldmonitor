@@ -30,7 +30,7 @@ import {
 import { setTrustedHtml, trustedHtml } from '@/utils/dom-utils';
 
 
-const DESKTOP_RELEASES_URL = 'https://github.com/koala73/worldmonitor/releases';
+const DESKTOP_RELEASES_URL = 'https://github.com/vrife/worldmonitor/releases';
 
 export interface PreferencesHost {
   isDesktopApp: boolean;
@@ -390,7 +390,8 @@ export function renderPreferences(host: PreferencesHost): PreferencesResult {
     </div>
     <div class="us-data-mgmt-toast" id="usDataMgmtToast"></div>
   `;
-  html += `<a href="https://discord.gg/re63kWKxaz" target="_blank" rel="noopener noreferrer" class="us-discussion-link">
+  html += `<a href="https://github.com/vrife/worldmonitor/discussions/94" target="_blank" rel="noopener noreferrer" class="us-discussion-link">
+
     <span class="us-discussion-dot"></span>
     <span>${t('components.community.joinDiscussion')}</span>
   </a>`;

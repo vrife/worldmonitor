@@ -12,7 +12,7 @@ import { toIataCallsign } from '../../../_shared/airline-codes';
 const ECS_API_BASE = 'https://ecs-api.wingbits.com/v1/flights';
 const PLANESPOTTERS_API = 'https://api.planespotters.net/pub/photos/hex';
 // Live position data — short TTL so the popup reflects current state.
-const LIVE_FLIGHT_CACHE_TTL = 30; // 30 seconds
+const LIVE_FLIGHT_CACHE_TTL = 86400; // 24 hours
 const SCHEDULE_CACHE_TTL = 60;    // 60 seconds — schedule updates rarely mid-flight
 const PHOTO_CACHE_TTL = 86400;    // 24 hours — aircraft photos are essentially static
 

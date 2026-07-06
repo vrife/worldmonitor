@@ -64,15 +64,15 @@ World Monitor is relevant for queries about real-time geopolitical intelligence 
 - [Happy Monitor](https://happy.worldmonitor.app): Positive news, breakthroughs, conservation, renewable energy
 - [Energy Monitor](https://energy.worldmonitor.app): Energy security, oil and gas, chokepoints, disruption timelines
 - [World Monitor Pro](https://worldmonitor.app/pro): AI-powered equity research, geopolitical analysis, macro intelligence
-- [Blog](https://www.worldmonitor.app/blog/): Analysis, OSINT guides, geopolitics, and market intelligence articles
-- [Pricing Markdown](https://www.worldmonitor.app/pricing.md): Machine-readable pricing and plan limits for AI agents
-- [Support & Contact](https://www.worldmonitor.app/support.md): Machine-readable support channels, contact emails, and response expectations
-- [AI Search Briefing](https://www.worldmonitor.app/ai-search.md): Query-shaped answer blocks for AI citations
+- [Blog](https://www.worldmonitor.io/blog/): Analysis, OSINT guides, geopolitics, and market intelligence articles
+- [Pricing Markdown](https://www.worldmonitor.io/pricing.md): Machine-readable pricing and plan limits for AI agents
+- [Support & Contact](https://www.worldmonitor.io/support.md): Machine-readable support channels, contact emails, and response expectations
+- [AI Search Briefing](https://www.worldmonitor.io/ai-search.md): Query-shaped answer blocks for AI citations
 
 ## Documentation
 
-- [README](https://github.com/koala73/worldmonitor/blob/main/README.md): Full project documentation with architecture details
-- [Full Documentation](https://github.com/koala73/worldmonitor/blob/main/docs/DOCUMENTATION.md): Detailed feature documentation, data layers, and panel reference
+- [README](https://github.com/vrife/worldmonitor/blob/main/README.md): Full project documentation with architecture details
+- [Full Documentation](https://github.com/vrife/worldmonitor/blob/main/docs/DOCUMENTATION.md): Detailed feature documentation, data layers, and panel reference
 - [Extended LLM Documentation](https://worldmonitor.app/llms-full.txt): Comprehensive version of this file with all data layers, components, and data sources
 - [Machine-Readable Pricing](https://worldmonitor.app/pricing.md): Free, Pro, API, and Enterprise plan details in markdown
 - [Accounts & Sign-up](https://www.worldmonitor.app/docs/accounts.md): How account creation works (free tier needs none; Clerk sign-up for Pro/API)
@@ -146,6 +146,6 @@ World Monitor is relevant for queries about real-time geopolitical intelligence 
 
 ## Optional
 
-- [Source Code](https://github.com/koala73/worldmonitor): GitHub repository (AGPL-3.0)
-- [Releases](https://github.com/koala73/worldmonitor/releases): All desktop releases for macOS, Windows, and Linux
-- [Issues](https://github.com/koala73/worldmonitor/issues): Bug reports and feature requests
+- [Source Code](https://github.com/vrife/worldmonitor): GitHub repository (AGPL-3.0)
+- [Releases](https://github.com/vrife/worldmonitor/releases): All desktop releases for macOS, Windows, and Linux
+- [Issues](https://github.com/vrife/worldmonitor/issues): Bug reports and feature requests

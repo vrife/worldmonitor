@@ -301,7 +301,7 @@ export function startOrefPolling(): void {
     const data = await fetchOrefAlerts({ signal });
     for (const cb of updateCallbacks) cb(data);
   }, {
-    intervalMs: 120_000,
+    intervalMs: 600_000,
     pauseWhenHidden: true,
     refreshOnVisible: true,
     runImmediately: false,

@@ -118,7 +118,7 @@ import type {
   OtherTokensPanel,
   SectorValuation,
 } from '@/components/MarketPanel';
-import { mountCommunityWidget } from '@/components/CommunityWidget';
+// import { mountCommunityWidget } from '@/components/CommunityWidget';
 
 import type { StockAnalysisPanel } from '@/components/StockAnalysisPanel';
 import type { StockBacktestPanel } from '@/components/StockBacktestPanel';
@@ -1552,7 +1552,7 @@ export class DataLoaderManager implements AppModule {
 
     this.ctx.allNews = collectedNews;
     this.ctx.initialLoadComplete = true;
-    mountCommunityWidget();
+    // mountCommunityWidget();
 
     this.ctx.map?.updateHotspotActivity(this.ctx.allNews);
 

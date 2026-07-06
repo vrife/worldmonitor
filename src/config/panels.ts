@@ -1491,7 +1491,7 @@ export function getProPanelKeys(
 
 // Monitor palette — fixed category colors persisted to localStorage (not theme-dependent)
 export const MONITOR_COLORS = [
-  '#44ff88',
+  '#0DBFE3',
   '#ff8844',
   '#4488ff',
   '#ff44ff',

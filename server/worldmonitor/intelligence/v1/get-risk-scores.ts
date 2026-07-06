@@ -1408,8 +1408,8 @@ const RISK_TREND_HISTORY_CACHE_KEY_PREFIX = `risk:scores:sebuf:trend-history:${C
 // `region` is deliberately excluded from the Redis key: this endpoint caches
 // the all-country payload once and applies any region filter as a read-only
 // projection at return time, so per-region requests cannot poison global cache.
-const RISK_CACHE_TTL = 600;
-const RISK_STALE_TTL = 3600;
+const RISK_CACHE_TTL = 86400;
+const RISK_STALE_TTL = 86400;
 const CII_TREND_HISTORY_TTL = 3 * 24 * 60 * 60;
 
 export function getCiiTrendHistoryBucket(capturedAtMs: number): number {

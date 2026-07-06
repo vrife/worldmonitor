@@ -11,7 +11,7 @@ import { cachedFetchJson } from '../../../_shared/redis';
 import { getRelayBaseUrl, getRelayHeaders } from './_shared';
 import { aviationStackBudgetMonth, reserveAviationStackCalls } from './_avstack-budget';
 
-const CACHE_TTL = 300;
+const CACHE_TTL = 86400; // 24 hours
 // Always fetch a full page upstream and cache it once per airport+direction,
 // then slice to the caller's requested limit in memory. Threading req.limit
 // into the cache key (and the upstream query) meant limit 30 vs 31 vs 50 were

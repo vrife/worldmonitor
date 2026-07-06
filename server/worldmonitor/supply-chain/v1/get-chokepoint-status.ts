@@ -28,7 +28,7 @@ const FLOWS_KEY = 'energy:chokepoint-flows:v1';
 // summary; if it's missing we fail-fast via upstreamUnavailable so cachedFetchJson writes
 // NEG_SENTINEL (120s) instead of caching a fake 5-min healthy-but-empty response.
 // See docs/plans/chokepoint-rpc-payload-split.md.
-const REDIS_CACHE_TTL = 300; // 5 min
+const REDIS_CACHE_TTL = 86400; // 24 hours
 const THREAT_CONFIG_MAX_AGE_DAYS = 120;
 const NEARBY_CHOKEPOINT_RADIUS_KM = 300;
 const THREAT_CONFIG_STALE_NOTE = `Threat baseline last reviewed > ${THREAT_CONFIG_MAX_AGE_DAYS} days ago — review recommended`;

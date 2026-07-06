@@ -1,5 +1,7 @@
 import { getPersistentCache, setPersistentCache } from '@/services/persistent-cache';
 import { isDesktopRuntime, toApiUrl } from '@/services/runtime';
+import { MARKET_SYMBOLS, COMMODITIES } from '@/config/markets';
+import { getMarketWatchlistEntries } from '@/services/market-watchlist';
 
 const hydrationCache = new Map<string, unknown>();
 const BOOTSTRAP_CACHE_PREFIX = 'bootstrap:tier:';
@@ -102,6 +104,7 @@ async function fetchTier(
   tier: 'fast' | 'slow',
   signal: AbortSignal,
   shouldCommit: CommitGuard = () => true,
+  extraParams = '',
 ): Promise<BootstrapTierHydrationState> {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
     const cached = await readCachedTier(tier, true); // age gate skipped: any snapshot beats blank offline
@@ -116,7 +119,7 @@ async function fetchTier(
   let missingKeys: string[] = [];
 
   try {
-    const resp = await fetch(toApiUrl(`/api/bootstrap?tier=${tier}`), { signal });
+    const resp = await fetch(toApiUrl(`/api/bootstrap?tier=${tier}${extraParams}`), { signal });
     if (resp.ok) {
       const payload = (await resp.json()) as {
         data?: Record<string, unknown>;
@@ -213,7 +216,7 @@ function scheduleSlowTierFetch(generation: number, onSlowSettled?: () => void): 
 
       const slowCtrl = new AbortController();
       activeSlowCtrl = slowCtrl;
-      const slowTimeout = setTimeout(() => slowCtrl.abort(), desktop ? 8_000 : 3_000);
+      const slowTimeout = setTimeout(() => slowCtrl.abort(), desktop ? 8_000 : 8_000);
 
       void fetchTier('slow', slowCtrl.signal, isCurrentGeneration)
         .then((slowState) => {
@@ -307,9 +310,18 @@ export async function fetchBootstrapData(onSlowSettled?: () => void): Promise<vo
   // - 3.0 s is a conservative bump to avoid that cascade. Further tuning should be driven by RUM / Sentry
   //   data once available; do not move this without evidence.
   // - Desktop budgets (5 s / 8 s) are unchanged — different network and dependency-loading constraints.
-  const fastTimeout = setTimeout(() => fastCtrl.abort(), desktop ? 5_000 : 1_200);
+  const fastTimeout = setTimeout(() => fastCtrl.abort(), desktop ? 5_000 : 5_000);
+  // Compute the exact set of market symbols this user needs so the bootstrap fast
+  // tier returns only those quotes instead of the full seeded dataset (cost cut).
+  const customEntries = getMarketWatchlistEntries();
+  const effectiveSymbols = new Set([
+    ...MARKET_SYMBOLS.map((s) => s.symbol),
+    ...COMMODITIES.map((s) => s.symbol),
+    ...customEntries.map((e) => e.symbol).filter(Boolean),
+  ]);
+  const mktSymbolsParam = `&mktSymbols=${encodeURIComponent([...effectiveSymbols].join(','))}`;
   try {
-    const fastState = await fetchTier('fast', fastCtrl.signal, isCurrentGeneration);
+    const fastState = await fetchTier('fast', fastCtrl.signal, isCurrentGeneration, mktSymbolsParam);
     if (!isCurrentGeneration()) return;
     lastHydrationState = {
       source: combineHydrationSources([fastState, lastHydrationState.tiers.slow]),

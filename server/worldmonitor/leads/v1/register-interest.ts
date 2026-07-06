@@ -162,7 +162,8 @@ async function sendConfirmationEmail(email: string, referralCode: string): Promi
                     <img src="https://www.worldmonitor.app/favico/android-chrome-192x192.png" width="40" height="40" alt="WorldMonitor" style="border-radius: 50%; display: block;" />
                   </td>
                   <td style="padding-left: 12px;">
-                    <div style="font-size: 16px; font-weight: 800; color: #fff; letter-spacing: -0.5px;">WORLD MONITOR</div>
+                    <div style="font-size: 16px; font-weight: 800; color: #fff; letter-spacing: -0.5px;">WORLDMONITOR.IO</div>
+                    <div style="font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 2px;">by Djinn AI</div>
                   </td>
                 </tr>
               </table>
@@ -250,19 +251,19 @@ async function sendConfirmationEmail(email: string, referralCode: string): Promi
                 </table>
               </div>
               <div style="text-align: center; margin-bottom: 36px;">
-                <a href="https://worldmonitor.app/dashboard" style="display: inline-block; background: #4ade80; color: #0a0a0a; padding: 14px 36px; text-decoration: none; font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; border-radius: 2px;">Explore the Free Dashboard</a>
+                <a href="https://worldmonitor.io" style="display: inline-block; background: #4ade80; color: #0a0a0a; padding: 14px 36px; text-decoration: none; font-weight: 800; font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; border-radius: 2px;">Explore the Free Dashboard</a>
                 <p style="font-size: 12px; color: #555; margin-top: 12px;">The free dashboard stays free forever. Pro adds intelligence on top.</p>
               </div>
             </div>
             <div style="border-top: 1px solid #1a1a1a; padding: 24px 32px; text-align: center;">
               <div style="margin-bottom: 16px;">
-                <a href="https://x.com/eliehabib" style="color: #666; text-decoration: none; font-size: 12px; margin: 0 12px;">X / Twitter</a>
-                <a href="https://github.com/koala73/worldmonitor" style="color: #666; text-decoration: none; font-size: 12px; margin: 0 12px;">GitHub</a>
-                <a href="https://worldmonitor.app/pro" style="color: #666; text-decoration: none; font-size: 12px; margin: 0 12px;">Pro Waitlist</a>
+                <a href="https://x.com/vladrife" style="color: #666; text-decoration: none; font-size: 12px; margin: 0 12px;">X / Twitter</a>
+                <a href="https://github.com/vrife/worldmonitor" style="color: #666; text-decoration: none; font-size: 12px; margin: 0 12px;">GitHub</a>
+                <a href="https://worldmonitor.io/pro" style="color: #666; text-decoration: none; font-size: 12px; margin: 0 12px;">Pro Waitlist</a>
               </div>
               <p style="font-size: 11px; color: #444; margin: 0; line-height: 1.6;">
                 World Monitor \u2014 Real-time intelligence for a connected world.<br />
-                <a href="https://worldmonitor.app" style="color: #4ade80; text-decoration: none;">worldmonitor.app</a>
+                <a href="https://worldmonitor.io" style="color: #4ade80; text-decoration: none;">worldmonitor.io</a>
               </p>
             </div>
           </div>`,

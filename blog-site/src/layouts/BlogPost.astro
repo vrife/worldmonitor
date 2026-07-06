@@ -22,13 +22,13 @@ const { title, description, metaTitle, keywords, pubDate, modifiedDate, author, 
 function toAbsoluteWorldMonitorUrl(pathOrUrl: string | undefined): string | undefined {
   if (!pathOrUrl) return undefined;
   if (/^https?:\/\//.test(pathOrUrl)) return pathOrUrl;
-  return new URL(pathOrUrl, 'https://www.worldmonitor.app').href;
+  return new URL(pathOrUrl, 'https://www.worldmonitor.io').href;
 }
 
 const ogImage = toAbsoluteWorldMonitorUrl(heroImage || (slug ? `/blog/images/blog/${slug}.jpg` : undefined));
 const canonicalUrl = slug
-  ? `https://www.worldmonitor.app/blog/posts/${slug}/`
-  : new URL(Astro.url.pathname, 'https://www.worldmonitor.app').href;
+  ? `https://www.worldmonitor.io/blog/posts/${slug}/`
+  : new URL(Astro.url.pathname, 'https://www.worldmonitor.io').href;
 const formattedDate = pubDate.toLocaleDateString('en-US', {
   year: 'numeric',
   month: 'short',
@@ -59,7 +59,7 @@ const breadcrumbLd = {
       "@type": "ListItem",
       "position": 1,
       "name": "Blog",
-      "item": "https://www.worldmonitor.app/blog/"
+      "item": "https://www.worldmonitor.io/blog/"
     },
     {
       "@type": "ListItem",
@@ -99,14 +99,14 @@ const jsonLd = {
     ],
     "logo": {
       "@type": "ImageObject",
-      "url": "https://www.worldmonitor.app/favico/apple-touch-icon.png"
+      "url": "https://www.worldmonitor.io/favico/apple-touch-icon.png"
     }
   },
   "mainEntityOfPage": {
     "@type": "WebPage",
     "@id": canonicalUrl
   },
-  "image": ogImage || "https://www.worldmonitor.app/favico/og-image.png",
+  "image": ogImage || "https://www.worldmonitor.io/favico/og-image.png",
   "url": canonicalUrl,
   ...(keywords ? { "keywords": keywords } : {})
 };

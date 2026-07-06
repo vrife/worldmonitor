@@ -7,6 +7,8 @@ import { miniSparkline } from '@/utils/sparkline';
 import { SITE_VARIANT } from '@/config';
 import { createWatchlistButton } from './watchlist-modal';
 
+
+
 export class MarketPanel extends Panel {
   constructor() {
     super({ id: 'markets', title: t('panels.markets'), infoTooltip: t('components.markets.infoTooltip') });

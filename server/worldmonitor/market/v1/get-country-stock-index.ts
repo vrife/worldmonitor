@@ -24,10 +24,10 @@ const COUNTRY_INDEX = filterParamContracts.marketCountryStockIndexes as Record<s
 // ========================================================================
 
 const REDIS_CACHE_KEY = 'market:stock-index:v1';
-const REDIS_CACHE_TTL = 1800; // 30 min — weekly data, slow-moving
+const REDIS_CACHE_TTL = 86400; // 24 hours
 
 const stockIndexCache: Record<string, { data: GetCountryStockIndexResponse; ts: number }> = {};
-const STOCK_INDEX_CACHE_TTL = 3_600_000; // 1 hour (in-memory fallback)
+const STOCK_INDEX_CACHE_TTL = 86_400_000; // 24 hours (in-memory fallback)
 
 // ========================================================================
 // Handler

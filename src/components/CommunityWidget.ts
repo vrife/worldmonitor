@@ -4,7 +4,7 @@ import { setTrustedHtml, trustedHtml } from '@/utils/dom-utils';
 
 
 const DISMISSED_KEY = 'wm-community-dismissed-v2';
-const DISCUSSION_URL = 'https://discord.gg/re63kWKxaz';
+const DISCUSSION_URL = 'https://github.com/vrife/worldmonitor/discussions/94';
 
 export function mountCommunityWidget(): void {
   if (getDismissed(DISMISSED_KEY)) return;
